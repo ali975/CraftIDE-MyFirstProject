@@ -11,100 +11,128 @@ const ALL_BLOCK_DEFS = {
     // ── PLUGIN (Paper/Bukkit) ────────────────────────────────
     plugin: {
         // Olaylar
-        PlayerJoin: { type: 'event', label: 'Oyuncu Girişi', sub: 'PlayerJoinEvent', params: [] },
-        PlayerQuit: { type: 'event', label: 'Oyuncu Çıkışı', sub: 'PlayerQuitEvent', params: [] },
-        BlockBreak: { type: 'event', label: 'Blok Kırma', sub: 'BlockBreakEvent', params: [] },
-        BlockPlace: { type: 'event', label: 'Blok Yerleştirme', sub: 'BlockPlaceEvent', params: [] },
-        PlayerChat: { type: 'event', label: 'Oyuncu Mesajı', sub: 'AsyncPlayerChatEvent', params: [] },
-        PlayerDeath: { type: 'event', label: 'Oyuncu Ölümü', sub: 'PlayerDeathEvent', params: [] },
-        EntityDamage: { type: 'event', label: 'Hasar', sub: 'EntityDamageByEntityEvent', params: [] },
-        InventoryClick: { type: 'event', label: 'Envanter Tıklama', sub: 'InventoryClickEvent', params: [] },
-        PlayerMove: { type: 'event', label: 'Oyuncu Hareketi', sub: 'PlayerMoveEvent', params: [] },
-        PlayerCommand: { type: 'event', label: 'Komut Çalıştırma', sub: 'PlayerCommandPreprocessEvent', params: [{ n: 'command', t: 'text', d: '/spawn' }] },
-        ServerLoad: { type: 'event', label: 'Sunucu Başlangıcı', sub: 'onEnable', params: [] },
+        PlayerJoin: { type: 'event', label: 'Player Join', sub: 'PlayerJoinEvent', params: [] },
+        PlayerQuit: { type: 'event', label: 'Player Quit', sub: 'PlayerQuitEvent', params: [] },
+        BlockBreak: { type: 'event', label: 'Block Break', sub: 'BlockBreakEvent', params: [] },
+        BlockPlace: { type: 'event', label: 'Block Place', sub: 'BlockPlaceEvent', params: [] },
+        PlayerChat: { type: 'event', label: 'Player Chat', sub: 'AsyncPlayerChatEvent', params: [] },
+        PlayerDeath: { type: 'event', label: 'Player Death', sub: 'PlayerDeathEvent', params: [] },
+        EntityDamage: { type: 'event', label: 'Damage', sub: 'EntityDamageByEntityEvent', params: [] },
+        InventoryClick: { type: 'event', label: 'Inventory Click', sub: 'InventoryClickEvent', params: [] },
+        PlayerMove: { type: 'event', label: 'Player Move', sub: 'PlayerMoveEvent', params: [] },
+        PlayerCommand: { type: 'event', label: 'Command Preprocess', sub: 'PlayerCommandPreprocessEvent', params: [{ n: 'command', t: 'text', d: '/spawn' }] },
+        ServerLoad: { type: 'event', label: 'Server Start', sub: 'onEnable', params: [] },
 
         // Koşullar
-        HasPermission: { type: 'condition', label: 'İzin Kontrolü', params: [{ n: 'permission', t: 'text', d: 'my.permission' }] },
-        IsOp: { type: 'condition', label: 'Op Kontrolü', params: [] },
-        HasItem: { type: 'condition', label: 'Eşya Kontrolü', params: [{ n: 'material', t: 'text', d: 'DIAMOND' }] },
+        HasPermission: { type: 'condition', label: 'Permission Check', params: [{ n: 'permission', t: 'text', d: 'my.permission' }] },
+        IsOp: { type: 'condition', label: 'Op Check', params: [] },
+        HasItem: { type: 'condition', label: 'Has Item', params: [{ n: 'material', t: 'text', d: 'DIAMOND' }] },
         HealthCheck: { type: 'condition', label: window.Lang ? window.Lang.t('vb.HealthCheck') : 'Health Check', params: [{ n: 'op', t: 'select', opts: ['>=', '<=', '==', '>', '<'], d: '>=' }, { n: 'value', t: 'number', d: '10' }] },
-        CommandEquals: { type: 'condition', label: 'Komut Eşit mi?', params: [{ n: 'cmd', t: 'text', d: '/tp' }] },
-        IsInWorld: { type: 'condition', label: 'Dünya Kontrolü', params: [{ n: 'world', t: 'text', d: 'world' }] },
+        CommandEquals: { type: 'condition', label: 'Command Equals?', params: [{ n: 'cmd', t: 'text', d: '/tp' }] },
+        IsInWorld: { type: 'condition', label: 'World Check', params: [{ n: 'world', t: 'text', d: 'world' }] },
 
         // Aksiyonlar
         SendMessage: { type: 'action', label: window.Lang ? window.Lang.t('vb.SendMessage') : 'Send Message', params: [{ n: 'mesaj', t: 'text', d: '&aHoş geldin!' }] },
-        Broadcast: { type: 'action', label: 'Herkese Mesaj', params: [{ n: 'mesaj', t: 'text', d: '&eDuyuru!' }] },
+        Broadcast: { type: 'action', label: 'Broadcast', params: [{ n: 'mesaj', t: 'text', d: '&eDuyuru!' }] },
         Teleport: { type: 'action', label: window.Lang ? window.Lang.t('vb.Teleport') : 'Teleport', params: [{ n: 'x', t: 'number', d: '0' }, { n: 'y', t: 'number', d: '64' }, { n: 'z', t: 'number', d: '0' }] },
         GiveItem: { type: 'action', label: window.Lang ? window.Lang.t('vb.GiveItem') : 'Give Item', params: [{ n: 'material', t: 'text', d: 'DIAMOND' }, { n: 'adet', t: 'number', d: '1' }] },
         PlaySound: { type: 'action', label: window.Lang ? window.Lang.t('vb.PlaySound') : 'Play Sound', params: [{ n: 'ses', t: 'text', d: 'ENTITY_EXPERIENCE_ORB_PICKUP' }] },
-        SpawnEntity: { type: 'action', label: 'Entity Oluştur', params: [{ n: 'entityType', t: 'text', d: 'ZOMBIE' }] },
-        CancelEvent: { type: 'action', label: 'Olayı İptal Et', params: [] },
+        SpawnEntity: { type: 'action', label: 'Spawn Entity', params: [{ n: 'entityType', t: 'text', d: 'ZOMBIE' }] },
+        CancelEvent: { type: 'action', label: 'Cancel Event', params: [] },
         KickPlayer: { type: 'action', label: window.Lang ? window.Lang.t('vb.KickPlayer') : 'Kick Player', params: [{ n: 'sebep', t: 'text', d: 'Kurallara aykırı davranış' }] },
-        SetGameMode: { type: 'action', label: 'Oyun Modu', params: [{ n: 'mod', t: 'select', opts: ['CREATIVE', 'SURVIVAL', 'ADVENTURE', 'SPECTATOR'], d: 'CREATIVE' }] },
-        SetHealth: { type: 'action', label: 'Can Ayarla', params: [{ n: 'can', t: 'number', d: '20' }] },
-        SendTitle: { type: 'action', label: 'Başlık Göster', params: [{ n: 'başlık', t: 'text', d: 'Hoş Geldin!' }, { n: 'alt', t: 'text', d: 'Sunucuya bağlandın' }] },
+        SetGameMode: { type: 'action', label: 'Set Gamemode', params: [{ n: 'mod', t: 'select', opts: ['CREATIVE', 'SURVIVAL', 'ADVENTURE', 'SPECTATOR'], d: 'CREATIVE' }] },
+        SetHealth: { type: 'action', label: 'Set Health', params: [{ n: 'can', t: 'number', d: '20' }] },
+        SendTitle: { type: 'action', label: 'Show Title', params: [{ n: 'başlık', t: 'text', d: 'Hoş Geldin!' }, { n: 'alt', t: 'text', d: 'Sunucuya bağlandın' }] },
         RunCommand: { type: 'action', label: window.Lang ? window.Lang.t('vb.RunCommand') : 'Run Command', params: [{ n: 'komut', t: 'text', d: 'op {player}' }] },
 
         // Kontrol
         IfElse: { type: 'control', label: 'If / Else', params: [] },
-        Loop: { type: 'control', label: 'Döngü', params: [{ n: 'kez', t: 'number', d: '10' }] },
-        Delay: { type: 'control', label: 'Gecikme', params: [{ n: 'tick', t: 'number', d: '20' }] },
-        ForEachPlayer: { type: 'control', label: 'Her Oyuncu İçin', params: [] },
+        Loop: { type: 'control', label: 'Loop', params: [{ n: 'kez', t: 'number', d: '10' }] },
+        Delay: { type: 'control', label: 'Delay', params: [{ n: 'tick', t: 'number', d: '20' }] },
+        ForEachPlayer: { type: 'control', label: 'For Each Player', params: [] },
+
+        // GUI
+        CreateGUI: { type: 'action', label: 'Create GUI', params: [{ n: 'baslik', t: 'text', d: 'Shop' }, { n: 'satir', t: 'select', opts: ['1','2','3','4','5','6'], d: '3' }] },
+        SetGUIItem: { type: 'action', label: 'Set GUI Item', params: [{ n: 'slot', t: 'number', d: '0' }, { n: 'material', t: 'text', d: 'DIAMOND' }, { n: 'isim', t: 'text', d: 'Elmas' }] },
+        OpenGUI: { type: 'action', label: 'Open GUI', params: [{ n: 'envanter', t: 'text', d: 'inv' }] },
+        GUIClickEvent: { type: 'event', label: 'GUI Click', sub: 'InventoryClickEvent', params: [{ n: 'envanter', t: 'text', d: 'Shop' }] },
+
+        // Zamanlayıcı
+        RunAfterDelay: { type: 'control', label: 'Run After Delay', params: [{ n: 'tick', t: 'number', d: '20' }] },
+        RepeatTask: { type: 'control', label: 'Repeat Task', params: [{ n: 'baslangic', t: 'number', d: '0' }, { n: 'aralik', t: 'number', d: '20' }] },
+        CancelTask: { type: 'action', label: 'Cancel Task', params: [{ n: 'gorevAdi', t: 'text', d: 'myTask' }] },
+
+        // Veri Depolama
+        ConfigGet: { type: 'action', label: 'Config Get', params: [{ n: 'key', t: 'text', d: 'players.points' }, { n: 'varsayilan', t: 'text', d: '0' }] },
+        ConfigSet: { type: 'action', label: 'Config Set', params: [{ n: 'key', t: 'text', d: 'players.points' }, { n: 'deger', t: 'text', d: '100' }] },
+        PDCGet: { type: 'action', label: 'PDC Get', params: [{ n: 'namespace', t: 'text', d: 'myplugin' }, { n: 'key', t: 'text', d: 'coins' }] },
+        PDCSet: { type: 'action', label: 'PDC Set', params: [{ n: 'namespace', t: 'text', d: 'myplugin' }, { n: 'key', t: 'text', d: 'coins' }, { n: 'deger', t: 'text', d: '0' }] },
+
+        // Ekonomi / Vault
+        GetBalance: { type: 'action', label: 'Get Balance', params: [{ n: 'hedef', t: 'text', d: 'player' }] },
+        GiveMoney: { type: 'action', label: 'Give Money', params: [{ n: 'miktar', t: 'number', d: '100' }] },
+        TakeMoney: { type: 'action', label: 'Take Money', params: [{ n: 'miktar', t: 'number', d: '100' }] },
+
+        // Değişkenler
+        SetVariable: { type: 'action', label: 'Set Variable', sub: 'variable', params: [{ n: 'name', t: 'text', d: 'playerCoins' }, { n: 'value', t: 'text', d: '0' }] },
+        GetVariable: { type: 'action', label: 'Get Variable', sub: 'variable', params: [{ n: 'name', t: 'text', d: 'playerCoins' }] },
+        MathOperation: { type: 'action', label: 'Math Operation', sub: 'variable', params: [{ n: 'var', t: 'text', d: 'playerCoins' }, { n: 'op', t: 'select', opts: ['add', 'sub', 'mul', 'div'], d: 'add' }, { n: 'amount', t: 'number', d: '10' }] },
+        CompareVariable: { type: 'condition', label: 'Compare Variable', sub: 'variable', params: [{ n: 'var', t: 'text', d: 'playerCoins' }, { n: 'op', t: 'select', opts: ['==', '!=', '>', '<', '>=', '<='], d: '>=' }, { n: 'value', t: 'text', d: '0' }] },
     },
 
     // ── FABRIC MOD ───────────────────────────────────────────
     fabric: {
         // Callback / Events
-        FabricPlayerJoin: { type: 'event', label: 'Oyuncu Girişi', sub: 'ServerPlayConnectionEvents.JOIN', params: [] },
-        FabricPlayerQuit: { type: 'event', label: 'Oyuncu Çıkışı', sub: 'ServerPlayConnectionEvents.DISCONNECT', params: [] },
-        FabricServerStart: { type: 'event', label: 'Sunucu Başlangıcı', sub: 'ServerLifecycleEvents.SERVER_STARTED', params: [] },
-        FabricServerStop: { type: 'event', label: 'Sunucu Durumu', sub: 'ServerLifecycleEvents.SERVER_STOPPING', params: [] },
-        FabricBlockBreak: { type: 'event', label: 'Blok Kırma', sub: 'PlayerBlockBreakEvents.BEFORE', params: [] },
-        FabricAttack: { type: 'event', label: 'Saldırı', sub: 'AttackEntityCallback.EVENT', params: [] },
-        FabricInteract: { type: 'event', label: 'Etkileşim', sub: 'UseBlockCallback.EVENT', params: [] },
+        FabricPlayerJoin: { type: 'event', label: 'Player Join', sub: 'ServerPlayConnectionEvents.JOIN', params: [] },
+        FabricPlayerQuit: { type: 'event', label: 'Player Quit', sub: 'ServerPlayConnectionEvents.DISCONNECT', params: [] },
+        FabricServerStart: { type: 'event', label: 'Server Start', sub: 'ServerLifecycleEvents.SERVER_STARTED', params: [] },
+        FabricServerStop: { type: 'event', label: 'Server Stopping', sub: 'ServerLifecycleEvents.SERVER_STOPPING', params: [] },
+        FabricBlockBreak: { type: 'event', label: 'Block Break', sub: 'PlayerBlockBreakEvents.BEFORE', params: [] },
+        FabricAttack: { type: 'event', label: 'Attack', sub: 'AttackEntityCallback.EVENT', params: [] },
+        FabricInteract: { type: 'event', label: 'Interact', sub: 'UseBlockCallback.EVENT', params: [] },
 
         // Koşullar
-        FabricIsOp: { type: 'condition', label: 'Op Kontrolü', params: [] },
-        FabricHasPermission: { type: 'condition', label: 'İzin Kontrolü', params: [{ n: 'perm', t: 'text', d: 'mymod.use' }] },
-        FabricServerSide: { type: 'condition', label: 'Sunucu Tarafı', params: [] },
+        FabricIsOp: { type: 'condition', label: 'Op Check', params: [] },
+        FabricHasPermission: { type: 'condition', label: 'Permission Check', params: [{ n: 'perm', t: 'text', d: 'mymod.use' }] },
+        FabricServerSide: { type: 'condition', label: 'Server Side', params: [] },
 
         // Aksiyonlar
         FabricSendMsg: { type: 'action', label: window.Lang ? window.Lang.t('vb.SendMessage') : 'Send Message', params: [{ n: 'mesaj', t: 'text', d: 'Merhaba!' }] },
-        FabricBroadcast: { type: 'action', label: 'Yayın Mesajı', params: [{ n: 'mesaj', t: 'text', d: 'Duyuru!' }] },
+        FabricBroadcast: { type: 'action', label: 'Broadcast', params: [{ n: 'mesaj', t: 'text', d: 'Duyuru!' }] },
         FabricTeleport: { type: 'action', label: window.Lang ? window.Lang.t('vb.Teleport') : 'Teleport', params: [{ n: 'x', t: 'number', d: '0' }, { n: 'y', t: 'number', d: '64' }, { n: 'z', t: 'number', d: '0' }] },
         FabricGiveItem: { type: 'action', label: window.Lang ? window.Lang.t('vb.GiveItem') : 'Give Item', params: [{ n: 'item', t: 'text', d: 'minecraft:diamond' }, { n: 'adet', t: 'number', d: '1' }] },
-        FabricSpawnEntity: { type: 'action', label: 'Entity Oluştur', params: [{ n: 'type', t: 'text', d: 'minecraft:zombie' }] },
-        FabricSetBlock: { type: 'action', label: 'Blok Koy', params: [{ n: 'block', t: 'text', d: 'minecraft:diamond_block' }, { n: 'x', t: 'number', d: '0' }, { n: 'y', t: 'number', d: '64' }, { n: 'z', t: 'number', d: '0' }] },
+        FabricSpawnEntity: { type: 'action', label: 'Spawn Entity', params: [{ n: 'type', t: 'text', d: 'minecraft:zombie' }] },
+        FabricSetBlock: { type: 'action', label: 'Set Block', params: [{ n: 'block', t: 'text', d: 'minecraft:diamond_block' }, { n: 'x', t: 'number', d: '0' }, { n: 'y', t: 'number', d: '64' }, { n: 'z', t: 'number', d: '0' }] },
         FabricPlaySound: { type: 'action', label: window.Lang ? window.Lang.t('vb.PlaySound') : 'Play Sound', params: [{ n: 'ses', t: 'text', d: 'minecraft:entity.experience_orb.pickup' }] },
 
         // Kontrol
-        FabricIf: { type: 'control', label: 'Koşul', params: [] },
-        FabricLoop: { type: 'control', label: 'Döngü', params: [{ n: 'kez', t: 'number', d: '10' }] },
-        FabricSchedule: { type: 'control', label: 'Zamanla', params: [{ n: 'tick', t: 'number', d: '20' }] },
+        FabricIf: { type: 'control', label: 'Condition', params: [] },
+        FabricLoop: { type: 'control', label: 'Loop', params: [{ n: 'kez', t: 'number', d: '10' }] },
+        FabricSchedule: { type: 'control', label: 'Schedule', params: [{ n: 'tick', t: 'number', d: '20' }] },
     },
 
     // ── FORGE MOD ────────────────────────────────────────────
     forge: {
-        ForgePlayerLogin: { type: 'event', label: 'Oyuncu Girişi', sub: 'PlayerEvent.PlayerLoggedInEvent', params: [] },
-        ForgePlayerLogout: { type: 'event', label: 'Oyuncu Çıkışı', sub: 'PlayerEvent.PlayerLoggedOutEvent', params: [] },
-        ForgeServerStart: { type: 'event', label: 'Sunucu Başlangıcı', sub: 'ServerStartedEvent', params: [] },
-        ForgeBreak: { type: 'event', label: 'Blok Kırma', sub: 'BlockEvent.BreakEvent', params: [] },
-        ForgePlace: { type: 'event', label: 'Blok Yerleştirme', sub: 'BlockEvent.EntityPlaceEvent', params: [] },
-        ForgeLivingDamage: { type: 'event', label: 'Hasar', sub: 'LivingDamageEvent', params: [] },
-        ForgeEntityJoin: { type: 'event', label: 'Entity Dünyaya Katıldı', sub: 'EntityJoinLevelEvent', params: [] },
+        ForgePlayerLogin: { type: 'event', label: 'Player Join', sub: 'PlayerEvent.PlayerLoggedInEvent', params: [] },
+        ForgePlayerLogout: { type: 'event', label: 'Player Quit', sub: 'PlayerEvent.PlayerLoggedOutEvent', params: [] },
+        ForgeServerStart: { type: 'event', label: 'Server Start', sub: 'ServerStartedEvent', params: [] },
+        ForgeBreak: { type: 'event', label: 'Block Break', sub: 'BlockEvent.BreakEvent', params: [] },
+        ForgePlace: { type: 'event', label: 'Block Place', sub: 'BlockEvent.EntityPlaceEvent', params: [] },
+        ForgeLivingDamage: { type: 'event', label: 'Damage', sub: 'LivingDamageEvent', params: [] },
+        ForgeEntityJoin: { type: 'event', label: 'Entity Join World', sub: 'EntityJoinLevelEvent', params: [] },
 
-        ForgeIsOp: { type: 'condition', label: 'Op Kontrolü', params: [] },
-        ForgeHasCapability: { type: 'condition', label: 'Yetenek Var mı?', params: [{ n: 'cap', t: 'text', d: 'MY_CAP' }] },
+        ForgeIsOp: { type: 'condition', label: 'Op Check', params: [] },
+        ForgeHasCapability: { type: 'condition', label: 'Has Capability?', params: [{ n: 'cap', t: 'text', d: 'MY_CAP' }] },
 
         ForgeSendMsg: { type: 'action', label: window.Lang ? window.Lang.t('vb.SendMessage') : 'Send Message', params: [{ n: 'mesaj', t: 'text', d: 'Merhaba!' }] },
         ForgeGiveItem: { type: 'action', label: window.Lang ? window.Lang.t('vb.GiveItem') : 'Give Item', params: [{ n: 'item', t: 'text', d: 'minecraft:diamond' }, { n: 'adet', t: 'number', d: '1' }] },
         ForgeTeleport: { type: 'action', label: window.Lang ? window.Lang.t('vb.Teleport') : 'Teleport', params: [{ n: 'x', t: 'number', d: '0' }, { n: 'y', t: 'number', d: '64' }, { n: 'z', t: 'number', d: '0' }] },
-        ForgeCancelEvent: { type: 'action', label: 'Olayı İptal Et', params: [] },
-        ForgeSetBlock: { type: 'action', label: 'Blok Koy', params: [{ n: 'block', t: 'text', d: 'minecraft:stone' }, { n: 'x', t: 'number', d: '0' }, { n: 'y', t: 'number', d: '64' }, { n: 'z', t: 'number', d: '0' }] },
+        ForgeCancelEvent: { type: 'action', label: 'Cancel Event', params: [] },
+        ForgeSetBlock: { type: 'action', label: 'Set Block', params: [{ n: 'block', t: 'text', d: 'minecraft:stone' }, { n: 'x', t: 'number', d: '0' }, { n: 'y', t: 'number', d: '64' }, { n: 'z', t: 'number', d: '0' }] },
 
-        ForgeIf: { type: 'control', label: 'Koşul', params: [] },
-        ForgeLoop: { type: 'control', label: 'Döngü', params: [{ n: 'kez', t: 'number', d: '10' }] },
-        ForgeSchedule: { type: 'control', label: 'Zamanla (Tick)', params: [{ n: 'tick', t: 'number', d: '20' }] },
+        ForgeIf: { type: 'control', label: 'Condition', params: [] },
+        ForgeLoop: { type: 'control', label: 'Loop', params: [{ n: 'kez', t: 'number', d: '10' }] },
+        ForgeSchedule: { type: 'control', label: 'Schedule (Tick)', params: [{ n: 'tick', t: 'number', d: '20' }] },
     },
 
     // ── SKRIPT ───────────────────────────────────────────────
@@ -139,6 +167,24 @@ const ALL_BLOCK_DEFS = {
         SkLoop: { type: 'control', label: 'loop', params: [{ n: 'kez', t: 'number', d: '10' }] },
         SkWait: { type: 'control', label: 'wait', params: [{ n: 'süre', t: 'text', d: '1 second' }] },
         SkLoopPlayers: { type: 'control', label: 'loop all players', params: [] },
+
+        // GUI
+        SkGUIOpen: { type: 'event', label: 'on inventory open', sub: 'on inventory open', params: [] },
+        SkGUISend: { type: 'action', label: 'open inventory', params: [{ n: 'baslik', t: 'text', d: 'Shop' }, { n: 'satir', t: 'number', d: '3' }] },
+
+        // Zamanlayıcı
+        SkWaitDelay: { type: 'control', label: 'wait (delay)', params: [{ n: 'sure', t: 'text', d: '5 seconds' }] },
+        SkScheduleRepeat: { type: 'control', label: 'every X seconds', params: [{ n: 'aralik', t: 'text', d: '1 minute' }] },
+
+        // Değişken
+        SkVarSet: { type: 'action', label: 'set variable', params: [{ n: 'degisken', t: 'text', d: '{coins.%player%}' }, { n: 'deger', t: 'text', d: '0' }] },
+        SkVarGet: { type: 'action', label: 'get variable', params: [{ n: 'degisken', t: 'text', d: '{coins.%player%}' }] },
+        SkVarAdd: { type: 'action', label: 'add to variable', params: [{ n: 'miktar', t: 'number', d: '10' }, { n: 'degisken', t: 'text', d: '{coins.%player%}' }] },
+
+        // Ekonomi
+        SkVaultBalance: { type: 'action', label: 'vault balance', params: [{ n: 'hedef', t: 'text', d: 'player' }] },
+        SkVaultGive: { type: 'action', label: 'vault give money', params: [{ n: 'miktar', t: 'number', d: '100' }] },
+        SkVaultTake: { type: 'action', label: 'vault take money', params: [{ n: 'miktar', t: 'number', d: '100' }] },
     },
 };
 
@@ -149,8 +195,8 @@ const ALL_BLOCK_DEFS = {
 const VB_TEMPLATES = [
     {
         id: 'welcome_msg',
-        name: '🎉 Karşılama Mesajı',
-        desc: 'Oyuncu katıldığında özel mesaj göster',
+        name: '🎉 Welcome Message',
+        desc: 'Show custom message when player joins',
         mode: 'plugin',
         nodes: [
             { blockId: 'PlayerJoin', x: 80, y: 120 },
@@ -164,8 +210,8 @@ const VB_TEMPLATES = [
     },
     {
         id: 'spawn_command',
-        name: '🏠 /spawn Komutu',
-        desc: '/spawn komutunu yazan oyuncuyu başlangıç noktasına ışınla',
+        name: '🏠 /spawn Command',
+        desc: 'Teleport the player to spawn when they type /spawn',
         mode: 'plugin',
         nodes: [
             { blockId: 'PlayerCommand', x: 80, y: 120, params: { command: '/spawn' } },
@@ -183,8 +229,8 @@ const VB_TEMPLATES = [
     },
     {
         id: 'anti_drop',
-        name: '🛡️ Anti-Eşya Düşürme',
-        desc: 'Oyuncu öldüğünde eşyalar düşmesin',
+        name: '🛡️ Anti-Item Drop',
+        desc: 'Prevent item drop on player death',
         mode: 'plugin',
         nodes: [
             { blockId: 'PlayerDeath', x: 80, y: 120 },
@@ -198,8 +244,8 @@ const VB_TEMPLATES = [
     },
     {
         id: 'op_command',
-        name: '⚡ Op Komutu',
-        desc: 'Sadece op\'lerin çalıştırabileceği özel komut',
+        name: '⚡ Op Command',
+        desc: 'Custom command only op players can execute',
         mode: 'plugin',
         nodes: [
             { blockId: 'PlayerCommand', x: 80, y: 120, params: { command: '/myop' } },
@@ -217,8 +263,8 @@ const VB_TEMPLATES = [
     },
     {
         id: 'join_reward',
-        name: '🎁 Giriş Ödülü',
-        desc: 'Oyuncu sunucuya girince elmas versin',
+        name: '🎁 Join Reward',
+        desc: 'Give diamond when player joins the server',
         mode: 'plugin',
         nodes: [
             { blockId: 'PlayerJoin', x: 80, y: 120 },
@@ -234,8 +280,8 @@ const VB_TEMPLATES = [
     },
     {
         id: 'fabric_join',
-        name: '🧵 Fabric: Oyuncu Girişi',
-        desc: 'Fabric mod ile oyuncu girişinde mesaj gönder',
+        name: '🧵 Fabric: Player Join',
+        desc: 'Send message on player join with Fabric mod',
         mode: 'fabric',
         nodes: [
             { blockId: 'FabricPlayerJoin', x: 80, y: 120 },
@@ -245,8 +291,8 @@ const VB_TEMPLATES = [
     },
     {
         id: 'skript_welcome',
-        name: '📜 Skript: Karşılama',
-        desc: 'Skript ile katılan oyuncuya mesaj ve başlık göster',
+        name: '📜 Skript: Welcome',
+        desc: 'Show message and title to joining player with Skript',
         mode: 'skript',
         nodes: [
             { blockId: 'SkJoin', x: 80, y: 120 },
@@ -260,8 +306,8 @@ const VB_TEMPLATES = [
     },
     {
         id: 'skript_spawn_cmd',
-        name: '📜 Skript: /spawn Komutu',
-        desc: 'Skript ile /spawn komutu oluştur',
+        name: '📜 Skript: /spawn Command',
+        desc: 'Create /spawn command with Skript',
         mode: 'skript',
         nodes: [
             { blockId: 'SkCommand', x: 80, y: 120, params: { komut: '/spawn' } },
@@ -343,7 +389,7 @@ function initVisualBuilder() {
         if (connIdx >= 0) {
             vbConnections.splice(connIdx, 1);
             drawConnections();
-            if (typeof showNotification === 'function') showNotification('🔗 Bağlantı silindi', 'success');
+            if (typeof showNotification === 'function') showNotification(window.Lang ? window.Lang.t('msg.blockDeleted') : 'Connection deleted', 'success');
         } else {
             showVbContextMenu(e.clientX, e.clientY);
         }
@@ -389,13 +435,92 @@ function buildTemplateGrid() {
     for (const tpl of VB_TEMPLATES) {
         const card = document.createElement('div');
         card.className = 'vb-template-card';
-        card.innerHTML = `<div class="vb-tpl-name">${tpl.name}</div><div class="vb-tpl-desc">${tpl.desc}</div><div class="vb-tpl-mode">${tpl.mode}</div>`;
+        const canvas = document.createElement('canvas');
+        canvas.width = 160;
+        canvas.height = 80;
+        canvas.style.cssText = 'display:block;margin-bottom:6px;border-radius:4px;background:rgba(0,0,0,0.2);';
+        card.appendChild(canvas);
+        const nameEl = document.createElement('div');
+        nameEl.className = 'vb-tpl-name';
+        nameEl.textContent = tpl.name;
+        const descEl = document.createElement('div');
+        descEl.className = 'vb-tpl-desc';
+        descEl.textContent = tpl.desc;
+        const modeEl = document.createElement('div');
+        modeEl.className = 'vb-tpl-mode';
+        modeEl.textContent = tpl.mode;
+        card.appendChild(nameEl);
+        card.appendChild(descEl);
+        card.appendChild(modeEl);
         card.addEventListener('click', () => {
             loadTemplate(tpl);
             hideTemplatesModal();
         });
         grid.appendChild(card);
+        renderMiniPreview(canvas, tpl);
     }
+}
+
+function renderMiniPreview(canvas, tpl) {
+    const ctx = canvas.getContext('2d');
+    const typeColors = { event: '#2ecc71', condition: '#f1c40f', action: '#3498db', control: '#9b59b6' };
+    const nodes = tpl.nodes || [];
+    if (nodes.length === 0) return;
+
+    // Fit all nodes into canvas
+    const xs = nodes.map(n => n.x || 0);
+    const ys = nodes.map(n => n.y || 0);
+    const minX = Math.min(...xs) - 10;
+    const minY = Math.min(...ys) - 10;
+    const maxX = Math.max(...xs) + 100;
+    const maxY = Math.max(...ys) + 30;
+    const scaleX = canvas.width / (maxX - minX);
+    const scaleY = canvas.height / (maxY - minY);
+    const scale = Math.min(scaleX, scaleY, 1);
+
+    const tx = (x) => (x - minX) * scale;
+    const ty = (y) => (y - minY) * scale;
+    const nw = 60 * scale;
+    const nh = 22 * scale;
+
+    // Draw connections
+    ctx.strokeStyle = 'rgba(46,204,113,0.5)';
+    ctx.lineWidth = 1.5;
+    (tpl.connections || []).forEach(c => {
+        const fi = typeof c.from === 'number' ? c.from : c.fromIndex;
+        const ti = typeof c.to === 'number' ? c.to : c.toIndex;
+        const fn = nodes[fi];
+        const tn = nodes[ti];
+        if (!fn || !tn) return;
+        const fx = tx(fn.x || 0) + nw;
+        const fy = ty(fn.y || 0) + nh / 2;
+        const ttx = tx(tn.x || 0);
+        const tty = ty(tn.y || 0) + nh / 2;
+        ctx.beginPath();
+        ctx.moveTo(fx, fy);
+        ctx.bezierCurveTo(fx + 15 * scale, fy, ttx - 15 * scale, tty, ttx, tty);
+        ctx.stroke();
+    });
+
+    // Draw nodes
+    nodes.forEach(n => {
+        const def = Object.values(ALL_BLOCK_DEFS).reduce((acc, mode) => acc || mode[n.blockId], null);
+        const type = def ? def.type : 'action';
+        const color = typeColors[type] || '#888';
+        const x = tx(n.x || 0);
+        const y = ty(n.y || 0);
+        ctx.fillStyle = color + '33';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(x, y, nw, nh, 3 * scale);
+        } else {
+            ctx.rect(x, y, nw, nh);
+        }
+        ctx.fill();
+        ctx.stroke();
+    });
 }
 
 function showTemplatesModal() {
@@ -447,7 +572,7 @@ function loadTemplate(tpl) {
     drawConnections();
     const hint = document.getElementById('vb-empty-hint');
     if (hint) hint.style.display = 'none';
-    if (typeof showNotification === 'function') showNotification('📋 Şablon yüklendi!', 'success');
+    if (typeof showNotification === 'function') showNotification(window.Lang ? window.Lang.t('msg.blueprintLoaded', { name: tpl.name }) : 'Template loaded!', 'success');
 }
 
 function refreshNodeInputs(node) {
@@ -519,6 +644,13 @@ function renderNode(node) {
     const header = document.createElement('div');
     header.className = 'vb-node-header ' + node.type;
 
+    // Değişken blokları için turuncu stil
+    if (def.sub === 'variable') {
+        el.style.borderColor = '#e67e22';
+        el.style.boxShadow = '0 0 8px rgba(230, 126, 34, 0.3)';
+        header.classList.add('variable');
+    }
+
     const titleSpan = document.createElement('span');
     titleSpan.textContent = node.label;
     header.appendChild(titleSpan);
@@ -532,7 +664,7 @@ function renderNode(node) {
 
     const infoBtn = document.createElement('span');
     infoBtn.textContent = '💡';
-    infoBtn.title = 'AI Asistana Sor (Tutor)';
+    infoBtn.title = 'Ask AI Assistant';
     infoBtn.style.cssText = 'cursor:pointer;opacity:0.8;font-size:12px;margin-left:auto;padding:0 2px;line-height:1;';
     infoBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -546,7 +678,7 @@ function renderNode(node) {
 
     const delBtn = document.createElement('span');
     delBtn.textContent = '✕';
-    delBtn.title = 'Bloğu Sil';
+    delBtn.title = 'Delete Block';
     delBtn.style.cssText = 'cursor:pointer;opacity:0.7;font-size:12px;margin-left:8px;padding:0 2px;line-height:1;';
     delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteNode(node.id); });
     header.appendChild(delBtn);
@@ -592,7 +724,7 @@ function renderNode(node) {
         inPort.className = 'vb-node-port in';
         inPort.dataset.nodeId = node.id;
         inPort.dataset.portType = 'in';
-        inPort.title = 'Giriş — bağlanmak için başka bloğun çıkış portunu sürükle';
+        inPort.title = 'Input — drag output port of another block to connect';
         el.appendChild(inPort);
     }
 
@@ -600,7 +732,7 @@ function renderNode(node) {
     outPort.className = 'vb-node-port out';
     outPort.dataset.nodeId = node.id;
     outPort.dataset.portType = 'out';
-    outPort.title = 'Çıkış — sürükleyerek bağla';
+    outPort.title = 'Output — drag to connect';
     el.appendChild(outPort);
 
     // Drag
@@ -692,11 +824,25 @@ document.addEventListener('mouseup', (e) => {
         if (target && target.classList.contains('vb-node-port') && target.dataset.portType === 'in') {
             const toId = parseInt(target.dataset.nodeId);
             if (toId !== vbConnecting.fromId) {
-                const existIdx = vbConnections.findIndex(c => c.to === toId);
-                if (existIdx >= 0) vbConnections.splice(existIdx, 1);
-                vbConnections.push({ from: vbConnecting.fromId, to: toId });
-                drawConnections();
-                if (window.aiManager) window.aiManager.triggerBalanceCheck();
+                const fromNode = vbNodes.find(n => n.id === vbConnecting.fromId);
+                const toNode = vbNodes.find(n => n.id === toId);
+                const validFrom = {
+                    event: ['condition', 'action', 'control'],
+                    condition: ['action', 'control'],
+                    action: ['action', 'control'],
+                    control: ['action', 'condition'],
+                };
+                if (fromNode && toNode && !validFrom[fromNode.type]?.includes(toNode.type)) {
+                    if (typeof showNotification === 'function') {
+                        showNotification(fromNode.type + ' → ' + toNode.type + ' bağlantısı geçersiz!', 'error');
+                    }
+                } else {
+                    const existIdx = vbConnections.findIndex(c => c.to === toId);
+                    if (existIdx >= 0) vbConnections.splice(existIdx, 1);
+                    vbConnections.push({ from: vbConnecting.fromId, to: toId });
+                    drawConnections();
+                    if (window.aiManager) window.aiManager.triggerBalanceCheck();
+                }
             }
         }
         vbConnecting = null;
@@ -790,10 +936,10 @@ function rebuildContextMenu() {
     if (!vbContextMenu) return;
     const BLOCK_DEFS = getCurrentBlockDefs();
     const categories = {
-        'event': { title: '🟢 Olaylar', color: '#2ecc71', blocks: [] },
-        'condition': { title: '🟡 Koşullar', color: '#f1c40f', blocks: [] },
-        'action': { title: '🔵 Aksiyonlar', color: '#3498db', blocks: [] },
-        'control': { title: '🟣 Kontrol', color: '#9b59b6', blocks: [] },
+        'event': { title: '🟢 Events', color: '#2ecc71', blocks: [] },
+        'condition': { title: '🟡 Conditions', color: '#f1c40f', blocks: [] },
+        'action': { title: '🔵 Actions', color: '#3498db', blocks: [] },
+        'control': { title: '🟣 Control', color: '#9b59b6', blocks: [] },
     };
 
     for (const [id, def] of Object.entries(BLOCK_DEFS)) {
@@ -811,9 +957,9 @@ function rebuildContextMenu() {
     }
 
     menuContent += `<div class="vb-cm-separator"></div>`;
-    menuContent += `<div class="vb-cm-action" id="cm-btn-templates">📋 Şablonlar</div>`;
-    menuContent += `<div class="vb-cm-action" id="cm-btn-generate">⚡ Koda Dönüştür</div>`;
-    menuContent += `<div class="vb-cm-action danger" id="cm-btn-clear">🗑️ Temizle</div>`;
+    menuContent += `<div class="vb-cm-action" id="cm-btn-templates">📋 Templates</div>`;
+    menuContent += `<div class="vb-cm-action" id="cm-btn-generate">⚡ Generate Code</div>`;
+    menuContent += `<div class="vb-cm-action danger" id="cm-btn-clear">🗑️ Clear</div>`;
 
     vbContextMenu.innerHTML = menuContent;
 
@@ -876,7 +1022,8 @@ function hideVbContextMenu() {
 // Kod Üretimi
 // ═══════════════════════════════════════════════════════════
 
-function vbGenerateCode() {
+function vbGenerateCode(options) {
+    const returnOnly = options && options.returnOnly === true;
     let code = '';
     switch (vbCurrentMode) {
         case 'plugin': code = generatePluginCode(); break;
@@ -886,14 +1033,29 @@ function vbGenerateCode() {
         default: code = generatePluginCode();
     }
 
-    if (window.monacoEditor && window.monaco) {
+    // returnOnly=true ise sadece kodu döndür, tab açma
+    if (returnOnly) return code;
+
+    const fileName = vbCurrentMode === 'skript' ? 'generated.sk' : 'GeneratedPlugin.java';
+    const virtualPath = 'generated://' + fileName;
+
+    // Sekmeyi app.js üzerinden aç (openFiles global map)
+    if (typeof openFiles !== 'undefined' && typeof addTab === 'function' && typeof activateTab === 'function') {
+        openFiles.set(virtualPath, { content: code, modified: false, virtual: true, generated: true });
+        const existing = document.querySelector(`.tab[data-tab="${CSS.escape(virtualPath)}"]`);
+        if (existing) existing.remove();
+        addTab(virtualPath, fileName);
+        activateTab(virtualPath);
+        if (typeof showNotification === 'function') showNotification(window.Lang ? window.Lang.t('msg.codeGenerated') : '⚡ Kod üretildi!', 'success');
+    } else if (window.monacoEditor && window.monaco) {
+        // Fallback: Doğrudan Monaco'ya yaz
         const lang = vbCurrentMode === 'skript' ? 'plaintext' : 'java';
         const model = window.monaco.editor.createModel(code, lang);
         window.monacoEditor.setModel(model);
         document.getElementById('welcome-screen').classList.remove('active');
         document.querySelectorAll('.editor-container').forEach(ec => ec.style.display = 'none');
         document.getElementById('editor-container').style.display = 'block';
-        if (typeof showNotification === 'function') showNotification(window.Lang ? window.Lang.t('msg.codeGenerated') : '⚡ Code generated!', 'success');
+        if (typeof showNotification === 'function') showNotification('⚡ Kod üretildi!', 'success');
     } else {
         if (typeof showNotification === 'function') showNotification('Editor yüklenmedi', 'error');
     }
@@ -924,6 +1086,7 @@ function generatePluginCode() {
     code += 'import org.bukkit.event.inventory.*;\n';
     code += 'import org.bukkit.*;\nimport org.bukkit.entity.*;\nimport org.bukkit.inventory.*;\n\n';
     code += 'public class Main extends JavaPlugin implements Listener {\n\n';
+    code += '    private final java.util.HashMap<String, Object> playerData = new java.util.HashMap<>();\n\n';
     code += '    @Override\n    public void onEnable() {\n';
     code += '        getServer().getPluginManager().registerEvents(this, this);\n';
     code += '        getLogger().info("Plugin aktif!");\n    }\n\n';
@@ -973,6 +1136,36 @@ function generatePluginNodeCode(node, indent) {
         case 'Loop': return indent + 'for (int i = 0; i < ' + (p.kez || 10) + '; i++) {\n' + indent + '    // döngü gövdesi\n' + indent + '}\n';
         case 'Delay': return indent + 'getServer().getScheduler().runTaskLater(this, () -> {\n' + indent + '    // gecikmeli işlem\n' + indent + '}, ' + (p.tick || 20) + ');\n';
         case 'ForEachPlayer': return indent + 'for (Player p : Bukkit.getOnlinePlayers()) {\n' + indent + '    // her oyuncu için\n' + indent + '}\n';
+        // GUI
+        case 'CreateGUI': return indent + 'Inventory inv = Bukkit.createInventory(null, ' + (parseInt(p.satir || 3) * 9) + ', "' + (p.baslik || 'Shop') + '");\n';
+        case 'SetGUIItem': return indent + '{\n' + indent + '    ItemStack guiItem = new ItemStack(Material.' + (p.material || 'DIAMOND') + ');\n' + indent + '    ItemMeta guiMeta = guiItem.getItemMeta();\n' + indent + '    if (guiMeta != null) { guiMeta.setDisplayName("' + (p.isim || 'Eşya') + '"); guiItem.setItemMeta(guiMeta); }\n' + indent + '    inv.setItem(' + (p.slot || 0) + ', guiItem);\n' + indent + '}\n';
+        case 'OpenGUI': return indent + 'event.getPlayer().openInventory(' + (p.envanter || 'inv') + ');\n';
+        case 'GUIClickEvent': return indent + '// GUI Tıklama kontrolü — if (event.getView().getTitle().equals("' + (p.envanter || 'Shop') + '"))\n';
+        // Zamanlayıcı
+        case 'RunAfterDelay': return indent + 'getServer().getScheduler().runTaskLater(this, () -> {\n' + indent + '    // gecikmeli işlem\n' + indent + '}, ' + (p.tick || 20) + ');\n';
+        case 'RepeatTask': return indent + 'getServer().getScheduler().runTaskTimer(this, () -> {\n' + indent + '    // tekrarlayan işlem\n' + indent + '}, ' + (p.baslangic || 0) + ', ' + (p.aralik || 20) + ');\n';
+        case 'CancelTask': return indent + '// BukkitTask ' + (p.gorevAdi || 'task') + ' = ...; ' + (p.gorevAdi || 'task') + '.cancel();\n';
+        // Veri Depolama
+        case 'ConfigGet': return indent + 'Object ' + (p.key || 'key').replace(/[.\-]/g, '_') + '_val = getConfig().get("' + (p.key || 'key') + '", ' + (p.varsayilan || '0') + ');\n';
+        case 'ConfigSet': return indent + 'getConfig().set("' + (p.key || 'key') + '", ' + (p.deger || '"deger"') + ');\nsaveConfig();\n';
+        case 'PDCGet': return indent + '{\n' + indent + '    org.bukkit.NamespacedKey pdcKey = new org.bukkit.NamespacedKey(this, "' + (p.key || 'coins') + '");\n' + indent + '    int pdcVal = event.getPlayer().getPersistentDataContainer().getOrDefault(pdcKey, org.bukkit.persistence.PersistentDataType.INTEGER, 0);\n' + indent + '}\n';
+        case 'PDCSet': return indent + '{\n' + indent + '    org.bukkit.NamespacedKey pdcKey = new org.bukkit.NamespacedKey(this, "' + (p.key || 'coins') + '");\n' + indent + '    event.getPlayer().getPersistentDataContainer().set(pdcKey, org.bukkit.persistence.PersistentDataType.INTEGER, ' + (p.deger || '0') + ');\n' + indent + '}\n';
+        // Ekonomi / Vault
+        case 'GetBalance': return indent + '// double balance = economy.getBalance(event.getPlayer());\n';
+        case 'GiveMoney': return indent + '// economy.depositPlayer(event.getPlayer(), ' + (p.miktar || 100) + ');\n';
+        case 'TakeMoney': return indent + '// economy.withdrawPlayer(event.getPlayer(), ' + (p.miktar || 100) + ');\n';
+        // Değişkenler
+        case 'SetVariable': return indent + 'playerData.put("' + (p.name || 'var') + '_" + event.getPlayer().getName(), "' + (p.value || '0') + '");\n';
+        case 'GetVariable': return indent + 'Object ' + (p.name || 'var').replace(/[^a-zA-Z0-9_]/g, '_') + '_val = playerData.getOrDefault("' + (p.name || 'var') + '_" + event.getPlayer().getName(), "0");\n';
+        case 'MathOperation': {
+            const _varN = (p.var || 'var').replace(/[^a-zA-Z0-9_]/g, '_');
+            const _opStr = p.op === 'sub' ? '-' : p.op === 'mul' ? '*' : p.op === 'div' ? '/' : '+';
+            return indent + '{\n'
+                + indent + '    double ' + _varN + '_cur = Double.parseDouble(String.valueOf(playerData.getOrDefault("' + (p.var || 'var') + '_" + event.getPlayer().getName(), "0")));\n'
+                + indent + '    playerData.put("' + (p.var || 'var') + '_" + event.getPlayer().getName(), String.valueOf(' + _varN + '_cur ' + _opStr + ' ' + (p.amount || '10') + '));\n'
+                + indent + '}\n';
+        }
+        case 'CompareVariable': return indent + 'if (Double.parseDouble(String.valueOf(playerData.getOrDefault("' + (p.var || 'var') + '_" + event.getPlayer().getName(), "0"))) ' + (p.op || '>=') + ' Double.parseDouble("' + (p.value || '0') + '")) {\n';
         default: return indent + '// ' + node.label + '\n';
     }
 }
@@ -1140,6 +1333,20 @@ function generateSkriptNodeCode(node, indent) {
         case 'SkLoop': return indent + 'loop ' + (p.kez || 10) + ' times:\n';
         case 'SkWait': return indent + 'wait ' + (p.süre || '1 second') + '\n';
         case 'SkLoopPlayers': return indent + 'loop all players:\n';
+        // GUI
+        case 'SkGUIOpen': return indent + '# on inventory open kontrolü\n';
+        case 'SkGUISend': return indent + 'open chest with ' + (p.satir || 3) + ' rows named "' + (p.baslik || 'Shop') + '" to player\n';
+        // Zamanlayıcı
+        case 'SkWaitDelay': return indent + 'wait ' + (p.sure || '5 seconds') + '\n';
+        case 'SkScheduleRepeat': return indent + 'every ' + (p.aralik || '1 minute') + ':\n';
+        // Değişken
+        case 'SkVarSet': return indent + 'set ' + (p.degisken || '{var}') + ' to ' + (p.deger || '0') + '\n';
+        case 'SkVarGet': return indent + '# get ' + (p.degisken || '{var}') + '\n';
+        case 'SkVarAdd': return indent + 'add ' + (p.miktar || 10) + ' to ' + (p.degisken || '{coins.%player%}') + '\n';
+        // Ekonomi
+        case 'SkVaultBalance': return indent + '# set {_bal} to vault balance of ' + (p.hedef || 'player') + '\n';
+        case 'SkVaultGive': return indent + '# add ' + (p.miktar || 100) + ' to vault balance of player\n';
+        case 'SkVaultTake': return indent + '# remove ' + (p.miktar || 100) + ' from vault balance of player\n';
         default: return indent + '# ' + node.label + '\n';
     }
 }
@@ -1163,9 +1370,315 @@ function vbClearCanvas() {
     }
 }
 
+// ═══════════════════════════════════════════════════════════
+// Blueprint Kaydet / Yükle
+// ═══════════════════════════════════════════════════════════
+
+async function vbSaveBlueprint() {
+    if (vbNodes.length === 0) {
+        if (typeof showNotification === 'function') showNotification('Kaydedilecek blok yok!', 'error');
+        return;
+    }
+    const blueprint = {
+        version: '1',
+        mode: vbCurrentMode,
+        nodes: vbNodes.map(n => ({ id: n.id, blockId: n.blockId, x: n.x, y: n.y, params: { ...n.params } })),
+        connections: vbConnections.map(c => ({ from: c.from, to: c.to })),
+    };
+    const filePath = await ipcRenderer.invoke('dialog:saveFile', {
+        title: 'Blueprint Kaydet',
+        defaultPath: 'blueprint.vbp',
+        filters: [{ name: 'VB Blueprint', extensions: ['vbp'] }, { name: 'Tüm Dosyalar', extensions: ['*'] }],
+    });
+    if (!filePath) return;
+    const ok = await ipcRenderer.invoke('fs:writeFile', filePath, JSON.stringify(blueprint, null, 2));
+    if (ok) {
+        if (typeof showNotification === 'function') showNotification('💾 Blueprint kaydedildi!', 'success');
+    } else {
+        if (typeof showNotification === 'function') showNotification('❌ Kaydetme başarısız!', 'error');
+    }
+}
+
+async function vbLoadBlueprint() {
+    const filePath = await ipcRenderer.invoke('dialog:openFile', {
+        title: 'Blueprint Yükle',
+        filters: [{ name: 'VB Blueprint', extensions: ['vbp'] }, { name: 'Tüm Dosyalar', extensions: ['*'] }],
+    });
+    if (!filePath) return;
+    const content = await ipcRenderer.invoke('fs:readFile', filePath);
+    if (!content) {
+        if (typeof showNotification === 'function') showNotification('❌ Dosya okunamadı!', 'error');
+        return;
+    }
+    try {
+        let blueprint = JSON.parse(content);
+        if (window.CraftIDEVB && typeof window.CraftIDEVB.migrateBlueprint === 'function') {
+            blueprint = window.CraftIDEVB.migrateBlueprint(blueprint);
+        }
+        // Canvas temizle
+        vbNodes = [];
+        vbConnections = [];
+        const area = document.getElementById('visual-builder-canvas-wrapper');
+        if (area) area.querySelectorAll('.vb-node').forEach(n => n.remove());
+
+        // Modu değiştir
+        if (blueprint.mode) {
+            vbCurrentMode = blueprint.mode;
+            const sel = document.getElementById('vb-mode-select');
+            if (sel) sel.value = vbCurrentMode;
+            rebuildContextMenu();
+        }
+
+        // ID haritası: kaydedilen id → yeni id
+        const idMap = {};
+
+        // Nodları render et (createNode yerine doğrudan renderNode)
+        let maxId = 0;
+        for (const n of (blueprint.nodes || [])) {
+            const def = (ALL_BLOCK_DEFS[vbCurrentMode] || {})[n.blockId];
+            if (!def) continue;
+            const newId = n.id || (++maxId);
+            if (newId > maxId) maxId = newId;
+            const node = {
+                id: newId,
+                blockId: n.blockId,
+                type: def.type,
+                label: def.label,
+                x: n.x || 100,
+                y: n.y || 100,
+                params: {},
+            };
+            (def.params || []).forEach(p => { node.params[p.n] = p.d; });
+            if (n.params) Object.assign(node.params, n.params);
+            vbNodes.push(node);
+            idMap[n.id] = newId;
+            renderNode(node);
+        }
+        vbNextId = maxId + 1;
+
+        // Bağlantıları kur
+        for (const c of (blueprint.connections || [])) {
+            const fromId = idMap[c.from];
+            const toId = idMap[c.to];
+            if (fromId && toId) {
+                vbConnections.push({ from: fromId, to: toId });
+            }
+        }
+        drawConnections();
+
+        const hint = document.getElementById('vb-empty-hint');
+        if (hint) hint.style.display = vbNodes.length > 0 ? 'none' : '';
+
+        if (typeof showNotification === 'function') showNotification('📂 Blueprint yüklendi!', 'success');
+    } catch (e) {
+        if (typeof showNotification === 'function') showNotification('❌ Blueprint formatı geçersiz: ' + e.message, 'error');
+    }
+}
+
+document.getElementById('btn-vb-save')?.addEventListener('click', vbSaveBlueprint);
+document.getElementById('btn-vb-load')?.addEventListener('click', vbLoadBlueprint);
 document.getElementById('btn-vb-generate')?.addEventListener('click', vbGenerateCode);
 document.getElementById('btn-vb-clear')?.addEventListener('click', vbClearCanvas);
+
+// Derle & Test Et butonu
+document.getElementById('btn-vb-deploy')?.addEventListener('click', () => {
+    if (typeof deployToServer === 'function') {
+        deployToServer();
+    } else {
+        if (typeof showNotification === 'function') showNotification('deployToServer fonksiyonu bulunamadı!', 'error');
+    }
+});
+
+// ═══════════════════════════════════════════════════════════
+// Live Event Debug
+// ═══════════════════════════════════════════════════════════
+
+let vbDebugMode = false;
+
+const vbDebugCheckbox = document.getElementById('vb-debug-mode');
+if (vbDebugCheckbox) {
+    vbDebugCheckbox.addEventListener('change', () => {
+        vbDebugMode = vbDebugCheckbox.checked;
+        if (typeof showNotification === 'function') {
+            showNotification(vbDebugMode ? '🔍 Debug modu açık — sunucu eventleri VB\'de vurgulanacak' : '🔕 Debug modu kapalı', 'info');
+        }
+    });
+}
+
+// Log satırı → VB blok eşleme tablosu
+const LOG_EVENT_MAP = [
+    { pattern: /joined the game|PlayerJoinEvent/i,           blockId: 'PlayerJoin' },
+    { pattern: /left the game|PlayerQuitEvent/i,             blockId: 'PlayerQuit' },
+    { pattern: /BlockBreakEvent/i,                           blockId: 'BlockBreak' },
+    { pattern: /BlockPlaceEvent/i,                           blockId: 'BlockPlace' },
+    { pattern: /AsyncPlayerChatEvent|chat message/i,         blockId: 'PlayerChat' },
+    { pattern: /PlayerDeathEvent|died|was slain|fell from/i, blockId: 'PlayerDeath' },
+    { pattern: /EntityDamageByEntityEvent/i,                 blockId: 'EntityDamage' },
+    { pattern: /PlayerCommandPreprocessEvent/i,              blockId: 'PlayerCommand' },
+    { pattern: /PlayerMoveEvent/i,                           blockId: 'PlayerMove' },
+    { pattern: /InventoryClickEvent/i,                       blockId: 'InventoryClick' },
+    { pattern: /ServerStartedEvent|onEnable/i,               blockId: 'ServerLoad' },
+    // Fabric
+    { pattern: /ServerPlayConnectionEvents\.JOIN/i,          blockId: 'FabricPlayerJoin' },
+    { pattern: /ServerPlayConnectionEvents\.DISCONNECT/i,    blockId: 'FabricPlayerQuit' },
+    // Forge
+    { pattern: /PlayerLoggedInEvent/i,                       blockId: 'ForgePlayerLogin' },
+    { pattern: /PlayerLoggedOutEvent/i,                      blockId: 'ForgePlayerLogout' },
+];
+
+function pulseNode(nodeId) {
+    const el = document.getElementById('vb-node-' + nodeId);
+    if (!el) return;
+    el.classList.remove('vb-debug-pulse');
+    void el.offsetWidth; // reflow — animasyonu sıfırla
+    el.classList.add('vb-debug-pulse');
+    setTimeout(() => el.classList.remove('vb-debug-pulse'), 1600);
+}
+
+function highlightEventInVB(logLine) {
+    if (!vbDebugMode) return;
+    for (const mapping of LOG_EVENT_MAP) {
+        if (mapping.pattern.test(logLine)) {
+            const matchingNodes = vbNodes.filter(n => n.blockId === mapping.blockId);
+            matchingNodes.forEach(n => pulseNode(n.id));
+        }
+    }
+}
+
+// highlightEventInVB'yi global yap (app.js'den çağrılabilsin)
+
+function vbExportGraph() {
+    return {
+        version: '2',
+        mode: vbCurrentMode,
+        nodes: vbNodes.map((n) => ({
+            id: n.id,
+            blockId: n.blockId,
+            type: n.type,
+            label: n.label,
+            x: n.x,
+            y: n.y,
+            params: { ...n.params },
+        })),
+        connections: vbConnections.map((c) => ({ from: c.from, to: c.to })),
+    };
+}
+
+function vbMigrateBlueprint(raw) {
+    const data = raw && typeof raw === 'object' ? { ...raw } : {};
+    const oldMode = String(data.mode || 'plugin').toLowerCase();
+    if (oldMode === 'paper' || oldMode === 'spigot' || oldMode === 'bukkit') {
+        data.mode = 'plugin';
+    } else if (['plugin', 'fabric', 'forge', 'skript'].includes(oldMode)) {
+        data.mode = oldMode;
+    } else {
+        data.mode = 'plugin';
+    }
+    data.version = data.version || '1';
+
+    const defs = ALL_BLOCK_DEFS[data.mode] || ALL_BLOCK_DEFS.plugin;
+    const normalizedNodes = [];
+    for (const entry of (Array.isArray(data.nodes) ? data.nodes : [])) {
+        if (!entry || typeof entry !== 'object') continue;
+        let blockId = entry.blockId;
+        if (!blockId && entry.label) {
+            const match = Object.entries(defs).find(([, def]) => def.label === entry.label);
+            if (match) blockId = match[0];
+        }
+        if (!blockId || !defs[blockId]) continue;
+        normalizedNodes.push({
+            id: Number(entry.id) || 0,
+            blockId,
+            x: Number(entry.x) || 100,
+            y: Number(entry.y) || 100,
+            params: entry.params && typeof entry.params === 'object' ? { ...entry.params } : {},
+        });
+    }
+    data.nodes = normalizedNodes;
+
+    const validIds = new Set(normalizedNodes.map((n) => n.id).filter((id) => id > 0));
+    data.connections = (Array.isArray(data.connections) ? data.connections : [])
+        .filter((c) => c && typeof c === 'object')
+        .map((c) => ({ from: Number(c.from), to: Number(c.to) }))
+        .filter((c) => validIds.has(c.from) && validIds.has(c.to) && c.from !== c.to);
+
+    return data;
+}
+
+function vbImportGraph(graph, options) {
+    const opts = options || {};
+    const migrated = vbMigrateBlueprint(graph || {});
+    const mode = migrated.mode || 'plugin';
+    if (mode !== vbCurrentMode) {
+        vbCurrentMode = mode;
+        const sel = document.getElementById('vb-mode-select');
+        if (sel) sel.value = vbCurrentMode;
+        rebuildContextMenu();
+    }
+
+    if (opts.clear !== false) {
+        vbNodes = [];
+        vbConnections = [];
+        const area = document.getElementById('visual-builder-canvas-wrapper');
+        if (area) area.querySelectorAll('.vb-node').forEach((n) => n.remove());
+    }
+
+    const idMap = {};
+    let maxId = vbNextId;
+    for (const n of (migrated.nodes || [])) {
+        const created = createNode(n.blockId, n.x, n.y);
+        if (!created) continue;
+        Object.assign(created.params, n.params || {});
+        refreshNodeInputs(created);
+        idMap[n.id] = created.id;
+        if (created.id > maxId) maxId = created.id;
+    }
+    vbNextId = maxId + 1;
+
+    for (const c of (migrated.connections || [])) {
+        const fromId = idMap[c.from];
+        const toId = idMap[c.to];
+        if (fromId && toId && !vbConnections.some((x) => x.from === fromId && x.to === toId)) {
+            vbConnections.push({ from: fromId, to: toId });
+        }
+    }
+    drawConnections();
+    const hint = document.getElementById('vb-empty-hint');
+    if (hint) hint.style.display = vbNodes.length > 0 ? 'none' : '';
+}
+
+function vbSetMode(mode) {
+    const normalized = String(mode || '').toLowerCase();
+    const allowed = ['plugin', 'fabric', 'forge', 'skript'];
+    if (!allowed.includes(normalized)) return false;
+    vbCurrentMode = normalized;
+    const sel = document.getElementById('vb-mode-select');
+    if (sel) {
+        sel.value = vbCurrentMode;
+        sel.dispatchEvent(new Event('change'));
+    } else {
+        rebuildContextMenu();
+    }
+    return true;
+}
+
+window.CraftIDEVB = {
+    exportGraph: vbExportGraph,
+    importGraph: vbImportGraph,
+    migrateBlueprint: vbMigrateBlueprint,
+    clear: vbClearCanvas,
+    createNode,
+    drawConnections,
+    setMode: vbSetMode,
+    getMode: () => vbCurrentMode,
+    getNodes: () => vbNodes,
+    getConnections: () => vbConnections,
+    getDefinitions: () => ALL_BLOCK_DEFS,
+    generateCode: (options) => vbGenerateCode(options || { returnOnly: true }),
+};
+window.highlightEventInVB = highlightEventInVB;
 
 document.addEventListener('DOMContentLoaded', () => {
     initVisualBuilder();
 });
+

@@ -15,6 +15,55 @@ let openFiles = new Map(); // path -> { content, modified }
 let currentFilePath = null;
 let activePanel = 'explorer';
 let activeTerminalId = null; // Gerçek terminal process ID
+// Shared runtime API for additional renderer modules (e.g. No-Code Suite)
+window.CraftIDEAppState = {
+    getCurrentProjectPath: () => currentProjectPath,
+    getCurrentFilePath: () => currentFilePath,
+    getActivePanel: () => activePanel,
+    getOpenFiles: () => openFiles,
+    openFile: (...args) => openFile(...args),
+    addTab: (...args) => addTab(...args),
+    activateTab: (...args) => activateTab(...args),
+    showNotification: (...args) => showNotification(...args),
+    appendOutputLine: (...args) => appendOutputLine(...args),
+    appendServerLine: (...args) => appendSmConsoleLine(...args),
+};
+
+function tr(key, fallback, params) {
+    if (window.Lang && typeof window.Lang.t === 'function') {
+        return window.Lang.t(key, params || {});
+    }
+    if (!fallback) return key;
+    if (!params) return fallback;
+    return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), fallback);
+}
+
+const VIRTUAL_TAB_META = {
+    'visual-builder://': { key: 'ui.tab.visualBuilder', icon: '🧩', fallback: 'Visual Builder' },
+    'blockbench://': { key: 'ui.tab.blockbench', icon: '🎮', fallback: 'Blockbench Editor' },
+    'settings://': { key: 'ui.tab.settings', icon: '⚙️', fallback: 'Settings' },
+    'server-manager://': { key: 'ui.tab.serverManager', icon: '🖹', fallback: 'Server Manager' },
+    'image-editor://': { key: 'ui.tab.imageEditor', icon: '🖼️', fallback: 'Image Editor' },
+    'gui-builder://': { key: 'ui.tab.guiBuilder', icon: '🗃️', fallback: 'GUI Builder' },
+    'command-tree://': { key: 'ui.tab.commandTree', icon: '⌨️', fallback: 'Command Designer' },
+    'recipe-creator://': { key: 'ui.tab.recipeCreator', icon: '🍳', fallback: 'Recipe Creator' },
+    'permission-tree://': { key: 'ui.tab.permissionTree', icon: '🔑', fallback: 'Permission Tree' },
+    'marketplace://': { key: 'ui.tab.marketplace', icon: '🛍️', fallback: 'Blueprint Marketplace' },
+};
+
+function getVirtualTabMeta(filePath) {
+    if (!filePath || typeof filePath !== 'string') return null;
+    for (const prefix of Object.keys(VIRTUAL_TAB_META)) {
+        if (filePath.startsWith(prefix)) return VIRTUAL_TAB_META[prefix];
+    }
+    return null;
+}
+
+function getVirtualTabName(filePath, fallbackName) {
+    const meta = getVirtualTabMeta(filePath);
+    if (!meta) return fallbackName || '';
+    return tr(meta.key, fallbackName || meta.fallback);
+}
 
 // ═══════════════════════════════════════════════════════════
 // Real Terminal — xterm.js + Gerçek Shell Entegrasyonu
@@ -87,8 +136,8 @@ async function initTerminal(cwd) {
 
     const result = await ipcRenderer.invoke('terminal:create', cwd || undefined);
     activeTerminalId = result.id;
-    xtermMain.writeln('\x1b[32mCraftIDE Terminal ⛏️ — ' + result.shell + '\x1b[0m');
-    xtermMain.writeln('\x1b[2mÇalışma dizini: ' + result.cwd + '\x1b[0m');
+    xtermMain.writeln('\x1b[32m' + tr('terminal.main.title', 'CraftIDE Terminal') + ' ⛏️ — ' + result.shell + '\x1b[0m');
+    xtermMain.writeln('\x1b[2m' + tr('terminal.main.cwd', 'Working directory: {cwd}', { cwd: result.cwd }) + '\x1b[0m');
     xtermMain.writeln('');
 }
 
@@ -123,7 +172,10 @@ function appendTerminalLine(text, className) {
     else if (className === 'success') prefix = '\x1b[32m';
     else if (className === 'dim') prefix = '\x1b[2m';
     else if (className === 'info') prefix = '\x1b[36m';
-    xtermMain.writeln(prefix + text + (prefix ? '\x1b[0m' : ''));
+    const localized = (window.Lang && typeof window.Lang.localizeMessage === 'function')
+        ? window.Lang.localizeMessage(text)
+        : text;
+    xtermMain.writeln(prefix + localized + (prefix ? '\x1b[0m' : ''));
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -151,15 +203,25 @@ document.querySelectorAll('.activity-btn').forEach(btn => {
         if (btn.hasAttribute('data-action')) {
             const action = btn.getAttribute('data-action');
             if (action === 'visual-builder') {
-                openFile('visual-builder://tab', 'Görsel Builder');
+                openFile('visual-builder://tab', getVirtualTabName('visual-builder://tab'));
             } else if (action === 'blockbench') {
-                openFile('blockbench://tab', 'Blockbench Editor');
+                openFile('blockbench://tab', getVirtualTabName('blockbench://tab'));
             } else if (action === 'settings') {
-                openFile('settings://tab', 'Ayarlar');
+                openFile('settings://tab', getVirtualTabName('settings://tab'));
             } else if (action === 'server-manager') {
-                openFile('server-manager://tab', 'Sunucu Yöneticisi');
+                openFile('server-manager://tab', getVirtualTabName('server-manager://tab'));
             } else if (action === 'image-editor') {
-                openFile('image-editor://tab', 'Resim Düzenleyici');
+                openFile('image-editor://tab', getVirtualTabName('image-editor://tab'));
+            } else if (action === 'gui-builder') {
+                openFile('gui-builder://tab', getVirtualTabName('gui-builder://tab'));
+            } else if (action === 'command-tree') {
+                openFile('command-tree://tab', getVirtualTabName('command-tree://tab'));
+            } else if (action === 'recipe-creator') {
+                openFile('recipe-creator://tab', getVirtualTabName('recipe-creator://tab'));
+            } else if (action === 'permission-tree') {
+                openFile('permission-tree://tab', getVirtualTabName('permission-tree://tab'));
+            } else if (action === 'marketplace') {
+                openFile('marketplace://tab', getVirtualTabName('marketplace://tab'));
             } else if (action === 'mc-tools') {
                 // Toggle MC Tools dropdown
                 toggleMcToolsDropdown(btn);
@@ -388,12 +450,12 @@ document.querySelectorAll('.context-item').forEach(item => {
         switch (action) {
             case 'newFile': {
                 const parentDir = contextTarget.isDir ? contextTarget.path : nodePath.dirname(contextTarget.path);
-                const name = prompt('Yeni dosya adı:', 'yeni-dosya.java');
+                const name = prompt(tr('prompt.newFileName', 'New file name:'), 'new-file.java');
                 if (name) {
                     const filePath = nodePath.join(parentDir, name);
                     const result = await ipcRenderer.invoke('fs:createFile', filePath);
                     if (result.success) {
-                        showNotification('📄 ' + name + ' oluşturuldu', 'success');
+                        showNotification('📄 ' + tr('msg.fileCreated', '{name} created', { name }), 'success');
                         if (currentProjectPath) await renderFileTree(currentProjectPath);
                         await openFile(filePath);
                     } else {
@@ -404,15 +466,15 @@ document.querySelectorAll('.context-item').forEach(item => {
             }
             case 'newFolder': {
                 const parentDir = contextTarget.isDir ? contextTarget.path : nodePath.dirname(contextTarget.path);
-                const name = prompt('Yeni klasör adı:', 'yeni-klasor');
+                const name = prompt(tr('prompt.newFolderName', 'New folder name:'), 'new-folder');
                 if (name) {
                     const dirPath = nodePath.join(parentDir, name);
                     const ok = await ipcRenderer.invoke('fs:createDir', dirPath);
                     if (ok) {
-                        showNotification('📁 ' + name + ' oluşturuldu', 'success');
+                        showNotification('📁 ' + tr('msg.fileCreated', '{name} created', { name }), 'success');
                         if (currentProjectPath) await renderFileTree(currentProjectPath);
                     } else {
-                        showNotification('❌ Klasör oluşturulamadı', 'error');
+                        showNotification('❌ ' + tr('msg.folderCreateError', 'Could not create folder!'), 'error');
                     }
                 }
                 break;
@@ -426,12 +488,12 @@ document.querySelectorAll('.context-item').forEach(item => {
             }
             case 'delete': {
                 const confirmMsg = contextTarget.isDir
-                    ? contextTarget.name + ' klasörü ve tüm içeriği silinsin mi?'
-                    : contextTarget.name + ' dosyası silinsin mi?';
+                    ? tr('prompt.deleteFolder', 'Delete folder "{name}" and all its contents?', { name: contextTarget.name })
+                    : tr('prompt.deleteFile', 'Delete file "{name}"?', { name: contextTarget.name });
                 if (confirm('⚠️ ' + confirmMsg)) {
                     const result = await ipcRenderer.invoke('fs:delete', contextTarget.path);
                     if (result.success) {
-                        showNotification('🗑️ ' + contextTarget.name + ' silindi', 'success');
+                        showNotification('🗑️ ' + tr('msg.fileDeleted', '{name} deleted', { name: contextTarget.name }), 'success');
                         if (currentProjectPath) await renderFileTree(currentProjectPath);
                         // Açık sekmeyi de kapat
                         if (openFiles.has(contextTarget.path)) {
@@ -445,7 +507,7 @@ document.querySelectorAll('.context-item').forEach(item => {
             }
             case 'copyPath': {
                 await ipcRenderer.invoke('fs:copyPath', contextTarget.path);
-                showNotification('📋 Yol kopyalandı', 'success');
+                showNotification('📋 ' + tr('msg.pathCopied', 'Path copied'), 'success');
                 break;
             }
             case 'openInExplorer': {
@@ -456,7 +518,7 @@ document.querySelectorAll('.context-item').forEach(item => {
                 const dir = contextTarget.isDir ? contextTarget.path : nodePath.dirname(contextTarget.path);
                 if (activeTerminalId) {
                     await ipcRenderer.invoke('terminal:write', activeTerminalId, 'cd "' + dir + '"\n');
-                    showNotification('📂 Terminal dizini değiştirildi', 'success');
+                    showNotification('📂 ' + tr('msg.terminalDirChanged', 'Terminal directory changed'), 'success');
                 }
                 break;
             }
@@ -494,7 +556,7 @@ function startInlineRename(treeItem, entry) {
             const newPath = nodePath.join(nodePath.dirname(oldPath), newName);
             const result = await ipcRenderer.invoke('fs:rename', oldPath, newPath);
             if (result.success) {
-                showNotification('✏️ ' + oldName + ' → ' + newName, 'success');
+                showNotification('✏️ ' + tr('msg.renamed', '{old} → {new}', { old: oldName, new: newName }), 'success');
                 if (currentProjectPath) await renderFileTree(currentProjectPath);
             } else {
                 showNotification('❌ ' + result.error, 'error');
@@ -517,13 +579,13 @@ function startInlineRename(treeItem, entry) {
 // ═══════════════════════════════════════════════════════════
 
 document.getElementById('btn-new-file').addEventListener('click', async () => {
-    if (!currentProjectPath) { showNotification('Önce bir proje açın!', 'error'); return; }
-    const name = prompt('Yeni dosya adı:', 'yeni-dosya.java');
+    if (!currentProjectPath) { showNotification(tr('msg.openProjectFirst', 'Open a project first!'), 'error'); return; }
+    const name = prompt(tr('prompt.newFileName', 'New file name:'), 'new-file.java');
     if (name) {
         const filePath = nodePath.join(currentProjectPath, name);
         const result = await ipcRenderer.invoke('fs:createFile', filePath);
         if (result.success) {
-            showNotification('📄 ' + name + ' oluşturuldu', 'success');
+            showNotification('📄 ' + tr('msg.fileCreated', '{name} created', { name }), 'success');
             await renderFileTree(currentProjectPath);
             await openFile(filePath);
         } else {
@@ -533,16 +595,16 @@ document.getElementById('btn-new-file').addEventListener('click', async () => {
 });
 
 document.getElementById('btn-new-folder').addEventListener('click', async () => {
-    if (!currentProjectPath) { showNotification('Önce bir proje açın!', 'error'); return; }
-    const name = prompt('Yeni klasör adı:', 'yeni-klasor');
+    if (!currentProjectPath) { showNotification(tr('msg.openProjectFirst', 'Open a project first!'), 'error'); return; }
+    const name = prompt(tr('prompt.newFolderName', 'New folder name:'), 'new-folder');
     if (name) {
         const dirPath = nodePath.join(currentProjectPath, name);
         const ok = await ipcRenderer.invoke('fs:createDir', dirPath);
         if (ok) {
-            showNotification('📁 ' + name + ' oluşturuldu', 'success');
+            showNotification('📁 ' + tr('msg.fileCreated', '{name} created', { name }), 'success');
             await renderFileTree(currentProjectPath);
         } else {
-            showNotification('❌ Klasör oluşturulamadı', 'error');
+            showNotification('❌ ' + tr('msg.folderCreateError', 'Could not create folder!'), 'error');
         }
     }
 });
@@ -550,7 +612,7 @@ document.getElementById('btn-new-folder').addEventListener('click', async () => 
 document.getElementById('btn-refresh-tree').addEventListener('click', async () => {
     if (currentProjectPath) {
         await renderFileTree(currentProjectPath);
-        showNotification('🔄 Dosya ağacı yenilendi', 'success');
+        showNotification('🔄 ' + tr('msg.treeRefreshed', 'File tree refreshed'), 'success');
     }
 });
 
@@ -569,8 +631,18 @@ async function openFile(filePath, virtualName = null) {
         return;
     }
 
-    if (filePath.startsWith('visual-builder://') || filePath.startsWith('blockbench://') || filePath.startsWith('settings://') || filePath.startsWith('server-manager://') || filePath.startsWith('image-editor://')) {
+    if (filePath.startsWith('visual-builder://') || filePath.startsWith('blockbench://') || filePath.startsWith('settings://') || filePath.startsWith('server-manager://') || filePath.startsWith('image-editor://') || filePath.startsWith('gui-builder://') || filePath.startsWith('command-tree://') || filePath.startsWith('recipe-creator://') || filePath.startsWith('permission-tree://') || filePath.startsWith('marketplace://')) {
         openFiles.set(filePath, { content: '', modified: false, virtual: true });
+        addTab(filePath, getVirtualTabName(filePath, virtualName));
+        activateTab(filePath);
+        return;
+    }
+
+    if (filePath.startsWith('generated://')) {
+        // generated:// sekmeleri zaten openFiles'a eklendi — sadece aktif et
+        if (!openFiles.has(filePath)) {
+            openFiles.set(filePath, { content: '', modified: false, virtual: true, generated: true });
+        }
         addTab(filePath, virtualName);
         activateTab(filePath);
         return;
@@ -585,7 +657,7 @@ async function openFile(filePath, virtualName = null) {
     } else {
         content = await ipcRenderer.invoke('fs:readFile', filePath);
         if (content === null) {
-            showNotification('Dosya okunamadı!', 'error');
+            showNotification(tr('msg.fileReadError', 'Could not read file!'), 'error');
             return;
         }
     }
@@ -601,21 +673,14 @@ function addTab(filePath, overrideName = null) {
     let icon = '📄';
     let ext = '';
 
-    if (filePath.startsWith('visual-builder://')) {
-        name = name || 'Görsel Builder';
-        icon = '🧩';
-    } else if (filePath.startsWith('blockbench://')) {
-        name = name || 'Blockbench';
-        icon = '🎮';
-    } else if (filePath.startsWith('settings://')) {
-        name = name || 'Ayarlar';
-        icon = '⚙️';
-    } else if (filePath.startsWith('server-manager://')) {
-        name = name || 'Sunucu Yöneticisi';
-        icon = '🕹️';
-    } else if (filePath.startsWith('image-editor://')) {
-        name = name || 'Resim Düzenleyici';
-        icon = '🖼️';
+    const virtualMeta = getVirtualTabMeta(filePath);
+    if (virtualMeta) {
+        name = name || tr(virtualMeta.key, virtualMeta.fallback);
+        icon = virtualMeta.icon;
+    } else if (filePath.startsWith('generated://')) {
+        const genName = filePath.replace('generated://', '');
+        name = name || genName;
+        icon = genName.endsWith('.sk') ? '📜' : '☕';
     } else {
         name = nodePath.basename(filePath);
         ext = nodePath.extname(filePath).toLowerCase();
@@ -628,10 +693,10 @@ function addTab(filePath, overrideName = null) {
     tab.innerHTML =
         '<span class="tab-icon">' + icon + '</span>' +
         '<span class="tab-name">' + name + '</span>' +
-        '<button class="tab-close" title="Kapat">&times;</button>';
+        '<button class="tab-close" title="' + tr('ui.tab.close', 'Close') + '"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.708.708L7.293 8l-3.647 3.646.708.708L8 8.707z"/></svg></button>';
 
     tab.addEventListener('click', (e) => {
-        if (!e.target.classList.contains('tab-close')) {
+        if (!e.target.closest('.tab-close')) {
             activateTab(filePath);
         }
     });
@@ -642,6 +707,22 @@ function addTab(filePath, overrideName = null) {
     });
 
     tabBar.appendChild(tab);
+}
+
+function refreshLocalizedTabLabels() {
+    document.querySelectorAll('.tab').forEach((tab) => {
+        const path = tab.getAttribute('data-tab') || '';
+        const nameEl = tab.querySelector('.tab-name');
+        const closeEl = tab.querySelector('.tab-close');
+        if (closeEl) closeEl.title = tr('ui.tab.close', 'Close');
+        if (!nameEl) return;
+        if (path === 'welcome') {
+            nameEl.textContent = tr('ui.titlebar.welcome', 'Welcome');
+            return;
+        }
+        const meta = getVirtualTabMeta(path);
+        if (meta) nameEl.textContent = tr(meta.key, meta.fallback);
+    });
 }
 
 function activateTab(filePath) {
@@ -682,6 +763,21 @@ function activateTab(filePath) {
         document.getElementById('server-manager-container').style.display = 'flex';
         // Sunucu konsolu xterm başlat
         setTimeout(() => initServerConsole(), 50);
+    } else if (filePath.startsWith('gui-builder://')) {
+        document.getElementById('gui-builder-container').style.display = 'flex';
+        if (typeof window.initGuiBuilder === 'function') setTimeout(() => window.initGuiBuilder(), 50);
+    } else if (filePath.startsWith('command-tree://')) {
+        document.getElementById('command-tree-container').style.display = 'flex';
+        if (typeof window.initCommandTree === 'function') setTimeout(() => window.initCommandTree(), 50);
+    } else if (filePath.startsWith('recipe-creator://')) {
+        document.getElementById('recipe-creator-container').style.display = 'flex';
+        if (typeof window.initRecipeCreator === 'function') setTimeout(() => window.initRecipeCreator(), 50);
+    } else if (filePath.startsWith('permission-tree://')) {
+        document.getElementById('permission-tree-container').style.display = 'flex';
+        if (typeof window.initPermissionTree === 'function') setTimeout(() => window.initPermissionTree(), 50);
+    } else if (filePath.startsWith('marketplace://')) {
+        document.getElementById('marketplace-container').style.display = 'flex';
+        if (typeof window.initMarketplace === 'function') setTimeout(() => window.initMarketplace(), 50);
     } else if (filePath.startsWith('image-editor://') || ['.png', '.jpg', '.jpeg'].includes(ext)) {
         document.getElementById('image-editor-container').style.display = 'block';
         // İlk açılışta editörü başlat
@@ -690,6 +786,34 @@ function activateTab(filePath) {
         }
         if (['.png', '.jpg', '.jpeg'].includes(ext) && window.loadImageToEditor) {
             window.loadImageToEditor(filePath);
+        }
+    } else if (filePath.startsWith('generated://')) {
+        document.getElementById('editor-container').style.display = 'block';
+        if (fileData && window.monacoEditor && window.monaco) {
+            const genName = filePath.replace('generated://', '');
+            const language = genName.endsWith('.sk') ? 'plaintext' : 'java';
+            const model = window.monaco.editor.createModel(fileData.content, language);
+            const oldModel = window.monacoEditor.getModel();
+            window.monacoEditor.setModel(model);
+            if (oldModel && oldModel !== model) oldModel.dispose();
+            document.getElementById('status-language').textContent = language.charAt(0).toUpperCase() + language.slice(1);
+        }
+    } else if ((ext === '.yml' || ext === '.yaml') && fileData) {
+        // Visual Config Editor
+        const cfgContainer = document.getElementById('config-editor-container');
+        if (cfgContainer) {
+            cfgContainer.style.display = 'flex';
+            const fn = nodePath.basename(filePath).toLowerCase();
+            showConfigEditor(filePath, fileData.content, fn === 'plugin.yml' ? 'plugin' : 'generic');
+        } else {
+            // Fallback: Monaco
+            document.getElementById('editor-container').style.display = 'block';
+            if (window.monacoEditor && window.monaco) {
+                const model = window.monaco.editor.createModel(fileData.content, 'yaml');
+                const oldModel = window.monacoEditor.getModel();
+                window.monacoEditor.setModel(model);
+                if (oldModel && oldModel !== model) oldModel.dispose();
+            }
         }
     } else {
         // Default Monaco Editor
@@ -720,10 +844,10 @@ async function closeTab(filePath) {
 
         const result = await ipcRenderer.invoke('dialog:showMessage', {
             type: 'question',
-            title: 'Kaydedilmemiş Değişiklikler',
-            message: `"${nodePath.basename(filePath)}" dosyasında kaydedilmemiş değişiklikler var.`,
-            detail: 'Değişikliklerinizi kaydetmek istiyor musunuz?',
-            buttons: ['Kaydet', 'Kaydetme', 'İptal'],
+            title: tr('dialog.unsaved.title', 'Unsaved Changes'),
+            message: tr('dialog.unsaved.message', 'There are unsaved changes in "{name}".', { name: nodePath.basename(filePath) }),
+            detail: tr('dialog.unsaved.detail', 'Do you want to save your changes?'),
+            buttons: [tr('dialog.unsaved.save', 'Save'), tr('dialog.unsaved.dontSave', "Don't Save"), tr('dialog.unsaved.cancel', 'Cancel')],
             defaultId: 0,
             cancelId: 2
         });
@@ -766,7 +890,7 @@ function showWelcome() {
     document.querySelectorAll('.editor-container').forEach(ec => ec.style.display = 'none');
 
     document.getElementById('welcome-screen').classList.add('active');
-    document.getElementById('titlebar-filename').textContent = 'Hoş Geldin';
+    document.getElementById('titlebar-filename').textContent = tr('ui.titlebar.welcome', 'Welcome');
     currentFilePath = null;
 }
 
@@ -778,9 +902,9 @@ async function saveCurrentFile() {
 
     if (success) {
         openFiles.set(currentFilePath, { content: content, modified: false });
-        showNotification('\u{1F4BE} ' + nodePath.basename(currentFilePath) + ' kaydedildi', 'success');
+        showNotification('💾 ' + tr('msg.fileSaved', '{name} saved', { name: nodePath.basename(currentFilePath) }), 'success');
     } else {
-        showNotification('Dosya kaydedilemedi!', 'error');
+        showNotification(tr('msg.fileSaveError', 'Could not save file!'), 'error');
     }
 }
 
@@ -832,17 +956,17 @@ document.querySelectorAll('.platform-card').forEach(card => {
         if (platform === 'skript') {
             javaOptions.style.display = 'none';
             depsGroup.style.display = 'none';
-            if (labelName) labelName.textContent = 'Skript Adı';
+            if (labelName) labelName.textContent = tr('modal.label.skriptName', 'Skript Name');
             if (inputName) inputName.placeholder = 'MyAwesomeSkript';
         } else if (platform === 'fabric' || platform === 'forge') {
             javaOptions.style.display = 'block';
             depsGroup.style.display = 'block';
-            if (labelName) labelName.textContent = 'Mod Adı';
+            if (labelName) labelName.textContent = tr('modal.label.modName', 'Mod Name');
             if (inputName) inputName.placeholder = 'MyAwesomeMod';
         } else {
             javaOptions.style.display = 'block';
             depsGroup.style.display = 'block';
-            if (labelName) labelName.textContent = 'Plugin Adı';
+            if (labelName) labelName.textContent = tr('modal.label.pluginName', 'Plugin Name');
             if (inputName) inputName.placeholder = 'MyAwesomePlugin';
         }
     });
@@ -863,7 +987,7 @@ document.getElementById('btn-create-project').addEventListener('click', async ()
     const packageName = document.getElementById('input-package-name').value.trim();
 
     if (!name) {
-        showNotification('Plugin adı gerekli!', 'error');
+        showNotification(tr('msg.pluginNameRequired', 'Plugin name is required!'), 'error');
         return;
     }
 
@@ -886,10 +1010,10 @@ document.getElementById('btn-create-project').addEventListener('click', async ()
 
     if (result.success) {
         hideNewProjectModal();
-        showNotification('\u26CF\uFE0F ' + name + ' başarıyla oluşturuldu!', 'success');
+        showNotification('⛏️ ' + tr('msg.projectCreated', '{name} created successfully!', { name }), 'success');
         await openFolder(result.path);
     } else {
-        showNotification('Hata: ' + result.error, 'error');
+        showNotification(tr('msg.error', 'Error: {error}', { error: result.error }), 'error');
     }
 });
 
@@ -926,23 +1050,23 @@ document.getElementById('search-input').addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
 
     if (query.length < 2) {
-        document.getElementById('search-results').innerHTML = '<div style="padding:16px;color:#8b949e;font-size:12px;">En az 2 karakter yazın</div>';
+        document.getElementById('search-results').innerHTML = '<div style="padding:16px;color:#8b949e;font-size:12px;">' + tr('search.minChars', 'Type at least 2 characters') + '</div>';
         return;
     }
 
     searchTimeout = setTimeout(async () => {
         if (!currentProjectPath) {
-            document.getElementById('search-results').innerHTML = '<div style="padding:16px;color:#8b949e;font-size:12px;">Önce bir proje açın</div>';
+            document.getElementById('search-results').innerHTML = '<div style="padding:16px;color:#8b949e;font-size:12px;">' + tr('search.openProject', 'Open a project first') + '</div>';
             return;
         }
 
-        document.getElementById('search-results').innerHTML = '<div style="padding:16px;color:#8b949e;font-size:12px;">Aranıyor...</div>';
+        document.getElementById('search-results').innerHTML = '<div style="padding:16px;color:#8b949e;font-size:12px;">' + tr('search.searching', 'Searching...') + '</div>';
 
         const results = await ipcRenderer.invoke('search:files', currentProjectPath, query);
         const container = document.getElementById('search-results');
 
         if (!results || results.length === 0) {
-            container.innerHTML = '<div style="padding:16px;color:#8b949e;font-size:12px;">Sonuç bulunamadı</div>';
+            container.innerHTML = '<div style="padding:16px;color:#8b949e;font-size:12px;">' + tr('search.noResults', 'No results found') + '</div>';
             return;
         }
 
@@ -970,7 +1094,8 @@ document.getElementById('search-input').addEventListener('input', (e) => {
 
         const countDiv = document.createElement('div');
         countDiv.style.cssText = 'padding:6px 10px;font-size:11px;color:#8b949e;';
-        countDiv.textContent = results.length + ' sonuç bulundu' + (results.length >= 100 ? ' (limit)' : '');
+        const limitPart = results.length >= 100 ? (' ' + tr('search.limit', '(limit)')) : '';
+        countDiv.textContent = tr('search.results', '{count} result(s) found', { count: results.length }) + limitPart;
         container.appendChild(countDiv);
     }, 300);
 });
@@ -996,7 +1121,10 @@ function showNotification(message, type) {
 
     const notif = document.createElement('div');
     notif.className = 'notification ' + type;
-    notif.textContent = message;
+    const text = (window.Lang && typeof window.Lang.localizeMessage === 'function')
+        ? window.Lang.localizeMessage(message)
+        : message;
+    notif.textContent = text;
     document.body.appendChild(notif);
 
     setTimeout(() => {
@@ -1020,15 +1148,15 @@ document.getElementById('btn-new-project')?.addEventListener('click', (e) => {
 document.getElementById('wl-new-file')?.addEventListener('click', async (e) => {
     e.preventDefault();
     if (!currentProjectPath) {
-        showNotification('Önce bir proje açın!', 'error');
+        showNotification(tr('msg.openProjectFirst', 'Open a project first!'), 'error');
         return;
     }
-    const name = prompt('Yeni dosya adı:', 'yeni-dosya.java');
+    const name = prompt(tr('prompt.newFileName', 'New file name:'), 'new-file.java');
     if (name) {
         const filePath = nodePath.join(currentProjectPath, name);
         const result = await ipcRenderer.invoke('fs:createFile', filePath);
         if (result.success) {
-            showNotification('📄 ' + name + ' oluşturuldu', 'success');
+            showNotification('📄 ' + tr('msg.fileCreated', '{name} created', { name }), 'success');
             await renderFileTree(currentProjectPath);
             await openFile(filePath);
         } else {
@@ -1057,13 +1185,13 @@ document.getElementById('wl-ai-create')?.addEventListener('click', (e) => {
 
 document.getElementById('wt-get-started')?.addEventListener('click', (e) => {
     e.preventDefault();
-    showNotification('💡 CraftIDE\'ye hoş geldiniz! Yeni bir proje oluşturarak başlayın.', 'info');
+    showNotification('💡 ' + tr('notify.welcomeHint', 'Welcome to CraftIDE! Start by creating a new project.'), 'info');
     document.getElementById('btn-new-project')?.click();
 });
 
 document.getElementById('wt-learn-basics')?.addEventListener('click', (e) => {
     e.preventDefault();
-    showNotification('📖 Temeller: Sol menüden dosyalarınızı yönetebilir, alttan terminali kullanabilirsiniz.', 'info');
+    showNotification('📖 ' + tr('notify.basicsHint', 'Basics: Manage files from the left panel and use the terminal below.'), 'info');
 });
 
 document.getElementById('btn-open-folder')?.addEventListener('click', () => openFolder());
@@ -1101,7 +1229,7 @@ function sendAIMessage(message) {
     aiMsg.className = 'ai-message ai-system';
     const aiContent = document.createElement('div');
     aiContent.className = 'ai-content';
-    aiContent.innerHTML = '<p><span class="spinner" style="display:inline-block;width:16px;height:16px;border-width:2px;vertical-align:middle;margin-right:8px;"></span>Düşünüyor...</p>';
+    aiContent.innerHTML = '<p><span class="spinner" style="display:inline-block;width:16px;height:16px;border-width:2px;vertical-align:middle;margin-right:8px;"></span>' + tr('ai.thinking', 'Thinking...') + '</p>';
     aiMsg.innerHTML = '<div class="ai-avatar">\u{1F916}</div>';
     aiMsg.appendChild(aiContent);
     messages.appendChild(aiMsg);
@@ -1166,7 +1294,7 @@ ipcRenderer.on('toggle-ai-chat', () => {
     document.querySelector('.activity-btn[data-panel="ai"]').click();
 });
 ipcRenderer.on('open-settings', () => {
-    openFile('settings://tab', 'Ayarlar');
+    openFile('settings://tab', getVirtualTabName('settings://tab'));
 });
 ipcRenderer.on('build-plugin', async () => {
     if (currentProjectPath) {
@@ -1203,7 +1331,7 @@ document.getElementById('btn-build-plugin').addEventListener('click', async () =
 
 document.getElementById('btn-test-server')?.addEventListener('click', async () => {
     // Legacy button on welcome screen, redirect to our new panel
-    openFile('server-manager://tab', 'Sunucu Yöneticisi');
+    openFile('server-manager://tab', getVirtualTabName('server-manager://tab'));
 });
 
 // -- Server Manager UI Bindings --
@@ -1221,7 +1349,7 @@ document.getElementById('btn-sm-start')?.addEventListener('click', async () => {
 
     // Make sure we are on the server manager tab
     if (currentFilePath !== 'server-manager://tab') {
-        openFile('server-manager://tab', 'Sunucu Yöneticisi');
+        openFile('server-manager://tab', getVirtualTabName('server-manager://tab'));
     }
 
     const result = await ipcRenderer.invoke('server:start', {
@@ -1259,7 +1387,7 @@ document.getElementById('btn-sm-deploy')?.addEventListener('click', async () => 
     // 1. Build project
     const buildResult = await ipcRenderer.invoke('build:run', currentProjectPath);
     if (!buildResult.success) {
-        appendSmConsoleLine('❌ Build hatası: ' + buildResult.error, 'error');
+        appendSmConsoleLine('❌ Build error: ' + buildResult.error, 'error');
         showNotification('❌ Build başarısız oldu.', 'error');
         return;
     }
@@ -1296,7 +1424,7 @@ document.getElementById('btn-sm-deploy')?.addEventListener('click', async () => 
     }
 
     if (!targetFileToDeploy) {
-        appendSmConsoleLine('❌ Derlenmiş dosya bulunamadı! Lütfen hedef (.jar veya .sk) dosyanızın oluşturulduğundan emin olun.', 'error');
+        appendSmConsoleLine('❌ ' + tr('msg.buildFileNotFound', 'Build artifact not found! Make sure your target (.jar or .sk) file was generated.'), 'error');
         showNotification('Bulunamadı!', 'error');
         return;
     }
@@ -1316,6 +1444,134 @@ document.getElementById('btn-sm-deploy')?.addEventListener('click', async () => 
         appendSmConsoleLine('⚠️ Yükleme sırasında bir şeyler ters gitti: ' + (deployResult?.error || 'Bilinmeyen hata'), 'error');
     }
 });
+
+// ─── VB "Derle & Test Et" — tek tıkla kod üret → derle → sunucuya yükle ───
+async function deployToServer() {
+    if (!currentProjectPath) {
+        showNotification('❌ Önce bir proje açın!', 'error');
+        return;
+    }
+
+    // Adım 1: VB'den kodu al
+    let code = '';
+    if (typeof vbGenerateCode === 'function') {
+        code = vbGenerateCode({ returnOnly: true });
+    }
+
+    if (!code || code.trim() === '' || code.startsWith('// Henüz') || code.startsWith('# Henüz')) {
+        showNotification('⚠️ Önce Visual Builder\'a blok ekleyin!', 'error');
+        return;
+    }
+
+    showNotification('📝 Kod proje dosyasına yazılıyor...', 'info');
+
+    // Adım 2: Proje tipini belirle ve kodu kaydet
+    try {
+        const entries = await ipcRenderer.invoke('fs:readDir', currentProjectPath);
+        const hasPom = entries.some(e => e.name === 'pom.xml');
+        const hasBuildGradle = entries.some(e => e.name === 'build.gradle');
+        const isSkript = !hasPom && !hasBuildGradle;
+
+        if (isSkript) {
+            const skFiles = entries.filter(e => e.name.endsWith('.sk'));
+            const skPath = skFiles.length > 0
+                ? skFiles[0].path
+                : nodePath.join(currentProjectPath, 'generated.sk');
+            await ipcRenderer.invoke('fs:writeFile', skPath, code);
+            // Skript için derleme yok, doğrudan deploy
+            showNotification('📜 Skript dosyası kaydedildi!', 'success');
+            const deployResult = await ipcRenderer.invoke('server:deploy', skPath);
+            if (deployResult && deployResult.success) {
+                showNotification('✅ Skript sunucuya yüklendi!', 'success');
+                const status = await ipcRenderer.invoke('server:status');
+                if (status && status.status === 'running') {
+                    await ipcRenderer.invoke('server:command', 'reload confirm');
+                }
+            } else {
+                showNotification('❌ Yükleme hatası: ' + (deployResult?.error || '?'), 'error');
+            }
+            return;
+        }
+
+        // Java projesi: src/main/java/... altındaki ilk .java dosyasına yaz
+        // Proje adı olarak currentProjectPath'in son klasörünü al
+        const projectName = nodePath.basename(currentProjectPath);
+        // Basit arama: target klasörü yoksa ana .java dosyayı bul
+        const srcMainJava = nodePath.join(currentProjectPath, 'src', 'main', 'java');
+        const srcExists = await ipcRenderer.invoke('fs:exists', srcMainJava);
+        if (srcExists) {
+            // Mevcut .java dosyalarından Main.java'yı bul
+            const findMainJava = async (dir) => {
+                const items = await ipcRenderer.invoke('fs:readDir', dir);
+                if (!items) return null;
+                for (const item of items) {
+                    if (item.isDirectory) {
+                        const found = await findMainJava(item.path);
+                        if (found) return found;
+                    } else if (item.name === 'Main.java' || item.name === projectName + '.java') {
+                        return item.path;
+                    }
+                }
+                // Herhangi bir .java dosyasını döndür
+                for (const item of items) {
+                    if (!item.isDirectory && item.name.endsWith('.java')) return item.path;
+                }
+                return null;
+            };
+            const javaPath = await findMainJava(srcMainJava);
+            if (javaPath) {
+                await ipcRenderer.invoke('fs:writeFile', javaPath, code);
+                showNotification('☕ Java dosyası güncellendi: ' + nodePath.basename(javaPath), 'info');
+            }
+        }
+    } catch (e) {
+        console.error('deployToServer - kod yazma hatası:', e);
+    }
+
+    // Adım 3: Derle
+    showNotification(tr('msg.building', 'Building...'), 'info');
+    const buildResult = await ipcRenderer.invoke('build:run', currentProjectPath);
+    if (!buildResult.success) {
+        showNotification(tr('msg.buildError', 'Build error: {error}', { error: buildResult.error || 'unknown' }), 'error');
+        appendSmConsoleLine && appendSmConsoleLine('❌ Build hatası: ' + buildResult.error, 'error');
+        return;
+    }
+    showNotification(tr('msg.buildSuccess', 'Build successful!'), 'success');
+
+    // Adım 4: JAR'ı bul
+    let targetFile = null;
+    try {
+        const entries = await ipcRenderer.invoke('fs:readDir', currentProjectPath);
+        const hasPom = entries.some(e => e.name === 'pom.xml');
+        const targetDirPath = nodePath.join(currentProjectPath, hasPom ? 'target' : 'build/libs');
+        const targetEntries = await ipcRenderer.invoke('fs:readDir', targetDirPath);
+        if (targetEntries) {
+            const jars = targetEntries.filter(e =>
+                e.name.endsWith('.jar') && !e.name.includes('-original') && !e.name.includes('-sources'));
+            if (jars.length > 0) targetFile = jars[0].path;
+        }
+    } catch (e) { console.error('deployToServer - jar arama hatası:', e); }
+
+    if (!targetFile) {
+        showNotification('❌ JAR bulunamadı!', 'error');
+        return;
+    }
+
+    // Adım 5: Sunucuya kopyala
+    const deployResult = await ipcRenderer.invoke('server:deploy', targetFile);
+    if (deployResult && deployResult.success) {
+        showNotification('🚀 ' + nodePath.basename(targetFile) + ' sunucuya yüklendi!', 'success');
+        appendSmConsoleLine && appendSmConsoleLine('✅ VB Deploy: ' + nodePath.basename(targetFile) + ' yüklendi!', 'success');
+        const status = await ipcRenderer.invoke('server:status');
+        if (status && status.status === 'running') {
+            await ipcRenderer.invoke('server:command', 'reload confirm');
+            appendSmConsoleLine && appendSmConsoleLine('CraftIDE > reload confirm gönderildi', 'dim');
+            showNotification('🔄 Sunucu yenileniyor...', 'info');
+        }
+    } else {
+        showNotification('❌ Yükleme hatası: ' + (deployResult?.error || '?'), 'error');
+    }
+}
 
 // Sunucu konsolu xterm başlatma (server manager açıldığında)
 function initServerConsole() {
@@ -1363,7 +1619,20 @@ function initServerConsole() {
 
 // Sunucu konsoldan gelen mesajları göster
 ipcRenderer.on('server:log', (_, data) => {
+    if (!window.__craftideServerLogs) window.__craftideServerLogs = [];
+    window.__craftideServerLogs.push({ ts: Date.now(), line: String(data) });
+    if (window.__craftideServerLogs.length > 4000) {
+        window.__craftideServerLogs.splice(0, window.__craftideServerLogs.length - 4000);
+    }
+    document.dispatchEvent(new CustomEvent('craftide:server-log', { detail: String(data) }));
+
     appendSmConsoleLine(data);
+    // Live Debug: VB event bloklarını vurgula
+    if (typeof window.highlightEventInVB === 'function') {
+        window.highlightEventInVB(data);
+    }
+    // Smart Error Resolver: stack trace yakala
+    _handleServerLogForErrors(data);
 });
 
 ipcRenderer.on('server:status', (_, status) => {
@@ -1411,7 +1680,10 @@ function appendOutputLine(text, className) {
         if (line.trim().length === 0) continue;
         const div = document.createElement('div');
         div.className = 'terminal-line ' + (className || '');
-        div.textContent = line.replace(/\r/g, '');
+        const normalized = line.replace(/\r/g, '');
+        div.textContent = (window.Lang && typeof window.Lang.localizeMessage === 'function')
+            ? window.Lang.localizeMessage(normalized)
+            : normalized;
         output.appendChild(div);
     }
     output.scrollTop = output.scrollHeight;
@@ -1515,6 +1787,123 @@ function applySettings() {
     }
 }
 
+document.addEventListener('lang:changed', () => {
+    refreshLocalizedTabLabels();
+    if (!currentFilePath) {
+        const title = document.getElementById('titlebar-filename');
+        if (title) title.textContent = tr('ui.titlebar.welcome', 'Welcome');
+    }
+});
+
+// ═══════════════════════════════════════════════════════════
+// Onboarding Wizard
+// ═══════════════════════════════════════════════════════════
+
+function initOnboarding() {
+    if (localStorage.getItem('craftide-onboarded')) return;
+
+    const overlay = document.getElementById('onboarding-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+
+    let currentStep = 0;
+    let selectedMode = 'plugin';
+
+    const steps = [
+        document.getElementById('ob-step-0'),
+        document.getElementById('ob-step-1'),
+        document.getElementById('ob-step-2'),
+    ];
+    const dots = [
+        document.getElementById('ob-dot-0'),
+        document.getElementById('ob-dot-1'),
+        document.getElementById('ob-dot-2'),
+    ];
+
+    function goToStep(n) {
+        steps.forEach((s, i) => {
+            if (s) s.classList.toggle('active', i === n);
+        });
+        dots.forEach((d, i) => {
+            if (d) d.classList.toggle('active', i === n);
+        });
+        currentStep = n;
+        if (n === 2) buildOnboardTplGrid();
+    }
+
+    // Platform buttons
+    document.querySelectorAll('.onboard-platform-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.onboard-platform-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedMode = btn.dataset.mode || 'plugin';
+        });
+    });
+    // Pre-select plugin
+    const pluginBtn = document.querySelector('.onboard-platform-btn[data-mode="plugin"]');
+    if (pluginBtn) pluginBtn.classList.add('selected');
+
+    document.getElementById('ob-next-0')?.addEventListener('click', () => goToStep(1));
+    document.getElementById('ob-back-1')?.addEventListener('click', () => goToStep(0));
+    document.getElementById('ob-skip-ai')?.addEventListener('click', () => goToStep(2));
+    document.getElementById('ob-next-1')?.addEventListener('click', () => {
+        // Save AI settings to localStorage
+        const provider = document.getElementById('ob-ai-provider')?.value || 'ollama';
+        const model = document.getElementById('ob-ai-model')?.value || 'codellama:13b';
+        const endpoint = document.getElementById('ob-ai-endpoint')?.value || 'http://localhost:11434';
+        const key = document.getElementById('ob-ai-key')?.value || '';
+        localStorage.setItem('setting-ai-provider', provider);
+        localStorage.setItem('setting-ai-model', model);
+        localStorage.setItem('setting-ai-endpoint', endpoint);
+        localStorage.setItem('setting-ai-key', key);
+        // Sync to settings UI elements if they exist
+        ['setting-ai-provider', 'setting-ai-model', 'setting-ai-endpoint', 'setting-ai-key'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = localStorage.getItem(id) || '';
+        });
+        if (window.llmProvider) window.llmProvider.reload();
+        goToStep(2);
+    });
+    document.getElementById('ob-back-2')?.addEventListener('click', () => goToStep(1));
+    document.getElementById('ob-blank-start')?.addEventListener('click', () => {
+        finishOnboarding(selectedMode, null);
+    });
+
+    function buildOnboardTplGrid() {
+        const grid = document.getElementById('ob-tpl-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        const tplList = typeof VB_TEMPLATES !== 'undefined'
+            ? VB_TEMPLATES.filter(t => t.mode === selectedMode)
+            : [];
+        tplList.forEach(tpl => {
+            const card = document.createElement('div');
+            card.className = 'onboard-tpl-card';
+            card.innerHTML = `<strong>${tpl.name}</strong><span>${tpl.desc}</span>`;
+            card.addEventListener('click', () => finishOnboarding(selectedMode, tpl));
+            grid.appendChild(card);
+        });
+        if (tplList.length === 0) {
+            grid.innerHTML = '<p style="color:var(--text-secondary);grid-column:span 2;">Bu mod için hazır şablon yok. Boş başlayın.</p>';
+        }
+    }
+
+    function finishOnboarding(mode, tpl) {
+        overlay.style.display = 'none';
+        localStorage.setItem('craftide-onboarded', '1');
+        // Open Visual Builder
+        openFile('visual-builder://tab', getVirtualTabName('visual-builder://tab'));
+        // Set mode
+        if (typeof vbCurrentMode !== 'undefined') {
+            setTimeout(() => {
+                const sel = document.getElementById('vb-mode-select');
+                if (sel) { sel.value = mode; sel.dispatchEvent(new Event('change')); }
+                if (tpl && typeof loadTemplate === 'function') loadTemplate(tpl);
+            }, 200);
+        }
+    }
+}
+
 // ═══════════════════════════════════════════════════════════
 // Init
 // ═══════════════════════════════════════════════════════════
@@ -1522,11 +1911,13 @@ function applySettings() {
 console.log('⛏️ CraftIDE renderer initialized!');
 
 // Ayarları yükle
-
 loadSettings();
 
 // Terminal'i otomatik başlat
 initTerminal();
+
+// Onboarding wizard (800ms gecikme)
+setTimeout(initOnboarding, 800);
 
 // ═══════════════════════════════════════════════════════════
 // Sidebar Resizer Default Logic
@@ -1616,16 +2007,22 @@ function toggleMcToolsDropdown(btnEl) {
     mcToolsDropdown = document.createElement('div');
     mcToolsDropdown.className = 'mc-tools-dropdown';
     mcToolsDropdown.innerHTML = `
-        <div class="mc-tool-item" data-tool="new-plugin">🚀 Yeni Plugin Oluştur</div>
-        <div class="mc-tool-item" data-tool="visual-builder">🧩 Görsel Builder</div>
+        <div class="mc-tool-item" data-tool="new-plugin">🚀 ${tr('ui.mctools.newPlugin', 'Create New Plugin')}</div>
+        <div class="mc-tool-item" data-tool="visual-builder">🧩 ${tr('ui.mctools.visualBuilder', 'Visual Builder')}</div>
         <div class="mc-tool-sep"></div>
-        <div class="mc-tool-item" data-tool="build">🔨 Plugin'i Derle</div>
-        <div class="mc-tool-item" data-tool="test-server">🧪 Test Sunucusu</div>
+        <div class="mc-tool-item" data-tool="gui-builder">🗃️ ${tr('ui.mctools.guiBuilder', 'Chest GUI Builder')}</div>
+        <div class="mc-tool-item" data-tool="command-tree">⌨️ ${tr('ui.mctools.commandTree', 'Command Tree Designer')}</div>
+        <div class="mc-tool-item" data-tool="recipe-creator">🍳 ${tr('ui.mctools.recipeCreator', 'Custom Item and Recipe')}</div>
+        <div class="mc-tool-item" data-tool="permission-tree">🔑 ${tr('ui.mctools.permissionTree', 'Permission Tree Generator')}</div>
         <div class="mc-tool-sep"></div>
-        <div class="mc-tool-item" data-tool="api-ref">📚 API Referansı</div>
-        <div class="mc-tool-item" data-tool="blockbench">🎮 Blockbench Editor</div>
+        <div class="mc-tool-item" data-tool="build">🔨 ${tr('ui.mctools.build', 'Build Plugin')}</div>
+        <div class="mc-tool-item" data-tool="test-server">🧪 ${tr('ui.mctools.testServer', 'Test Server')}</div>
         <div class="mc-tool-sep"></div>
-        <div class="mc-tool-item" data-tool="welcome">🏠 Hoş Geldin Sayfası</div>
+        <div class="mc-tool-item" data-tool="marketplace">🛍️ ${tr('ui.mctools.marketplace', 'Blueprint Marketplace')}</div>
+        <div class="mc-tool-item" data-tool="api-ref">📚 ${tr('ui.mctools.api', 'API Reference')}</div>
+        <div class="mc-tool-item" data-tool="blockbench">🎮 ${tr('ui.mctools.blockbench', 'Blockbench Editor')}</div>
+        <div class="mc-tool-sep"></div>
+        <div class="mc-tool-item" data-tool="welcome">🏠 ${tr('ui.mctools.welcome', 'Welcome Page')}</div>
     `;
 
     // Position next to button
@@ -1641,11 +2038,16 @@ function toggleMcToolsDropdown(btnEl) {
         const tool = item.getAttribute('data-tool');
         switch (tool) {
             case 'new-plugin': showNewProjectModal(); break;
-            case 'visual-builder': openFile('visual-builder://tab', 'Görsel Builder'); break;
+            case 'visual-builder': openFile('visual-builder://tab', getVirtualTabName('visual-builder://tab')); break;
+            case 'gui-builder': openFile('gui-builder://tab', getVirtualTabName('gui-builder://tab')); break;
+            case 'command-tree': openFile('command-tree://tab', getVirtualTabName('command-tree://tab')); break;
+            case 'recipe-creator': openFile('recipe-creator://tab', getVirtualTabName('recipe-creator://tab')); break;
+            case 'permission-tree': openFile('permission-tree://tab', getVirtualTabName('permission-tree://tab')); break;
+            case 'marketplace': openFile('marketplace://tab', getVirtualTabName('marketplace://tab')); break;
             case 'build': document.getElementById('btn-build-plugin')?.click(); break;
             case 'test-server': document.getElementById('btn-test-server')?.click(); break;
             case 'api-ref': document.getElementById('btn-api-ref')?.click(); break;
-            case 'blockbench': openFile('blockbench://tab', 'Blockbench Editor'); break;
+            case 'blockbench': openFile('blockbench://tab', getVirtualTabName('blockbench://tab')); break;
             case 'welcome': showWelcome(); break;
         }
         mcToolsDropdown.remove();
@@ -1683,7 +2085,7 @@ async function fetchMinecraftVersions() {
 
         let html = '';
         sortedVersions.forEach((v, i) => {
-            html += `<option value="${v}"${i === 0 ? ' selected' : ''}>${v}${i === 0 ? ' (Son)' : ''}</option>`;
+            html += `<option value="${v}"${i === 0 ? ' selected' : ''}>${v}${i === 0 ? ' (' + tr('ui.common.latest', 'Latest') + ')' : ''}</option>`;
         });
 
         if (inputSelect) inputSelect.innerHTML = html;
@@ -1692,7 +2094,7 @@ async function fetchMinecraftVersions() {
     } catch (err) {
         console.error('Failed to fetch MC versions:', err);
         const fallbackHTML = `
-            <option value="1.21.4" selected>1.21.4 (Son - Offline)</option>
+            <option value="1.21.4" selected>1.21.4 (${tr('ui.common.latestOffline', 'Latest - Offline')})</option>
             <option value="1.21.1">1.21.1</option>
             <option value="1.20.4">1.20.4</option>
             <option value="1.19.4">1.19.4</option>
@@ -1718,12 +2120,317 @@ ipcRenderer.on('request-close', () => {
     const hasPath = typeof window.imageEditorCurrentPath === 'function' && window.imageEditorCurrentPath();
 
     if (dirty && hasPath) {
-        const ok = confirm(
-            'Resim editöründe kaydedilmemiş değişiklikler var.\n\n' +
-            'Kaydedilmeden çıkmak istiyor musunuz?'
-        );
+        const ok = confirm(tr('prompt.unsavedImage', 'There are unsaved changes in the image editor.\\n\\nExit without saving?'));
+
+
         if (!ok) return; // Kullanıcı iptal etti, pencere açık kalır
     }
 
     ipcRenderer.send('close-app-confirmed');
 });
+
+// ═══════════════════════════════════════════════════════════
+// Visual Config Editor — YAML form tabanlı düzenleyici
+// ═══════════════════════════════════════════════════════════
+
+let _configEditorCurrentPath = null;
+
+function showConfigEditor(filePath, content, type) {
+    _configEditorCurrentPath = filePath;
+    const container = document.getElementById('config-editor-container');
+    const body = document.getElementById('config-editor-body');
+    const fnSpan = document.getElementById('config-editor-filename');
+    if (!container || !body) return;
+
+    if (fnSpan) fnSpan.textContent = nodePath.basename(filePath);
+    body.innerHTML = '';
+
+    if (type === 'plugin') {
+        _renderPluginYmlEditor(body, content);
+    } else {
+        _renderGenericYmlEditor(body, content);
+    }
+
+    // Ham YAML toggle
+    const rawBtn = document.getElementById('btn-config-raw-toggle');
+    if (rawBtn) {
+        rawBtn._cfgRawMode = false;
+        rawBtn.onclick = () => {
+            rawBtn._cfgRawMode = !rawBtn._cfgRawMode;
+            if (rawBtn._cfgRawMode) {
+                // Monaco ile göster
+                container.style.display = 'none';
+                document.getElementById('editor-container').style.display = 'block';
+                if (window.monacoEditor && window.monaco) {
+                    const model = window.monaco.editor.createModel(content, 'yaml');
+                    const oldModel = window.monacoEditor.getModel();
+                    window.monacoEditor.setModel(model);
+                    if (oldModel && oldModel !== model) oldModel.dispose();
+                }
+                rawBtn.textContent = 'Form Görünümü';
+            } else {
+                document.getElementById('editor-container').style.display = 'none';
+                container.style.display = 'flex';
+                rawBtn.textContent = 'Ham YAML';
+            }
+        };
+    }
+
+    // Kaydet butonu
+    const saveBtn = document.getElementById('btn-config-save');
+    if (saveBtn) {
+        saveBtn.onclick = async () => {
+            const yaml = _serializeConfigForm(body, type);
+            await ipcRenderer.invoke('fs:writeFile', _configEditorCurrentPath, yaml);
+            const fd = openFiles.get(_configEditorCurrentPath);
+            if (fd) fd.content = yaml;
+            showNotification('💾 Config kaydedildi!', 'success');
+        };
+    }
+}
+
+function _renderPluginYmlEditor(body, content) {
+    const known = {
+        name: 'text', version: 'text', main: 'text',
+        'api-version': 'text', description: 'text', author: 'text',
+        website: 'text', prefix: 'text'
+    };
+    const parsed = _parseSimpleYaml(content);
+
+    const section = (title) => {
+        const h = document.createElement('h3');
+        h.style.cssText = 'font-size:13px;color:var(--accent);margin:16px 0 8px;border-bottom:1px solid var(--border-color);padding-bottom:4px;';
+        h.textContent = title;
+        body.appendChild(h);
+    };
+
+    section('Temel Bilgiler');
+    for (const [k, inputType] of Object.entries(known)) {
+        _addFormField(body, k, parsed[k] || '', inputType);
+    }
+
+    // commands
+    section('Komutlar (commands)');
+    const cmdArea = document.createElement('div');
+    cmdArea.id = 'cfg-commands-area';
+    cmdArea.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+    const cmdList = (typeof parsed.commands === 'object' && parsed.commands) ? Object.entries(parsed.commands) : [];
+    const addCmdRow = (name, desc) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+        const ni = document.createElement('input'); ni.placeholder = 'komut adı'; ni.value = name || ''; ni.className = 'cfg-cmd-name'; ni.style.cssText = 'flex:0 0 120px;padding:4px 6px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;font-size:12px;';
+        const di = document.createElement('input'); di.placeholder = 'açıklama'; di.value = (typeof desc === 'object' ? desc.description : desc) || ''; di.className = 'cfg-cmd-desc'; di.style.cssText = 'flex:1;padding:4px 6px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;font-size:12px;';
+        const rm = document.createElement('button'); rm.textContent = '✕'; rm.style.cssText = 'background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;'; rm.onclick = () => row.remove();
+        row.append(ni, di, rm);
+        cmdArea.appendChild(row);
+    };
+    cmdList.forEach(([n, d]) => addCmdRow(n, d));
+    const addCmdBtn = document.createElement('button');
+    addCmdBtn.textContent = '+ Komut Ekle';
+    addCmdBtn.style.cssText = 'align-self:flex-start;padding:4px 10px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-secondary);border-radius:4px;cursor:pointer;font-size:12px;';
+    addCmdBtn.onclick = () => addCmdRow('', '');
+    body.appendChild(cmdArea);
+    body.appendChild(addCmdBtn);
+
+    body.dataset.type = 'plugin';
+}
+
+function _renderGenericYmlEditor(body, content) {
+    const lines = content.split('\n');
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+    wrapper.id = 'cfg-generic-lines';
+
+    lines.forEach((line, i) => {
+        if (line.trim() === '' || line.trim().startsWith('#')) {
+            const comment = document.createElement('div');
+            comment.style.cssText = 'font-size:11px;color:var(--text-muted);padding:2px 0;';
+            comment.textContent = line;
+            comment.dataset.lineType = 'comment';
+            comment.dataset.original = line;
+            wrapper.appendChild(comment);
+            return;
+        }
+        const m = line.match(/^(\s*)([\w\-\.]+)\s*:\s*(.*)/);
+        if (m) {
+            const indent = m[1], key = m[2], val = m[3].trim();
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+            row.dataset.lineType = 'kv';
+            row.dataset.indent = indent;
+            const lbl = document.createElement('label');
+            lbl.style.cssText = 'flex:0 0 180px;font-size:12px;color:var(--text-secondary);text-align:right;padding-left:' + (indent.length * 6) + 'px;';
+            lbl.textContent = key + ':';
+
+            let inp;
+            if (val === 'true' || val === 'false') {
+                inp = document.createElement('select');
+                ['true', 'false'].forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; if (val === v) o.selected = true; inp.appendChild(o); });
+            } else {
+                inp = document.createElement('input');
+                inp.type = /^\d+(\.\d+)?$/.test(val) ? 'number' : 'text';
+                inp.value = val;
+            }
+            inp.dataset.cfgKey = key;
+            inp.style.cssText = 'flex:1;padding:4px 6px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;font-size:12px;';
+            row.append(lbl, inp);
+            wrapper.appendChild(row);
+        } else {
+            // list item veya complex — göster ama değiştirme
+            const comment = document.createElement('div');
+            comment.style.cssText = 'font-size:11px;color:var(--text-muted);padding:2px 0;';
+            comment.textContent = line;
+            comment.dataset.lineType = 'raw';
+            comment.dataset.original = line;
+            wrapper.appendChild(comment);
+        }
+    });
+
+    body.appendChild(wrapper);
+    body.dataset.type = 'generic';
+}
+
+function _addFormField(parent, key, value, type) {
+    const row = document.createElement('div');
+    row.className = 'cfg-field';
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:4px;';
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'flex:0 0 140px;font-size:12px;color:var(--text-secondary);text-align:right;';
+    lbl.textContent = key + ':';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = value;
+    inp.dataset.cfgKey = key;
+    inp.style.cssText = 'flex:1;padding:5px 8px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;font-size:12px;';
+    row.append(lbl, inp);
+    parent.appendChild(row);
+}
+
+function _parseSimpleYaml(content) {
+    const result = {};
+    let currentParent = null;
+    const lines = content.split('\n');
+    for (const line of lines) {
+        if (line.trim() === '' || line.trim().startsWith('#')) continue;
+        const m = line.match(/^(\s*)([\w\-\.]+)\s*:\s*(.*)/);
+        if (!m) continue;
+        const indent = m[1].length, key = m[2], val = m[3].trim();
+        if (indent === 0) {
+            if (val === '') { result[key] = {}; currentParent = key; }
+            else { result[key] = val; currentParent = null; }
+        } else if (currentParent && indent === 2) {
+            if (typeof result[currentParent] !== 'object') result[currentParent] = {};
+            result[currentParent][key] = val;
+        }
+    }
+    return result;
+}
+
+function _serializeConfigForm(body, type) {
+    if (type === 'plugin') {
+        let yaml = '';
+        body.querySelectorAll('[data-cfg-key]').forEach(inp => {
+            yaml += inp.dataset.cfgKey + ': ' + inp.value + '\n';
+        });
+        // commands
+        yaml += 'commands:\n';
+        body.querySelectorAll('#cfg-commands-area > div').forEach(row => {
+            const name = row.querySelector('.cfg-cmd-name')?.value;
+            const desc = row.querySelector('.cfg-cmd-desc')?.value;
+            if (name) yaml += '  ' + name + ':\n    description: ' + (desc || '') + '\n';
+        });
+        return yaml;
+    } else {
+        // generic: her satırı yeniden oluştur
+        const wrapper = body.querySelector('#cfg-generic-lines');
+        if (!wrapper) return '';
+        let yaml = '';
+        wrapper.childNodes.forEach(node => {
+            if (node.dataset && node.dataset.lineType === 'kv') {
+                const inp = node.querySelector('[data-cfg-key]');
+                if (inp) {
+                    yaml += (node.dataset.indent || '') + inp.dataset.cfgKey + ': ' + inp.value + '\n';
+                }
+            } else if (node.dataset && (node.dataset.lineType === 'comment' || node.dataset.lineType === 'raw')) {
+                yaml += (node.dataset.original || '') + '\n';
+            }
+        });
+        return yaml;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Smart Error Resolver — sunucu stack trace analizi (Özellik 6)
+// ═══════════════════════════════════════════════════════════
+
+let _traceBuffer = [];
+let _collectingTrace = false;
+
+function _handleServerLogForErrors(data) {
+    if (/Exception|Error:/.test(data) && !/^\[.*\] \[INFO\]/.test(data)) {
+        _collectingTrace = true;
+        _traceBuffer = [data];
+    } else if (_collectingTrace && /^\s+at /.test(data)) {
+        _traceBuffer.push(data);
+    } else if (_collectingTrace) {
+        if (_traceBuffer.length > 1) _analyzeStackTrace([..._traceBuffer]);
+        _collectingTrace = false;
+        _traceBuffer = [];
+    }
+}
+
+function _analyzeStackTrace(lines) {
+    const firstLine = lines[0];
+    // Exception tipini çıkar
+    const exMatch = firstLine.match(/([\w.]+Exception|[\w.]+Error)[:\s]/);
+    const exType = exMatch ? exMatch[1] : tr('msg.errorFallback', 'Error');
+    const shortType = exType.split('.').pop();
+
+    // Kullanıcı paketini bul (bukkit/java/minecraft değil)
+    const userAt = lines.slice(1).find(l =>
+        /^\s+at /.test(l) &&
+        !l.includes('org.bukkit') && !l.includes('java.') &&
+        !l.includes('net.minecraft') && !l.includes('com.sun') &&
+        !l.includes('sun.reflect') && !l.includes('io.netty')
+    );
+
+    let location = '';
+    if (userAt) {
+        const m = userAt.match(/at ([\w.]+)\((\w+\.java):(\d+)\)/);
+        if (m) location = m[2] + ':' + m[3];
+    }
+
+    // Sorunlar paneli
+    const problemsList = document.getElementById('sm-problems-list');
+    if (!problemsList) return;
+
+    const item = document.createElement('div');
+    item.style.cssText = 'display:flex;align-items:flex-start;gap:8px;padding:8px;background:rgba(231,76,60,0.1);border-left:3px solid #e74c3c;border-radius:4px;margin-bottom:6px;';
+    item.innerHTML = `
+        <span style="color:#e74c3c;font-size:16px;">&#9888;</span>
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;color:#e74c3c;">${shortType}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${location || firstLine.slice(0, 80)}</div>
+        </div>
+        <button class="cfg-ai-btn" style="white-space:nowrap;padding:3px 8px;font-size:11px;background:rgba(52,152,219,0.2);border:1px solid rgba(52,152,219,0.4);color:#3498db;border-radius:4px;cursor:pointer;">${tr('ui.server.aiAnalyze', 'AI Analyze')}</button>
+    `;
+    item.querySelector('.cfg-ai-btn').onclick = () => {
+        if (window.aiManager) {
+            document.querySelector('.activity-btn[data-panel="ai"]')?.click();
+            setTimeout(() => {
+                if (window.aiManager.chatInput) {
+                    window.aiManager.chatInput.value = tr('msg.aiAnalyzePrompt', 'Analyze this Java error and tell me how to fix it:\n') + lines.slice(0, 5).join('\n');
+                    if (window.aiManager.handleChatInput) window.aiManager.handleChatInput();
+                }
+            }, 200);
+        }
+    };
+    problemsList.insertBefore(item, problemsList.firstChild);
+
+    // Max 10 hata göster
+    while (problemsList.childNodes.length > 10) problemsList.removeChild(problemsList.lastChild);
+
+    showNotification('⚠️ ' + (location ? tr('msg.serverErrorLocation', 'Server error: {type} ({location})', { type: shortType, location }) : tr('msg.serverError', 'Server error: {type}', { type: shortType })), 'error');
+}
+
+

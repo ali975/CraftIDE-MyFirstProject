@@ -134,7 +134,7 @@ class CraftAIManager {
     }
 
     async processGeneralChat(userText, context, responseContentDiv) {
-        const systemPrompt = `Sen CraftIDE'nin merkez yapay zeka asistanısın. 
+        const systemPrompt = `Sen CraftIDE'nin merkez yapay zeka asistanısın.
 Şu an kullanıcının açık olan dosyası: ${context.activeFile || 'Yok'}
 Açık olan panel: ${context.activePanel}
 ${context.codeSnippet ? '\nMevcut Kod:\n' + context.codeSnippet : ''}
@@ -144,10 +144,39 @@ Kullanıcıya Minecraft eklenti, mod veya Skript geliştirmesinde yardımcı ol.
         let fullResponse = '';
         await this.llm.generateStream(userText, systemPrompt, (chunk) => {
             fullResponse += chunk;
-            responseContentDiv.innerHTML = `<p>${this._escapeHtml(fullResponse).replace(/\\n/g, '<br>')}</p>`;
+            if (typeof formatAIResponse === 'function') {
+                responseContentDiv.innerHTML = formatAIResponse(fullResponse);
+            } else {
+                responseContentDiv.innerHTML = `<p>${this._escapeHtml(fullResponse).replace(/\n/g, '<br>')}</p>`;
+            }
         });
 
+        // Streaming bitti — "Editörde Aç" butonlarını ekle
+        this._addOpenInEditorButtons(responseContentDiv);
         this.chatHistory.push({ role: 'assistant', content: fullResponse });
+    }
+
+    _addOpenInEditorButtons(container) {
+        container.querySelectorAll('pre code').forEach((codeEl, idx) => {
+            // Zaten buton eklenmişse atla
+            if (codeEl.parentElement.querySelector('.ai-open-editor-btn')) return;
+            const btn = document.createElement('button');
+            btn.className = 'ai-open-editor-btn';
+            btn.textContent = '📂 Editörde Aç';
+            btn.addEventListener('click', () => {
+                const cls = codeEl.className || '';
+                const ext = cls.includes('java') ? '.java' : cls.includes('sk') || cls.includes('skript') ? '.sk' : '.txt';
+                const vPath = 'generated://ai-snippet-' + idx + ext;
+                if (typeof openFiles !== 'undefined' && typeof addTab === 'function' && typeof activateTab === 'function') {
+                    openFiles.set(vPath, { content: codeEl.textContent, modified: false, virtual: true, generated: true });
+                    const ex = document.querySelector(`.tab[data-tab="${CSS.escape(vPath)}"]`);
+                    if (ex) ex.remove();
+                    addTab(vPath, 'AI Kod' + idx + ext);
+                    activateTab(vPath);
+                }
+            });
+            codeEl.parentElement.appendChild(btn);
+        });
     }
 
     async processTextToNode(userText, context, responseContentDiv) {
@@ -203,7 +232,7 @@ Not: fromIndex ve toIndex "nodes" dizisindeki sıraya (0'dan başlayarak) işare
 
         // JSON bloğunu ayıkla
         try {
-            const jsonMatch = rawResponse.match(/\\{.*\\}/s);
+            const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
             let jsonString = rawResponse;
             if (jsonMatch) jsonString = jsonMatch[0];
 
@@ -292,8 +321,13 @@ Tuval özeti: ${JSON.stringify(context.vbSummary || {})}
         try {
             await this.llm.generateStream('Lütfen bu hatayı analiz et ve nasıl çözeceğimi söyle.', systemPrompt, (chunk) => {
                 rawResponse += chunk;
-                responseContentDiv.innerHTML = `<p>${this._escapeHtml(rawResponse).replace(/\\n/g, '<br>')}</p>`;
+                if (typeof formatAIResponse === 'function') {
+                    responseContentDiv.innerHTML = formatAIResponse(rawResponse);
+                } else {
+                    responseContentDiv.innerHTML = `<p>${this._escapeHtml(rawResponse).replace(/\n/g, '<br>')}</p>`;
+                }
             });
+            this._addOpenInEditorButtons(responseContentDiv);
             this.chatHistory.push({ role: 'assistant', content: rawResponse });
         } catch (e) {
             responseContentDiv.innerHTML = `<p style="color:#e74c3c;">Hata incelenirken bir sorun oluştu.</p>`;
@@ -324,9 +358,6 @@ ${summaryStr}`;
 
         try {
             // Arka planda sessiz sorgu - UI kilitleme
-            const response = await this.llm.invoke(systemPrompt); // chat modelinde stream yerine full invoke varsayalım
-            // Ama llmProvider'da invoke yok. Sadece generateStream var normalde. 
-            // Kendimiz ufak bir buffering yapalım.
             let fullText = '';
             await this.llm.generateStream('Denge kontrolü.', systemPrompt, (c) => fullText += c);
 

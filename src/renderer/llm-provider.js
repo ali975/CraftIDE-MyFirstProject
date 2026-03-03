@@ -15,11 +15,16 @@ class LLMProvider {
     }
 
     _loadConfig() {
+        const fromLS = (lsKey, fallback) => {
+            const d = document.getElementById(lsKey)?.value;
+            if (d && d.trim()) return d.trim();
+            return localStorage.getItem(lsKey) || fallback;
+        };
         return {
-            provider: document.getElementById('setting-ai-provider')?.value || 'ollama',
-            model: document.getElementById('setting-ai-model')?.value || 'codellama:13b',
-            endpoint: document.getElementById('setting-ai-endpoint')?.value || 'http://localhost:11434',
-            apiKey: document.getElementById('setting-ai-key')?.value || '',
+            provider: fromLS('setting-ai-provider', 'ollama'),
+            model:    fromLS('setting-ai-model', 'codellama:13b'),
+            endpoint: fromLS('setting-ai-endpoint', 'http://localhost:11434'),
+            apiKey:   fromLS('setting-ai-key', ''),
         };
     }
 

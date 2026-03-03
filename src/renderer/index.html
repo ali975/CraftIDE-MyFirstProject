@@ -12,9 +12,6 @@
     <link rel="stylesheet" href="../../node_modules/xterm/css/xterm.css">
 
     <link rel="stylesheet" href="styles/main.css">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
-        rel="stylesheet">
 </head>
 
 <body>
@@ -397,6 +394,8 @@
                                 Bağla | Bağlantı üzerine sağ tık → Sil</span>
                         </div>
                         <div class="vb-toolbar-right">
+                            <button class="vb-toolbar-btn" id="btn-vb-save" title="Blueprint kaydet (.vbp)">💾 Kaydet</button>
+                            <button class="vb-toolbar-btn" id="btn-vb-load" title="Blueprint yükle (.vbp)">📂 Yükle</button>
                             <button class="vb-toolbar-btn" id="btn-vb-templates" title="Hazır Şablonlar">
                                 📋 Şablonlar
                             </button>
@@ -416,6 +415,12 @@
                                 </svg>
                                 Temizle
                             </button>
+                            <button class="vb-toolbar-btn" id="btn-vb-deploy" title="Kodu üret, derle ve test sunucusuna yükle" style="background:rgba(46,204,113,0.15);border-color:#2ecc71;color:#2ecc71;">
+                                &#9654; Derle &amp; Test Et
+                            </button>
+                            <label class="vb-debug-toggle" title="Sunucu event'lerini VB'de canlı göster">
+                                <input type="checkbox" id="vb-debug-mode"> Debug
+                            </label>
                         </div>
                     </div>
                     <!-- Canvas Area for Visual Builder -->
@@ -467,6 +472,197 @@
                 <!-- Pixel Art Image Editor Container -->
                 <div class="editor-container" id="image-editor-container"
                     style="display:none; height:100%; position:relative; overflow:hidden;"></div>
+
+                <!-- GUI Builder Container -->
+                <div class="editor-container" id="gui-builder-container"
+                    style="display:none; height:100%; flex-direction:column; background:var(--bg-primary);">
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);flex-wrap:wrap;">
+                        <span style="font-size:13px;font-weight:600;color:var(--text-primary);">&#9783; Chest GUI Builder</span>
+                        <select id="gb-rows-select" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;">
+                            <option value="1">1 Satır (9 slot)</option>
+                            <option value="2">2 Satır (18 slot)</option>
+                            <option value="3" selected>3 Satır (27 slot)</option>
+                            <option value="4">4 Satır (36 slot)</option>
+                            <option value="5">5 Satır (45 slot)</option>
+                            <option value="6">6 Satır (54 slot)</option>
+                        </select>
+                        <input id="gb-gui-title" type="text" value="Shop" placeholder="GUI Başlığı"
+                            style="padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;width:140px;">
+                        <div style="margin-left:auto;display:flex;gap:6px;">
+                            <button id="btn-gb-export-vb" class="vb-toolbar-btn">&#9889; VB'ye Aktar</button>
+                            <button id="btn-gb-generate-code" class="vb-toolbar-btn" style="background:rgba(46,204,113,0.15);border-color:#2ecc71;color:#2ecc71;">&#9654; Kodu Üret</button>
+                            <button id="btn-gb-clear-gb" class="vb-toolbar-btn danger">&#128465; Temizle</button>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex:1;overflow:hidden;">
+                        <div id="gb-grid-area" style="flex:1;padding:24px;overflow:auto;display:flex;flex-direction:column;gap:12px;">
+                            <div style="font-size:11px;color:var(--text-muted);">Slot tıkla → konfigüre et → Uygula</div>
+                            <div id="gb-chest-grid" class="gb-chest-grid"></div>
+                        </div>
+                        <div id="gb-config-panel" class="gb-config-panel" style="display:none;">
+                            <div id="gb-slot-title" style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:12px;">Slot Seç</div>
+                            <label style="font-size:11px;color:var(--text-secondary);">Malzeme</label>
+                            <input type="text" id="gb-item-material" list="gb-materials-list" placeholder="DIAMOND"
+                                style="width:100%;padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;box-sizing:border-box;">
+                            <datalist id="gb-materials-list"></datalist>
+                            <label style="font-size:11px;color:var(--text-secondary);margin-top:8px;display:block;">Görünen Ad (&amp;a renk kodları)</label>
+                            <input type="text" id="gb-item-name" placeholder="&amp;aElmas"
+                                style="width:100%;padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;box-sizing:border-box;">
+                            <label style="font-size:11px;color:var(--text-secondary);margin-top:8px;display:block;">Açıklama (satır başına Enter)</label>
+                            <textarea id="gb-item-lore" rows="3" placeholder="Bu bir elmas!"
+                                style="width:100%;padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;box-sizing:border-box;resize:vertical;"></textarea>
+                            <label style="font-size:11px;color:var(--text-secondary);margin-top:8px;display:block;">Tıklama Aksiyonu</label>
+                            <select id="gb-click-action"
+                                style="width:100%;padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;box-sizing:border-box;">
+                                <option value="none">Yok</option>
+                                <option value="command">Komut Çalıştır</option>
+                                <option value="give">Eşya Ver</option>
+                                <option value="close">Envanteri Kapat</option>
+                            </select>
+                            <input type="text" id="gb-click-value" placeholder="Komut veya değer"
+                                style="width:100%;padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;box-sizing:border-box;margin-top:4px;">
+                            <button id="btn-gb-apply-slot" style="margin-top:12px;width:100%;padding:8px;background:#2ecc71;border:none;border-radius:4px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">&#10003; Uygula</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Marketplace Container -->
+                <div class="editor-container" id="marketplace-container"
+                    style="display:none; height:100%; flex-direction:column; background:var(--bg-primary);">
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);">
+                        <span style="font-size:13px;font-weight:600;">&#128657; Blueprint Marketi</span>
+                        <input id="mk-search" type="text" placeholder="Ara..." style="padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;width:180px;">
+                        <button class="mk-filter-btn vb-toolbar-btn active" data-mode="all">Tümü</button>
+                        <button class="mk-filter-btn vb-toolbar-btn" data-mode="plugin">Plugin</button>
+                        <button class="mk-filter-btn vb-toolbar-btn" data-mode="fabric">Fabric</button>
+                        <button class="mk-filter-btn vb-toolbar-btn" data-mode="skript">Skript</button>
+                    </div>
+                    <div style="display:flex;flex:1;overflow:hidden;">
+                        <!-- Blueprint listesi -->
+                        <div id="mk-cards-container" style="flex:1;padding:16px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-content:start;"></div>
+                        <!-- Yayınla paneli -->
+                        <div style="width:260px;border-left:1px solid var(--border-color);padding:16px;background:var(--bg-secondary);display:flex;flex-direction:column;gap:8px;">
+                            <div style="font-size:12px;font-weight:700;color:var(--accent);">Blueprint Yayınla</div>
+                            <div style="font-size:11px;color:var(--text-muted);">Mevcut VB canvas'ı blueprint olarak kaydet</div>
+                            <label style="font-size:11px;color:var(--text-secondary);">Blueprint Adı</label>
+                            <input id="mk-publish-name" type="text" placeholder="Economy Shop"
+                                style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;">
+                            <label style="font-size:11px;color:var(--text-secondary);">Açıklama</label>
+                            <textarea id="mk-publish-desc" rows="3" placeholder="Ne yapıyor?"
+                                style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;resize:vertical;"></textarea>
+                            <button id="btn-mk-publish" style="padding:8px;background:#2ecc71;border:none;border-radius:4px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;margin-top:4px;">&#8593; Yayınla</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recipe Creator Container -->
+                <div class="editor-container" id="recipe-creator-container"
+                    style="display:none; height:100%; flex-direction:column; background:var(--bg-primary);">
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);">
+                        <span style="font-size:13px;font-weight:600;">&#129379; Custom Item &amp; Tarif Oluşturucu</span>
+                        <button class="rc-type-btn vb-toolbar-btn active" data-type="shaped">Şekilli</button>
+                        <button class="rc-type-btn vb-toolbar-btn" data-type="shapeless">Şekilsiz</button>
+                        <div style="margin-left:auto;display:flex;gap:6px;">
+                            <button id="btn-rc-clear" class="vb-toolbar-btn danger">&#128465; Temizle</button>
+                            <button id="btn-rc-generate" class="vb-toolbar-btn" style="background:rgba(46,204,113,0.15);border-color:#2ecc71;color:#2ecc71;">&#9654; Kodu Üret</button>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex:1;overflow:hidden;gap:0;">
+                        <!-- Crafting grid -->
+                        <div style="padding:24px;display:flex;flex-direction:column;gap:16px;align-items:flex-start;">
+                            <div style="font-size:11px;color:var(--text-muted);">Crafting Tablosu</div>
+                            <div id="rc-craft-grid" class="rc-grid"></div>
+                            <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+                                <div style="font-size:20px;color:var(--text-muted);">&#8594;</div>
+                                <div>
+                                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Sonuç</div>
+                                    <div id="rc-result-slot" class="rc-slot rc-result" style="width:64px;height:64px;font-size:13px;cursor:pointer;">+</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Cell config -->
+                        <div id="rc-cell-config" style="width:260px;border-left:1px solid var(--border-color);padding:16px;display:none;flex-direction:column;gap:6px;background:var(--bg-secondary);">
+                            <div style="font-size:12px;font-weight:700;color:var(--accent);">Slot Konfigürasyonu</div>
+                            <label style="font-size:11px;color:var(--text-secondary);">Malzeme</label>
+                            <input id="rc-cell-material" type="text" list="rc-materials-list" placeholder="DIAMOND"
+                                style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;">
+                            <datalist id="rc-materials-list"></datalist>
+                            <label style="font-size:11px;color:var(--text-secondary);">Adet</label>
+                            <input id="rc-cell-count" type="number" min="1" max="64" value="1"
+                                style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;">
+                            <button id="btn-rc-apply-cell" style="margin-top:8px;padding:7px;background:#3498db;border:none;border-radius:4px;color:#fff;font-size:12px;cursor:pointer;">&#10003; Uygula</button>
+                        </div>
+                        <!-- Result config -->
+                        <div id="rc-result-config" style="width:260px;border-left:1px solid var(--border-color);padding:16px;display:none;flex-direction:column;gap:6px;background:var(--bg-secondary);">
+                            <div style="font-size:12px;font-weight:700;color:#2ecc71;">Sonuç Eşyası</div>
+                            <label style="font-size:11px;color:var(--text-secondary);">Malzeme</label>
+                            <input id="rc-result-material" type="text" list="rc-result-material-list" placeholder="DIAMOND_SWORD"
+                                style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;">
+                            <datalist id="rc-result-material-list"></datalist>
+                            <label style="font-size:11px;color:var(--text-secondary);">Görünen Ad</label>
+                            <input id="rc-result-name" type="text" placeholder="&6Efsanevi Kılıç"
+                                style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;">
+                            <label style="font-size:11px;color:var(--text-secondary);">Açıklama</label>
+                            <textarea id="rc-result-lore" rows="3" placeholder="Hasar: +100&#10;Efsanevi silah"
+                                style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;resize:vertical;"></textarea>
+                            <label style="font-size:11px;color:var(--text-secondary);">Adet</label>
+                            <input id="rc-result-count" type="number" min="1" max="64" value="1"
+                                style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;">
+                            <button id="btn-rc-apply-result" style="margin-top:8px;padding:7px;background:#2ecc71;border:none;border-radius:4px;color:#fff;font-size:12px;cursor:pointer;">&#10003; Uygula</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Permission Tree Builder Container -->
+                <div class="editor-container" id="permission-tree-container"
+                    style="display:none; height:100%; flex-direction:column; background:var(--bg-primary);">
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);">
+                        <span style="font-size:13px;font-weight:600;">&#128273; İzin Ağacı Oluşturucu</span>
+                        <div style="margin-left:auto;display:flex;gap:6px;">
+                            <button id="btn-pt-add-child" class="vb-toolbar-btn">+ Alt İzin</button>
+                            <button id="btn-pt-delete" class="vb-toolbar-btn danger">&#128465; Sil</button>
+                            <button id="btn-pt-generate-yml" class="vb-toolbar-btn" style="background:rgba(46,204,113,0.15);border-color:#2ecc71;color:#2ecc71;">plugin.yml Üret</button>
+                            <button id="btn-pt-generate-luckperms" class="vb-toolbar-btn" style="background:rgba(155,89,182,0.15);border-color:#9b59b6;color:#9b59b6;">LuckPerms Üret</button>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex:1;overflow:hidden;">
+                        <div id="pt-tree-area" style="flex:1;padding:20px;overflow:auto;"></div>
+                        <div id="pt-config-panel" style="width:260px;min-width:260px;border-left:1px solid var(--border-color);padding:16px;overflow-y:auto;background:var(--bg-secondary);"></div>
+                    </div>
+                </div>
+
+                <!-- Command Tree Designer Container -->
+                <div class="editor-container" id="command-tree-container"
+                    style="display:none; height:100%; flex-direction:column; background:var(--bg-primary);">
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);">
+                        <span style="font-size:13px;font-weight:600;">&#9000; Komut Ağacı Tasarımcısı</span>
+                        <div style="margin-left:auto;display:flex;gap:6px;">
+                            <button id="btn-ct-add-sub" class="vb-toolbar-btn">+ Alt Komut</button>
+                            <button id="btn-ct-add-arg" class="vb-toolbar-btn">+ Argüman</button>
+                            <button id="btn-ct-delete" class="vb-toolbar-btn danger">&#128465; Sil</button>
+                            <button id="btn-ct-generate-java" class="vb-toolbar-btn" style="background:rgba(46,204,113,0.15);border-color:#2ecc71;color:#2ecc71;">Java Üret</button>
+                            <button id="btn-ct-generate-skript" class="vb-toolbar-btn" style="background:rgba(52,152,219,0.15);border-color:#3498db;color:#3498db;">Skript Üret</button>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex:1;overflow:hidden;">
+                        <div id="ct-tree-area" style="flex:1;padding:20px;overflow:auto;"></div>
+                        <div id="ct-config-panel" style="width:260px;min-width:260px;border-left:1px solid var(--border-color);padding:16px;overflow-y:auto;background:var(--bg-secondary);"></div>
+                    </div>
+                </div>
+
+                <!-- Visual Config Editor -->
+                <div class="editor-container" id="config-editor-container"
+                    style="display:none; height:100%; overflow-y:auto; flex-direction:column;">
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);">
+                        <span style="font-size:13px;font-weight:600;color:var(--text-primary);">&#9881; Config Düzenleyici</span>
+                        <span id="config-editor-filename" style="font-size:12px;color:var(--text-secondary);"></span>
+                        <div style="margin-left:auto;display:flex;gap:6px;">
+                            <button id="btn-config-raw-toggle" class="vb-toolbar-btn">Ham YAML</button>
+                            <button id="btn-config-save" class="vb-toolbar-btn" style="background:rgba(46,204,113,0.15);border-color:#2ecc71;color:#2ecc71;">&#128190; Kaydet</button>
+                        </div>
+                    </div>
+                    <div id="config-editor-body" style="padding:20px;flex:1;overflow-y:auto;"></div>
+                </div>
 
                 <!-- Settings Container (Tab View) -->
                 <div class="editor-container" id="settings-container"
@@ -590,9 +786,14 @@
                         </select>
                     </div>
                     <div class="sm-console-wrapper"
-                        style="flex: 1 1 auto; overflow:hidden; display:flex; flex-direction:column; padding: 16px 32px 32px 32px;">
+                        style="flex: 1 1 auto; overflow:hidden; display:flex; flex-direction:column; padding: 16px 32px 16px 32px;">
                         <div id="xterm-server-console" class="xterm-container"
                             style="flex:1;border:1px solid var(--border-secondary);border-radius:6px;overflow:hidden;">
+                        </div>
+                        <!-- Smart Error Resolver: Sorunlar Paneli -->
+                        <div id="sm-problems-panel" style="max-height:160px;overflow-y:auto;margin-top:10px;">
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:600;letter-spacing:0.05em;">SORUNLAR</div>
+                            <div id="sm-problems-list"></div>
                         </div>
                     </div>
                 </div>
@@ -853,7 +1054,79 @@
     <script src="visual-builder.js"></script>
     <script src="ai-manager.js"></script>
 
+    <!-- CraftIDE Yeni Araçlar -->
+    <script src="gui-builder.js"></script>
+    <script src="command-tree.js"></script>
+    <script src="recipe-creator.js"></script>
+    <script src="permission-tree.js"></script>
+    <script src="marketplace.js"></script>
+    <script src="no-code-suite.js"></script>
+
     <script src="app.js"></script>
+
+    <!-- ═══════ Onboarding Wizard ═══════ -->
+    <div id="onboarding-overlay" style="display:none;">
+        <div id="onboarding-modal">
+            <div class="onboard-step-indicator">
+                <div class="onboard-step-dot active" id="ob-dot-0"></div>
+                <div class="onboard-step-dot" id="ob-dot-1"></div>
+                <div class="onboard-step-dot" id="ob-dot-2"></div>
+            </div>
+
+            <!-- Adım 1: Platform Seçimi -->
+            <div class="onboard-step active" id="ob-step-0">
+                <h2>⛏️ CraftIDE'ye Hoş Geldiniz!</h2>
+                <p>Hangi tür Minecraft içeriği oluşturmak istiyorsunuz?</p>
+                <div class="onboard-platform-grid">
+                    <button class="onboard-platform-btn" data-mode="plugin">📦 Plugin<br><small>Paper / Spigot</small></button>
+                    <button class="onboard-platform-btn" data-mode="fabric">🧵 Fabric Mod<br><small>Fabric API</small></button>
+                    <button class="onboard-platform-btn" data-mode="forge">🔨 Forge Mod<br><small>Forge API</small></button>
+                    <button class="onboard-platform-btn" data-mode="skript">📜 Skript<br><small>Skript Addon</small></button>
+                </div>
+                <div class="onboard-nav">
+                    <button class="onboard-btn-next" id="ob-next-0">Devam →</button>
+                </div>
+            </div>
+
+            <!-- Adım 2: AI Ayarları -->
+            <div class="onboard-step" id="ob-step-1">
+                <h2>🤖 AI Asistan Kurulumu</h2>
+                <p>Kodlama asistanınızı yapılandırın. Yerel Ollama veya bulut servislerini kullanabilirsiniz.</p>
+                <div class="onboard-ai-form">
+                    <label>AI Sağlayıcı</label>
+                    <select id="ob-ai-provider">
+                        <option value="ollama">Ollama (Yerel — Önerilen)</option>
+                        <option value="lmstudio">LM Studio (Yerel)</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic Claude</option>
+                        <option value="google">Google Gemini</option>
+                    </select>
+                    <label>Model Adı</label>
+                    <input type="text" id="ob-ai-model" value="codellama:13b" placeholder="codellama:13b">
+                    <label>Endpoint URL</label>
+                    <input type="text" id="ob-ai-endpoint" value="http://localhost:11434" placeholder="http://localhost:11434">
+                    <label>API Key (opsiyonel)</label>
+                    <input type="password" id="ob-ai-key" placeholder="sk-...">
+                </div>
+                <div class="onboard-nav">
+                    <button class="onboard-btn-back" id="ob-back-1">← Geri</button>
+                    <button class="onboard-btn-next" id="ob-skip-ai" style="background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border-secondary);">Atla</button>
+                    <button class="onboard-btn-next" id="ob-next-1">Devam →</button>
+                </div>
+            </div>
+
+            <!-- Adım 3: Şablon Seçimi -->
+            <div class="onboard-step" id="ob-step-2">
+                <h2>🎨 Bir Şablonla Başla</h2>
+                <p>Seçtiğiniz platforma uygun hazır şablonlardan birini seçin veya boş başlayın.</p>
+                <div class="onboard-tpl-grid" id="ob-tpl-grid"></div>
+                <div class="onboard-nav">
+                    <button class="onboard-btn-back" id="ob-back-2">← Geri</button>
+                    <button class="onboard-btn-next" id="ob-blank-start">Boş Başla</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

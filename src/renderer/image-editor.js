@@ -76,19 +76,19 @@
 
     <!-- Çizim araçları -->
     <div class="ie-group" style="display:flex;gap:2px;">
-      <button class="ie-tool" data-tool="pencil"  title="Kalem (P)">✏️</button>
-      <button class="ie-tool" data-tool="eraser"  title="Silgi (E)">⬜</button>
-      <button class="ie-tool" data-tool="fill"    title="Doldur (F)">🪣</button>
-      <button class="ie-tool" data-tool="eyedrop" title="Renk Al (I)">💉</button>
-      <button class="ie-tool" data-tool="rect"    title="Dikdörtgen (R)">▭</button>
-      <button class="ie-tool" data-tool="line"    title="Çizgi (L)">╱</button>
-      <button class="ie-tool" data-tool="hand"    title="Gezin (H) — sürükle veya kaydırma tekerleği">✋</button>
+      <button class="ie-tool" data-tool="pencil"  title="Pencil (P)">✏️</button>
+      <button class="ie-tool" data-tool="eraser"  title="Eraser (E)">⬜</button>
+      <button class="ie-tool" data-tool="fill"    title="Fill (F)">🪣</button>
+      <button class="ie-tool" data-tool="eyedrop" title="Eyedropper (I)">💉</button>
+      <button class="ie-tool" data-tool="rect"    title="Rectangle (R)">▭</button>
+      <button class="ie-tool" data-tool="line"    title="Line (L)">╱</button>
+      <button class="ie-tool" data-tool="hand"    title="Pan (H) — drag or scroll wheel">✋</button>
     </div>
 
     <div class="ie-sep"></div>
 
     <!-- Renk seçici -->
-    <div style="position:relative;width:36px;height:36px;flex-shrink:0;" title="Sol tık: Ana renk | Sağ tık: İkincil renk">
+    <div style="position:relative;width:36px;height:36px;flex-shrink:0;" title="Left click: Primary color | Right click: Secondary color">
       <div id="ie-sec-color" style="position:absolute;right:0;bottom:0;width:22px;height:22px;background:#ffffff;border:2px solid #555;cursor:pointer;border-radius:2px;"></div>
       <div id="ie-pri-color" style="position:absolute;left:0;top:0;width:22px;height:22px;background:#000000;border:2px solid #aaa;cursor:pointer;border-radius:2px;z-index:2;"></div>
     </div>
@@ -102,22 +102,22 @@
     <div class="ie-sep"></div>
 
     <!-- Zoom -->
-    <button id="ie-zoom-out" class="ie-btn" title="Uzaklaştır (Ctrl+Kaydırma aşağı)">−</button>
+    <button id="ie-zoom-out" class="ie-btn" title="Zoom out (Ctrl+Scroll down)">−</button>
     <span id="ie-zoom-lbl" style="min-width:30px;text-align:center;">16x</span>
-    <button id="ie-zoom-in"  class="ie-btn" title="Yaklaştır (Ctrl+Kaydırma yukarı)">+</button>
+    <button id="ie-zoom-in"  class="ie-btn" title="Zoom in (Ctrl+Scroll up)">+</button>
 
     <div class="ie-sep"></div>
 
     <!-- Izgara -->
     <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
       <input type="checkbox" id="ie-grid-chk" checked style="cursor:pointer;accent-color:#569cd6;">
-      <span>Izgara</span>
+      <span>Grid</span>
     </label>
 
     <div class="ie-sep"></div>
 
     <!-- Tuval boyutu -->
-    <select id="ie-size-sel" class="ie-select" title="Tuval boyutu">
+    <select id="ie-size-sel" class="ie-select" title="Canvas size">
       <option value="16">16 × 16</option>
       <option value="32">32 × 32</option>
       <option value="64">64 × 64</option>
@@ -127,11 +127,11 @@
     <div class="ie-sep"></div>
 
     <!-- Eylemler -->
-    <button id="ie-undo"  class="ie-btn" title="Geri Al (Ctrl+Z)">↩</button>
-    <button id="ie-redo"  class="ie-btn" title="İleri Al (Ctrl+Y)">↪</button>
-    <button id="ie-clear" class="ie-btn ie-btn-warn"    title="Tuvali Temizle">🗑 Temizle</button>
-    <button id="ie-new"   class="ie-btn"                title="Yeni Tuval">➕ Yeni</button>
-    <button id="ie-save"  class="ie-btn ie-btn-success" title="Kaydet (Ctrl+S)">💾 Kaydet</button>
+    <button id="ie-undo"  class="ie-btn" title="Undo (Ctrl+Z)">↩</button>
+    <button id="ie-redo"  class="ie-btn" title="Redo (Ctrl+Y)">↪</button>
+    <button id="ie-clear" class="ie-btn ie-btn-warn"    title="Clear Canvas">🗑 Clear</button>
+    <button id="ie-new"   class="ie-btn"                title="New Canvas">➕ New</button>
+    <button id="ie-save"  class="ie-btn ie-btn-success" title="Save (Ctrl+S)">💾 Save</button>
   </div>
 
   <!-- Canvas alanı -->
@@ -140,8 +140,7 @@
   </div>
 
   <!-- Durum çubuğu -->
-  <div id="ie-status" style="padding:3px 10px;background:#252526;border-top:1px solid #333;font-size:11px;color:#777;flex-shrink:0;">
-    Hazır
+  <div id="ie-status" style="padding:3px 10px;background:#252526;border-top:1px solid #333;font-size:11px;color:#777;flex-shrink:0;">Ready
   </div>
 </div>
 
@@ -177,7 +176,7 @@
         PALETTE.forEach(col => {
             const d = document.createElement('div');
             d.style.cssText = `width:14px;height:14px;background:${col};cursor:pointer;border:1px solid #3a3a3a;border-radius:1px;box-sizing:border-box;`;
-            d.title = col + '\nSol tık: ana renk\nSağ tık: ikincil renk';
+            d.title = col + '\nLeft click: Primary\nRight click: Secondary';
             d.addEventListener('click', () => setPrimaryColor(col));
             d.addEventListener('contextmenu', e => { e.preventDefault(); setSecondaryColor(col); });
             el.appendChild(d);
@@ -270,7 +269,7 @@
     }
 
     function newCanvas() {
-        if (!confirm('Yeni tuval oluşturulsun mu? Kaydedilmemiş değişiklikler kaybolacak.')) return;
+        if (!confirm(typeof tr === 'function' ? tr('msg.imageNewCanvas', 'Create a new canvas? Unsaved changes will be lost.') : 'Create new canvas?')) return;
         currentImagePath = null;
         isDirty = false;
         canvasW = 16; canvasH = 16;
@@ -701,16 +700,16 @@
     function updateStatus(x, y) {
         const el = document.getElementById('ie-status');
         if (!el) return;
-        const pos = (x !== undefined && inBounds(x, y)) ? `Piksel: ${x},${y}` : '';
-        const file = currentImagePath ? currentImagePath.split(/[/\\]/).pop() : 'Yeni dosya';
-        const toolNames = { pencil:'Kalem', eraser:'Silgi', fill:'Doldur', eyedrop:'Renk Al', rect:'Dikdörtgen', line:'Çizgi', hand:'Gezin' };
+        const pos = (x !== undefined && inBounds(x, y)) ? `Pixel: ${x},${y}` : '';
+        const file = currentImagePath ? currentImagePath.split(/[/\\]/).pop() : 'New file';
+        const toolNames = { pencil:'Pencil', eraser:'Eraser', fill:'Fill', eyedrop:'Eyedrop', rect:'Rect', line:'Line', hand:'Pan' };
         el.textContent = `${file}  |  ${canvasW}×${canvasH}  |  ${zoom}x  |  ${toolNames[tool] || tool}  ${pos ? '|  ' + pos : ''}`;
     }
 
     // ─── Dosya kaydetme ───────────────────────────────────────
     async function saveImage() {
         if (!currentImagePath) {
-            if (window.showNotification) window.showNotification('Kaydedilecek dosya yolu yok. Dosya ağacından bir PNG aç.', 'info');
+            if (window.showNotification) window.showNotification(typeof tr === 'function' ? tr('msg.imageNoPath', 'No target file path. Open a PNG from explorer.') : 'No file path', 'info');
             return;
         }
         try {
@@ -720,10 +719,10 @@
             const fs = require('fs');
             fs.writeFileSync(currentImagePath, buffer);
             isDirty = false;
-            if (window.showNotification) window.showNotification(`Kaydedildi: ${currentImagePath.split(/[/\\]/).pop()}`, 'success');
+            if (window.showNotification) window.showNotification(`${typeof tr === 'function' ? tr('msg.imageSaved', 'Saved: {name}', { name: currentImagePath.split(/[/\\]/).pop()}`, 'success');
         } catch (err) {
             console.error('[ImageEditor] Kaydetme hatası:', err);
-            if (window.showNotification) window.showNotification('Hata: Dosya kaydedilemedi — ' + err.message, 'error');
+            if (window.showNotification) window.showNotification(typeof tr === 'function' ? tr('msg.imageSaveError', 'Error: Could not save — ' + err.message, { error: err.message }) : 'Save error: ' + err.message, 'error');
         }
     }
 
@@ -742,7 +741,7 @@
             const buffer = fs.readFileSync(filePath);
             if (!buffer || buffer.length === 0) {
                 if (window.showNotification)
-                    window.showNotification('Hata: Dosya boş veya okunamadı.', 'error');
+                    window.showNotification(typeof tr === 'function' ? tr('msg.imageLoadError', 'Error: File is empty or unreadable', { error: 'empty' }) : 'Error: empty file', 'error');
                 return;
             }
 
@@ -794,7 +793,7 @@
         } catch (err) {
             console.error('[ImageEditor] Yükleme hatası:', err);
             if (window.showNotification)
-                window.showNotification('Hata: Resim yüklenemedi — ' + err.message, 'error');
+                window.showNotification(typeof tr === 'function' ? tr('msg.imageLoadError', 'Error: Could not load — ' + err.message, { error: err.message }) : 'Load error: ' + err.message, 'error');
         }
     };
 
