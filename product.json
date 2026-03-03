@@ -1,0 +1,28 @@
+{
+  "nameShort": "CraftIDE",
+  "nameLong": "CraftIDE - Minecraft Development Studio",
+  "applicationName": "craftide",
+  "dataFolderName": ".craftide",
+  "win32MutexName": "craftide",
+  "licenseName": "MIT",
+  "licenseUrl": "https://github.com/craftide/craftide/blob/main/LICENSE",
+  "urlProtocol": "craftide",
+  "win32DirName": "CraftIDE",
+  "win32NameVersion": "CraftIDE",
+  "win32AppUserModelId": "CraftIDE.CraftIDE",
+  "darwinBundleIdentifier": "com.craftide.CraftIDE",
+  "reportIssueUrl": "https://github.com/craftide/craftide/issues",
+  "quality": "stable",
+  "extensionsGallery": {
+    "serviceUrl": "https://open-vsx.org/vscode/gallery",
+    "itemUrl": "https://open-vsx.org/vscode/item"
+  },
+  "builtInExtensions": [
+    { "name": "craftide-core" },
+    { "name": "craftide-ai" },
+    { "name": "craftide-minecraft" },
+    { "name": "craftide-visual" },
+    { "name": "craftide-3d" },
+    { "name": "craftide-testserver" }
+  ]
+}

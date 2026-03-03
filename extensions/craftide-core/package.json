@@ -1,0 +1,114 @@
+{
+    "name": "craftide-core",
+    "displayName": "CraftIDE Core",
+    "description": "Core extension for CraftIDE — Minecraft dark theme, welcome view, and base utilities",
+    "version": "0.1.0",
+    "publisher": "craftide",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Themes",
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "themes": [
+            {
+                "label": "CraftIDE Dark — Minecraft",
+                "uiTheme": "vs-dark",
+                "path": "./themes/craftide-dark.json"
+            }
+        ],
+        "commands": [
+            {
+                "command": "craftide.welcome",
+                "title": "CraftIDE: Welcome",
+                "icon": "$(home)"
+            },
+            {
+                "command": "craftide.newProject",
+                "title": "CraftIDE: New Minecraft Project",
+                "icon": "$(add)"
+            }
+        ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "craftide-explorer",
+                    "title": "CraftIDE",
+                    "icon": "media/craftide-icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "craftide-explorer": [
+                {
+                    "type": "webview",
+                    "id": "craftide.welcomeView",
+                    "name": "Welcome"
+                },
+                {
+                    "id": "craftide.projectInfo",
+                    "name": "Project Info"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "CraftIDE",
+            "properties": {
+                "craftide.defaultMinecraftVersion": {
+                    "type": "string",
+                    "default": "1.20.4",
+                    "description": "Default Minecraft version for new projects",
+                    "enum": [
+                        "1.21",
+                        "1.20.6",
+                        "1.20.4",
+                        "1.20.2",
+                        "1.20.1",
+                        "1.19.4",
+                        "1.18.2",
+                        "1.16.5"
+                    ]
+                },
+                "craftide.defaultPlatform": {
+                    "type": "string",
+                    "default": "paper",
+                    "description": "Default platform for new projects",
+                    "enum": [
+                        "spigot",
+                        "paper",
+                        "fabric",
+                        "skript",
+                        "velocity",
+                        "bungeecord"
+                    ]
+                },
+                "craftide.language": {
+                    "type": "string",
+                    "default": "tr",
+                    "description": "CraftIDE interface language",
+                    "enum": [
+                        "tr",
+                        "en"
+                    ]
+                }
+            }
+        }
+    },
+    "scripts": {
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.85.0",
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3"
+    }
+}

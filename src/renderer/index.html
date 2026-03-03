@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:;">
+    <title>CraftIDE — Minecraft Development Studio</title>
+    <!-- Image Editor: canvas tabanlı, offline -->
+    <!-- xterm.js Terminal CSS -->
+    <link rel="stylesheet" href="../../node_modules/xterm/css/xterm.css">
+
+    <link rel="stylesheet" href="styles/main.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- Custom Titlebar                                        -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="titlebar" class="titlebar">
+        <div class="titlebar-drag">
+            <div class="titlebar-logo">
+                <span class="titlebar-icon">⛏️</span>
+                <span class="titlebar-text">CraftIDE</span>
+                <span class="titlebar-version">v0.1.0</span>
+            </div>
+            <div class="titlebar-filename" id="titlebar-filename">Hoş Geldin</div>
+        </div>
+        <div class="titlebar-controls">
+            <button class="titlebar-btn" id="btn-minimize" title="Küçült">
+                <svg width="12" height="12" viewBox="0 0 12 12">
+                    <rect y="5" width="12" height="2" fill="currentColor" />
+                </svg>
+            </button>
+            <button class="titlebar-btn" id="btn-maximize" title="Büyüt">
+                <svg width="12" height="12" viewBox="0 0 12 12">
+                    <rect x="1" y="1" width="10" height="10" stroke="currentColor" stroke-width="1.5" fill="none" />
+                </svg>
+            </button>
+            <button class="titlebar-btn titlebar-btn-close" id="btn-close" title="Kapat">
+                <svg width="12" height="12" viewBox="0 0 12 12">
+                    <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- Main Layout                                            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="app-container">
+        <!-- Activity Bar (Sol İkon Çubuğu) -->
+        <div class="activity-bar">
+            <div class="activity-top">
+                <button class="activity-btn active" data-panel="explorer" title="File Explorer"
+                    data-i18n-title="act.explorer">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                </button>
+                <button class="activity-btn" data-panel="search" title="Search" data-i18n-title="act.search">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="M21 21l-4.35-4.35" />
+                    </svg>
+                </button>
+                <button class="activity-btn" data-action="mc-tools" title="Minecraft Tools"
+                    data-i18n-title="act.mcTools">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    </svg>
+                </button>
+                <button class="activity-btn" data-panel="ai" title="AI Assistant" data-i18n-title="act.ai">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M12 2a4 4 0 014 4v1h1a3 3 0 013 3v4a3 3 0 01-3 3h-1v1a4 4 0 01-8 0v-1H7a3 3 0 01-3-3v-4a3 3 0 013-3h1V6a4 4 0 014-4z" />
+                        <circle cx="9" cy="11" r="1" fill="currentColor" />
+                        <circle cx="15" cy="11" r="1" fill="currentColor" />
+                    </svg>
+                </button>
+                <button class="activity-btn" data-action="visual-builder" title="Visual Plugin Builder"
+                    data-i18n-title="act.vb">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                        <path d="M10 6.5h4M6.5 10v4M17.5 10v4" />
+                    </svg>
+                </button>
+                <button class="activity-btn" data-action="blockbench" title="Blockbench 3D Modeling"
+                    data-i18n-title="act.blockbench">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                        <path d="M2 17l10 5 10-5" />
+                        <path d="M2 12l10 5 10-5" />
+                    </svg>
+                </button>
+                <button class="activity-btn" data-action="server-manager" title="Test Server"
+                    data-i18n-title="act.server">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14" />
+                        <path d="M12 5v14" />
+                        <rect x="2" y="3" width="20" height="18" rx="2" ry="2" />
+                    </svg>
+                </button>
+                <button class="activity-btn" data-action="image-editor" title="Image Editor"
+                    data-i18n-title="act.image">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                </button>
+            </div>
+            <div class="activity-bottom">
+                <button class="activity-btn" data-action="settings" title="Settings" data-i18n-title="act.settings">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3" />
+                        <path
+                            d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <!-- Explorer Panel -->
+            <div class="sidebar-panel active" id="panel-explorer">
+                <div class="sidebar-header">
+                    <span data-i18n="exp.title">📁 FILE EXPLORER</span>
+                    <div style="display:flex;gap:4px;">
+                        <button class="sidebar-action" id="btn-new-file" title="Yeni Dosya">
+                            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                                <path
+                                    d="M9.5 1.1l3.4 3.5.1.4v2h-1V6H8V2H3v11h4v1H2.5l-.5-.5v-12l.5-.5h6.7l.3.1zM9 5h2.9L9 2.1V5zm4 8h-1v-2h-2v-1h2V8h1v2h2v1h-2v2z" />
+                            </svg>
+                        </button>
+                        <button class="sidebar-action" id="btn-new-folder" title="Yeni Klasör">
+                            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                                <path
+                                    d="M14 4H9.618l-1-2H2a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1V5a1 1 0 00-1-1zm-4.5 7H8v1.5H7V11H5.5v-1H7V8.5h1V10h1.5v1z" />
+                            </svg>
+                        </button>
+                        <button class="sidebar-action" id="btn-refresh-tree" title="Yenile">
+                            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                                <path
+                                    d="M13.451 5.609l-.579-.939-1.068.812-.076.094c-.335.415-.927 1.146-1.26 2.194A4.973 4.973 0 006.5 5.5a4.992 4.992 0 00-3.518 1.46l.707.707A3.986 3.986 0 016.5 6.5a3.98 3.98 0 013.466 2.016 5.97 5.97 0 00-1.466.484A2.988 2.988 0 006.5 8a2.99 2.99 0 00-2.121.879l.707.707A1.997 1.997 0 016.5 9c.551 0 1.052.225 1.414.586l-1.768 1.768L10.5 11.5l.146-4.354C11.25 6.022 12.233 5.396 13.451 5.609z" />
+                            </svg>
+                        </button>
+                        <button class="sidebar-action" id="btn-open-folder" title="Klasör Aç">
+                            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                                <path
+                                    d="M14.5 3H7.71l-.85-.85L6.51 2h-5l-.5.5v11l.5.5h13l.5-.5v-10L14.5 3zm-.51 8.49V13h-12V7h4.49l.35-.15.86-.86H14v5.5zM6.51 3L7.36 3.85l.15.15H14v2H6.51l-.35.15-.86.86H2V3h4.51z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="file-tree" id="file-tree">
+                    <div class="empty-state">
+                        <div class="empty-icon">📂</div>
+                        <p data-i18n="exp.empty">No project opened yet</p>
+                        <button class="btn-primary" id="btn-explorer-open" data-i18n="btn.open">Open Folder</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Panel -->
+            <div class="sidebar-panel" id="panel-search">
+                <div class="sidebar-header">
+                    <span data-i18n="search.title">🔍 SEARCH</span>
+                </div>
+                <div class="search-container">
+                    <input type="text" class="search-input" placeholder="Search in files..." id="search-input"
+                        data-i18n="search.placeholder">
+                    <div class="search-results" id="search-results"></div>
+                </div>
+            </div>
+
+
+            <!-- AI Panel -->
+            <div class="sidebar-panel" id="panel-ai">
+                <div class="sidebar-header">
+                    <span data-i18n="ai.title">🧠 AI ASSISTANT</span>
+                </div>
+                <div class="ai-chat-container">
+                    <div class="ai-messages" id="ai-messages">
+                        <div class="ai-message ai-system">
+                            <div class="ai-avatar">🤖</div>
+                            <div class="ai-content">
+                                <p data-i18n="ai.welcome">Hello! I am CraftIDE AI Assistant. I can help you with Minecraft plugin development.</p>
+                                <p class="ai-hint" data-i18n="ai.hint">Example: "Open a shop menu when players type /shop"</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ai-input-container">
+                        <textarea id="ai-input" placeholder="Type your plugin idea..." rows="3"
+                            data-i18n="ai.placeholder"></textarea>
+                        <button class="btn-ai-send" id="btn-ai-send">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Panel removed from sidebar — now opens as tab -->
+
+            <!-- Removing panel-visual and panel-3d from sidebar -->
+        </div>
+
+        <!-- Sidebar Resizer -->
+        <div class="sidebar-resizer" id="sidebar-resizer"></div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Tabs -->
+            <div class="tab-bar" id="tab-bar">
+                <div class="tab active" data-tab="welcome">
+                    <span class="tab-icon">⛏️</span>
+                    <span class="tab-name">Hoş Geldin</span>
+                </div>
+            </div>
+
+            <!-- Editor Area -->
+            <div class="editor-area" id="editor-area">
+                <!-- Welcome Screen (default) — VS Code Style -->
+                <div class="welcome-screen active" id="welcome-screen">
+                    <div class="welcome-content">
+                        <!-- Header -->
+                        <div class="welcome-header">
+                            <h1 class="welcome-title">CraftIDE</h1>
+                            <p class="welcome-subtitle">Minecraft Development Studio</p>
+                        </div>
+
+                        <!-- Two Column Layout -->
+                        <div class="welcome-columns">
+                            <!-- Left Column: Start + Recent -->
+                            <div class="welcome-col-left">
+                                <div class="welcome-section">
+                                    <h2>Başla</h2>
+                                    <div class="welcome-links">
+                                        <a class="welcome-link" href="#" id="wl-new-file">
+                                            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                                                <path
+                                                    d="M9.5 1.1l3.4 3.5.1.4v2h-1V6H8V2H3v11h4v1H2.5l-.5-.5v-12l.5-.5h6.7l.3.1zM9 5h2.9L9 2.1V5zm4 8h-1v-2h-2v-1h2V8h1v2h2v1h-2v2z" />
+                                            </svg>
+                                            Yeni Dosya...
+                                        </a>
+                                        <a class="welcome-link" href="#" id="wl-open-file">
+                                            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                                                <path
+                                                    d="M14.5 3H7.71l-.85-.85L6.51 2h-5l-.5.5v11l.5.5h13l.5-.5v-10L14.5 3zm-.51 8.49V13h-12V7h4.49l.35-.15.86-.86H14v5.5zM6.51 3L7.36 3.85l.15.15H14v2H6.51l-.35.15-.86.86H2V3h4.51z" />
+                                            </svg>
+                                            Dosya Aç...
+                                        </a>
+                                        <a class="welcome-link" href="#" id="wl-open-folder">
+                                            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                                                <path
+                                                    d="M14.5 3H7.71l-.85-.85L6.51 2h-5l-.5.5v11l.5.5h13l.5-.5v-10L14.5 3zm-.51 8.49V13h-12V7h4.49l.35-.15.86-.86H14v5.5zM6.51 3L7.36 3.85l.15.15H14v2H6.51l-.35.15-.86.86H2V3h4.51z" />
+                                            </svg>
+                                            Klasör Aç...
+                                        </a>
+                                        <a class="welcome-link" href="#" id="btn-new-project">
+                                            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                                                <path
+                                                    d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5L14 4.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5h-2z" />
+                                            </svg>
+                                            Yeni Plugin Oluştur...
+                                        </a>
+                                        <a class="welcome-link" href="#" id="wl-ai-create">
+                                            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                                                <path
+                                                    d="M8 1a4 4 0 014 4v.5h.5a2.5 2.5 0 012.5 2.5v3a2.5 2.5 0 01-2.5 2.5H12v.5a3 3 0 01-6 0v-.5H3.5A2.5 2.5 0 011 11V8a2.5 2.5 0 012.5-2.5H4V5a4 4 0 014-4zM6 10a1 1 0 100-2 1 1 0 000 2zm4 0a1 1 0 100-2 1 1 0 000 2z" />
+                                            </svg>
+                                            AI ile Oluştur...
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div class="welcome-section">
+                                    <h2>Son Kullanılanlar</h2>
+                                    <div class="welcome-recent" id="welcome-recent-list">
+                                        <div class="welcome-recent-empty">Henüz açılmış bir proje yok</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Column: Walkthroughs -->
+                            <div class="welcome-col-right">
+                                <div class="welcome-section">
+                                    <h2>Başlangıç Kılavuzları</h2>
+                                    <div class="welcome-walkthroughs">
+                                        <a class="wt-item" href="#" id="wt-get-started">
+                                            <div class="wt-icon"
+                                                style="background: linear-gradient(135deg, #2ecc71, #1abc9c);">⛏️</div>
+                                            <div class="wt-info">
+                                                <div class="wt-title">CraftIDE'ye Başlayın</div>
+                                                <div class="wt-desc">Editörünüzü özelleştirin, temelleri öğrenin ve
+                                                    kodlamaya başlayın</div>
+                                            </div>
+                                        </a>
+                                        <a class="wt-item" href="#" id="wt-learn-basics">
+                                            <div class="wt-icon-simple">📖</div>
+                                            <div class="wt-info">
+                                                <div class="wt-title">Temelleri Öğrenin</div>
+                                            </div>
+                                        </a>
+                                        <a class="wt-item" href="#" id="btn-build-plugin">
+                                            <div class="wt-icon"
+                                                style="background: linear-gradient(135deg, #3498db, #2980b9);">🔨</div>
+                                            <div class="wt-info">
+                                                <div class="wt-title">Plugin Derleme &amp; Test</div>
+                                                <div class="wt-desc">Maven/Gradle ile JAR oluştur ve test sunucusu kur
+                                                </div>
+                                            </div>
+                                            <span class="wt-badge">Yeni</span>
+                                        </a>
+                                        <a class="wt-item" href="#" id="btn-test-server">
+                                            <div class="wt-icon"
+                                                style="background: linear-gradient(135deg, #e67e22, #d35400);">🧪</div>
+                                            <div class="wt-info">
+                                                <div class="wt-title">Yerel Test Sunucusu</div>
+                                                <div class="wt-desc">Server oluştur, başlat ve eklentiyi test et</div>
+                                            </div>
+                                            <span class="wt-badge">Yeni</span>
+                                        </a>
+                                        <a class="wt-item" href="#" id="btn-api-ref">
+                                            <div class="wt-icon"
+                                                style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">📚</div>
+                                            <div class="wt-info">
+                                                <div class="wt-title">API Referansı</div>
+                                                <div class="wt-desc">Paper ve Bukkit API dökümantasyonu</div>
+                                            </div>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div class="welcome-section">
+                                    <h2>Minecraft Versiyonu</h2>
+                                    <div class="welcome-mc-version">
+                                        <label>Hedef Versiyon:</label>
+                                        <select id="mc-version">
+                                            <option value="1.21.11" selected>1.21.11 (Son)</option>
+                                            <option value="1.21.10">1.21.10</option>
+                                            <option value="1.21.7">1.21.7</option>
+                                            <option value="1.21.4">1.21.4</option>
+                                            <option value="1.21.3">1.21.3</option>
+                                            <option value="1.21.1">1.21.1</option>
+                                            <option value="1.21">1.21</option>
+                                            <option value="1.20.6">1.20.6</option>
+                                            <option value="1.20.4">1.20.4</option>
+                                            <option value="1.20.1">1.20.1</option>
+                                            <option value="1.19.4">1.19.4</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="welcome-more-link">Daha fazla...</div>
+                            </div>
+                        </div>
+
+                        <!-- Show welcome on startup checkbox -->
+                        <div class="welcome-footer">
+                            <label class="welcome-checkbox">
+                                <input type="checkbox" id="show-welcome-startup" checked>
+                                Başlangıçta hoş geldin sayfasını göster
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monaco Editor Container -->
+                <div class="editor-container" id="editor-container" style="display:none;">
+                    <div id="monaco-editor" style="width:100%;height:100%;"></div>
+                </div>
+
+                <!-- Visual Builder Container (Tab View) -->
+                <div class="editor-container" id="visual-builder-container"
+                    style="display:none; flex-direction:column; height:100%; background:var(--bg-primary);">
+                    <!-- Visual Builder Toolbar -->
+                    <div class="vb-toolbar">
+                        <div class="vb-toolbar-left">
+                            <span class="vb-toolbar-title">🧩 Görsel Mod/Plugin/Skript Builder</span>
+                            <select id="vb-mode-select" class="vb-mode-select" title="Proje Türü">
+                                <option value="plugin">📦 Plugin (Paper/Bukkit)</option>
+                                <option value="fabric">🧵 Fabric Mod</option>
+                                <option value="forge">🔨 Forge Mod</option>
+                                <option value="skript">📜 Skript</option>
+                            </select>
+                            <span class="vb-toolbar-hint" style="margin-left:8px;">Sağ tık → Blok ekle | Port sürükle →
+                                Bağla | Bağlantı üzerine sağ tık → Sil</span>
+                        </div>
+                        <div class="vb-toolbar-right">
+                            <button class="vb-toolbar-btn" id="btn-vb-templates" title="Hazır Şablonlar">
+                                📋 Şablonlar
+                            </button>
+                            <button class="vb-toolbar-btn" id="btn-vb-generate" title="Koda dönüştür">
+                                <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                                    <path
+                                        d="M4.708 5.578L2.061 8.224l2.647 2.646-.708.708L.293 7.87l.354-.354 3-3 .707.708-.646.354zM11.292 5.578L13.939 8.224l-2.647 2.646.708.708L15.707 7.87l-.354-.354-3-3-.707.708.646.354zM7.293 13.721l1.414-1.415.293.293-2.122 2.121-.707-.707 4.243-12.02.707.707L7.293 13.72z" />
+                                </svg>
+                                Koda Dönüştür
+                            </button>
+                            <button class="vb-toolbar-btn danger" id="btn-vb-clear" title="Tüm blokları temizle">
+                                <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                                    <path
+                                        d="M5.5 5.5A.5.5 0 016 6v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5zm2.5 0a.5.5 0 01.5.5v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5zm3 .5a.5.5 0 00-1 0v6a.5.5 0 001 0V6z" />
+                                    <path fill-rule="evenodd"
+                                        d="M14.5 3a1 1 0 01-1 1H13v9a2 2 0 01-2 2H5a2 2 0 01-2-2V4h-.5a1 1 0 01-1-1V2a1 1 0 011-1H5.5a1 1 0 011-1h3a1 1 0 011 1H14a1 1 0 011 1v1zM4.118 4L4 4.059V13a1 1 0 001 1h6a1 1 0 001-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
+                                </svg>
+                                Temizle
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Canvas Area for Visual Builder -->
+                    <div class="vb-canvas-area" style="flex:1; position:relative; overflow:hidden;"
+                        id="visual-builder-canvas-wrapper">
+                        <!-- Empty state hint -->
+                        <div class="vb-empty-hint" id="vb-empty-hint">
+                            <div class="vb-empty-icon">🧩</div>
+                            <h3>Görsel Mod / Plugin / Skript Builder</h3>
+                            <p>Blokları birbirine bağlayarak gerçek plugin, mod ve skript oluşturun</p>
+                            <div class="vb-empty-steps">
+                                <div class="vb-step"><span>1</span> Yukarıdan proje türünü seçin (Plugin/Mod/Skript)
+                                </div>
+                                <div class="vb-step"><span>2</span> Canvas'a <strong>sağ tıklayın</strong> → Blok
+                                    ekleyin</div>
+                                <div class="vb-step"><span>3</span> Bloğun sağ portunu sürükleyip başka bloğun sol
+                                    portuna bırakın</div>
+                                <div class="vb-step"><span>4</span> Bağlantı silmek için üzerine sağ tıklayın</div>
+                                <div class="vb-step"><span>5</span> "Koda Dönüştür" ile çalışan kod üretin</div>
+                            </div>
+                            <button class="btn-primary" id="btn-vb-load-template-hint" style="margin-top:16px;">📋 Hazır
+                                Şablona Bak</button>
+                        </div>
+                        <!-- visual-builder.js render in here -->
+                    </div>
+                </div>
+
+                <!-- VB Templates Modal -->
+                <div class="modal-overlay" id="vb-templates-modal" style="display:none;">
+                    <div class="modal" style="max-width:680px;width:90%;">
+                        <div class="modal-header">
+                            <h2>📋 Hazır Şablonlar</h2>
+                            <button class="modal-close" id="vb-templates-close">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <p style="color:var(--text-secondary);margin-bottom:16px;">Bir şablonu seçin — canvas'a
+                                otomatik yüklenecek ve düzenleyebilirsiniz.</p>
+                            <div class="vb-template-grid" id="vb-template-grid"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Blockbench Webview Container (Tab View) -->
+                <div class="editor-container" id="blockbench-container" style="display:none; height:100%;">
+                    <webview id="blockbench-webview" src="https://web.blockbench.net/"
+                        style="width:100%; height:100%; border:none;"></webview>
+                </div>
+
+                <!-- Pixel Art Image Editor Container -->
+                <div class="editor-container" id="image-editor-container"
+                    style="display:none; height:100%; position:relative; overflow:hidden;"></div>
+
+                <!-- Settings Container (Tab View) -->
+                <div class="editor-container" id="settings-container"
+                    style="display:none; height:100%; overflow-y:auto;">
+                    <div class="settings-tab-content">
+                        <div class="settings-tab-header">
+                            <h1><span data-i18n="settings.title">⚙️ Settings</span></h1>
+                            <p>CraftIDE yapılandırması</p>
+                        </div>
+                        <div class="settings-tab-body">
+                            <div class="setting-group">
+                                <h3>AI Ayarları</h3>
+                                <div class="setting-item">
+                                    <label>AI Sağlayıcı</label>
+                                    <select id="setting-ai-provider">
+                                        <option value="ollama">Ollama (Yerel)</option>
+                                        <option value="openai">OpenAI</option>
+                                        <option value="anthropic">Anthropic</option>
+                                        <option value="google">Google AI</option>
+                                        <option value="lmstudio">LM Studio</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>Model</label>
+                                    <input type="text" id="setting-ai-model" value="codellama:13b"
+                                        placeholder="codellama:13b">
+                                </div>
+                                <div class="setting-item">
+                                    <label>API Endpoint</label>
+                                    <input type="text" id="setting-ai-endpoint" value="http://localhost:11434"
+                                        placeholder="http://localhost:11434">
+                                </div>
+                                <div class="setting-item">
+                                    <label>API Key</label>
+                                    <input type="password" id="setting-ai-key" placeholder="sk-...">
+                                </div>
+                            </div>
+                            <div class="setting-group">
+                                <h3>Editör Ayarları</h3>
+                                <div class="setting-item">
+                                    <label>Font Boyutu</label>
+                                    <input type="number" id="setting-font-size" value="14" min="10" max="32">
+                                </div>
+                                <div class="setting-item">
+                                    <label>Font Ailesi</label>
+                                    <input type="text" id="setting-font-family" value="JetBrains Mono"
+                                        placeholder="JetBrains Mono">
+                                </div>
+                                <div class="setting-item">
+                                    <label>Tab Boyutu</label>
+                                    <input type="number" id="setting-tab-size" value="4" min="2" max="8">
+                                </div>
+                                <div class="setting-item">
+                                    <label>Minimap</label>
+                                    <select id="setting-minimap">
+                                        <option value="true" selected>Açık</option>
+                                        <option value="false">Kapalı</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>Word Wrap</label>
+                                    <select id="setting-wordwrap">
+                                        <option value="off" selected>Kapalı</option>
+                                        <option value="on">Açık</option>
+                                        <option value="wordWrapColumn">Sütun</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="setting-group">
+                                <h3>Proje Ayarları</h3>
+                                <div class="setting-item">
+                                    <label>Varsayılan Platform</label>
+                                    <select id="setting-platform">
+                                        <option value="paper">Paper</option>
+                                        <option value="spigot">Spigot</option>
+                                        <option value="fabric">Fabric</option>
+                                        <option value="skript">Skript</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>Dil</label>
+                                    <select id="setting-language">
+                                        <option value="tr">Türkçe</option>
+                                        <option value="en">English</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Manager Container (Tab View) -->
+                <div class="editor-container" id="server-manager-container"
+                    style="display:none; height:100%; flex-direction:column; background:var(--bg-primary);">
+                    <div class="settings-tab-header" style="flex: 0 0 auto; padding: 24px 32px 10px 32px;">
+                        <h1 style="font-size: 24px; margin-bottom: 8px;">🕹️ Test Sunucusu Yöneticisi</h1>
+                        <p style="color: #8b949e; margin: 0;">Yerel Minecraft sunucunu başlat, durdur ve eklentilerini
+                            doğrudan test et.</p>
+                    </div>
+                    <div class="sm-toolbar"
+                        style="padding: 16px 32px; border-bottom: 1px solid var(--border-color); display:flex; gap: 16px; align-items:center; flex: 0 0 auto;">
+                        <button class="btn-primary" id="btn-sm-start" style="background: #2ecc71;">▶ Başlat</button>
+                        <button class="btn-secondary" id="btn-sm-stop" style="color:#e74c3c; border-color:#e74c3c;">⏹
+                            Durdur</button>
+                        <button class="btn-primary" id="btn-sm-deploy" style="background: #3498db;"
+                            title="Mevcut projeyi derleyip sunucuya aktarır">🚀 Sunucuya Yükle</button>
+
+                        <div style="width: 1px; height: 24px; background: var(--border-color); margin: 0 8px;"></div>
+
+                        <select id="sm-type-select"
+                            style="padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary);">
+                            <option value="paper">Paper (Eklenti)</option>
+                            <option value="spigot">Spigot (Eklenti)</option>
+                            <option value="fabric">Fabric (Mod)</option>
+                            <option value="forge">Forge (Mod)</option>
+                            <option value="vanilla">Vanilla</option>
+                        </select>
+                        <select id="sm-version-select"
+                            style="padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary);">
+                            <option value="1.21.4">Veriler yükleniyor...</option>
+                        </select>
+                    </div>
+                    <div class="sm-console-wrapper"
+                        style="flex: 1 1 auto; overflow:hidden; display:flex; flex-direction:column; padding: 16px 32px 32px 32px;">
+                        <div id="xterm-server-console" class="xterm-container"
+                            style="flex:1;border:1px solid var(--border-secondary);border-radius:6px;overflow:hidden;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Panel Resizer -->
+            <div class="bottom-panel-resizer" id="bottom-panel-resizer"></div>
+
+            <!-- Bottom Panel (Terminal / Output) -->
+            <div class="bottom-panel" id="bottom-panel">
+                <div class="bottom-panel-header">
+                    <div class="bottom-tabs">
+                        <button class="bottom-tab active" data-btab="terminal">Terminal</button>
+                        <button class="bottom-tab" data-btab="output">Çıktı</button>
+                        <button class="bottom-tab" data-btab="problems">Sorunlar</button>
+                    </div>
+                    <div class="bottom-actions">
+                        <button class="bottom-action" id="btn-toggle-panel" title="Paneli Gizle/Göster">
+                            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                                <path d="M8 4l4 4H4z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="bottom-content">
+                    <div class="terminal-content active" id="terminal-content">
+                        <div id="xterm-terminal" class="xterm-container"></div>
+                    </div>
+                    <div class="terminal-content" id="output-content">
+                        <div class="terminal-output" id="output-output">
+                            <div class="terminal-line dim">Build çıktıları burada görünecek...</div>
+                        </div>
+                    </div>
+                    <div class="terminal-content" id="problems-content">
+                        <div class="terminal-output" id="problems-output">
+                            <div class="terminal-line dim">Sorun bulunamadı ✓</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="context-menu" style="display:none;">
+        <div class="context-item" data-action="newFile">📄 Yeni Dosya</div>
+        <div class="context-item" data-action="newFolder">📁 Yeni Klasör</div>
+        <div class="context-separator"></div>
+        <div class="context-item" data-action="rename">✏️ Yeniden Adlandır</div>
+        <div class="context-item" data-action="delete">🗑️ Sil</div>
+        <div class="context-separator"></div>
+        <div class="context-item" data-action="copyPath">📋 Yolu Kopyala</div>
+        <div class="context-item" data-action="openInExplorer">📂 Dosya Gezgininde Aç</div>
+        <div class="context-item" data-action="openInTerminal">💻 Terminal'de Aç</div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <span class="status-item" id="status-branch">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                    <path d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5L14 4.5z" />
+                </svg>
+                main
+            </span>
+            <span class="status-item" id="status-problems">✓ 0 problems</span>
+        </div>
+        <div class="status-right">
+            <span class="status-item" id="status-mc-version">⛏️ MC 1.21.11</span>
+            <span class="status-item" id="status-encoding">UTF-8</span>
+            <span class="status-item" id="status-language">Java</span>
+            <span class="status-item" id="status-cursor">Ln 1, Col 1</span>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- New Project Modal                                      -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="modal-new-project" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>🚀 Yeni Plugin Oluştur</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label data-i18n="modal.platform">Platform</label>
+                    <div class="platform-grid" id="platform-grid">
+                        <button class="platform-card active" data-platform="paper">
+                            <span class="platform-icon">📦</span>
+                            <span class="platform-name">Paper</span>
+                            <span class="platform-tag">Önerilen</span>
+                        </button>
+                        <button class="platform-card" data-platform="spigot">
+                            <span class="platform-icon">🔧</span>
+                            <span class="platform-name">Spigot</span>
+                        </button>
+                        <button class="platform-card" data-platform="fabric">
+                            <span class="platform-icon">🧵</span>
+                            <span class="platform-name">Fabric</span>
+                        </button>
+                        <button class="platform-card" data-platform="forge">
+                            <span class="platform-icon">🔨</span>
+                            <span class="platform-name">Forge</span>
+                        </button>
+                        <button class="platform-card" data-platform="skript">
+                            <span class="platform-icon">📜</span>
+                            <span class="platform-name">Skript</span>
+                        </button>
+                        <button class="platform-card" data-platform="velocity">
+                            <span class="platform-icon">🌐</span>
+                            <span class="platform-name">Velocity</span>
+                        </button>
+                        <button class="platform-card" data-platform="bungeecord">
+                            <span class="platform-icon">🔗</span>
+                            <span class="platform-name">BungeeCord</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label id="label-project-name">Plugin Adı</label>
+                        <input type="text" id="input-project-name" placeholder="MyAwesomePlugin" value="">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="modal.mcVersion">MC Version</label>
+                        <select id="input-mc-version">
+                            <option value="1.21.4" selected>Veriler yükleniyor...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" id="java-options">
+                    <label data-i18n="modal.packageName">Package Name</label>
+                    <input type="text" id="input-package-name" placeholder="com.example.myplugin"
+                        value="com.example.myplugin">
+                </div>
+                <div class="form-group" id="deps-group">
+                    <label data-i18n="modal.deps">Dependencies (optional)</label>
+                    <div class="deps-grid">
+                        <label class="dep-check"><input type="checkbox" value="Vault"> Vault</label>
+                        <label class="dep-check"><input type="checkbox" value="PlaceholderAPI">
+                            PlaceholderAPI</label>
+                        <label class="dep-check"><input type="checkbox" value="ProtocolLib"> ProtocolLib</label>
+                        <label class="dep-check"><input type="checkbox" value="WorldGuard"> WorldGuard</label>
+                        <label class="dep-check"><input type="checkbox" value="LuckPerms"> LuckPerms</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btn-cancel-project" data-i18n="btn.cancel">Cancel</button>
+                <button class="btn-primary" id="btn-create-project" data-i18n="btn.create">⛏️ Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Monaco Editor'ü node_modules'dan yükle
+        const path = require('path');
+        const amdLoader = require(path.join(__dirname, '../../node_modules/monaco-editor/min/vs/loader.js'));
+        const amdRequire = amdLoader.require;
+
+        amdRequire.config({
+            baseUrl: path.join(__dirname, '../../node_modules/monaco-editor/min')
+        });
+
+        // Monaco Editor global referans
+        let monacoEditor = null;
+        let currentModel = null;
+
+        amdRequire(['vs/editor/editor.main'], function (monaco) {
+            // CraftIDE Minecraft teması
+            monaco.editor.defineTheme('craftide-dark', {
+                base: 'vs-dark',
+                inherit: true,
+                rules: [
+                    { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+                    { token: 'keyword', foreground: '2ecc71' },
+                    { token: 'string', foreground: 'ce9178' },
+                    { token: 'number', foreground: 'b5cea8' },
+                    { token: 'type', foreground: '4EC9B0' },
+                    { token: 'function', foreground: 'DCDCAA' },
+                    { token: 'variable', foreground: '9CDCFE' },
+                    { token: 'annotation', foreground: 'e5c07b' },
+                ],
+                colors: {
+                    'editor.background': '#0d1117',
+                    'editor.foreground': '#e6edf3',
+                    'editor.lineHighlightBackground': '#161b22',
+                    'editor.selectionBackground': '#264f78',
+                    'editorLineNumber.foreground': '#484f58',
+                    'editorLineNumber.activeForeground': '#2ecc71',
+                    'editorCursor.foreground': '#2ecc71',
+                    'editor.selectionHighlightBackground': '#2ecc7133',
+                    'editorBracketMatch.background': '#2ecc7122',
+                    'editorBracketMatch.border': '#2ecc7155',
+                    'editorIndentGuide.background': '#21262d',
+                    'editorIndentGuide.activeBackground': '#30363d',
+                    'editorWidget.background': '#161b22',
+                    'editorSuggestWidget.background': '#161b22',
+                    'editorSuggestWidget.border': '#30363d',
+                    'editorSuggestWidget.selectedBackground': '#1f6feb33',
+                    'minimap.background': '#0d1117',
+                }
+            });
+
+            // Editor oluştur
+            monacoEditor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                value: '',
+                language: 'java',
+                theme: 'craftide-dark',
+                fontSize: 14,
+                fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+                fontLigatures: true,
+                minimap: { enabled: true, scale: 2 },
+                scrollbar: { verticalSliderSize: 6, horizontalSliderSize: 6 },
+                renderLineHighlight: 'all',
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: 'on',
+                smoothScrolling: true,
+                padding: { top: 16 },
+                suggest: { showMethods: true, showFunctions: true, showConstructors: true },
+                bracketPairColorization: { enabled: true },
+                guides: { bracketPairs: true, indentation: true },
+                wordWrap: 'off',
+                automaticLayout: true,
+            });
+
+            // Cursor pozisyonunu status bar'da göster
+            monacoEditor.onDidChangeCursorPosition((e) => {
+                document.getElementById('status-cursor').textContent =
+                    `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+            });
+
+            // Ctrl+S kaydet
+            monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+                saveCurrentFile();
+            });
+
+            window.monaco = monaco;
+            window.monacoEditor = monacoEditor;
+            console.log('⛏️ Monaco Editor initialized!');
+        });
+    </script>
+    <!-- xterm.js Terminal -->
+    <script src="../../node_modules/xterm/lib/xterm.js"></script>
+    <script src="../../node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+    <!-- Custom Scripts -->
+    <script src="lang.js"></script>
+    <script src="llm-provider.js"></script>
+    <script src="skript-language.js"></script>
+    <script src="minecraft-api.js"></script>
+
+    <!-- Pixel Art Image Editor (canvas tabanlı, offline) -->
+    <script src="image-editor.js"></script>
+
+    <!-- Phase 7 Scripts -->
+    <script src="visual-builder.js"></script>
+    <script src="ai-manager.js"></script>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

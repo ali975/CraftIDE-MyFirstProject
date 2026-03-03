@@ -1,0 +1,129 @@
+{
+    "Skript Command": {
+        "prefix": "skcommand",
+        "body": [
+            "command /${1:komut} <${2:text}>:",
+            "\tpermission: ${3:plugin.komut}",
+            "\tdescription: ${4:Komut açıklaması}",
+            "\ttrigger:",
+            "\t\t${5:send \"Merhaba %player%!\" to player}"
+        ],
+        "description": "Yeni bir Skript komutu oluştur"
+    },
+    "Skript Event - Join": {
+        "prefix": "skon join",
+        "body": [
+            "on join:",
+            "\tsend \"${1:Hoş geldin %player%!}\" to player"
+        ],
+        "description": "Oyuncu giriş event'i"
+    },
+    "Skript Event - Quit": {
+        "prefix": "skon quit",
+        "body": [
+            "on quit:",
+            "\tbroadcast \"${1:%player% sunucudan ayrıldı.}\""
+        ],
+        "description": "Oyuncu çıkış event'i"
+    },
+    "Skript Event - Death": {
+        "prefix": "skon death",
+        "body": [
+            "on death of player:",
+            "\tset the death message to \"${1:%victim% öldü!}\""
+        ],
+        "description": "Oyuncu ölüm event'i"
+    },
+    "Skript Event - Block Break": {
+        "prefix": "skon break",
+        "body": [
+            "on break of ${1:diamond ore}:",
+            "\t${2:send \"Elmas buldun!\" to player}"
+        ],
+        "description": "Blok kırma event'i"
+    },
+    "Skript Function": {
+        "prefix": "skfunction",
+        "body": [
+            "function ${1:fonksiyonAdı}(${2:p: player})${3: :: text}:",
+            "\t${4:return \"Merhaba\"}"
+        ],
+        "description": "Yeni bir Skript fonksiyonu"
+    },
+    "Skript GUI": {
+        "prefix": "skgui",
+        "body": [
+            "command /${1:menu}:",
+            "\ttrigger:",
+            "\t\topen chest inventory with ${2:3} rows named \"${3:Menü}\" to player",
+            "\t\tset slot ${4:13} of player's current inventory to ${5:diamond sword} named \"${6:Kılıç}\""
+        ],
+        "description": "Basit bir GUI menüsü"
+    },
+    "Skript Loop Players": {
+        "prefix": "skloop",
+        "body": [
+            "loop all players:",
+            "\t${1:send \"Merhaba!\" to loop-player}"
+        ],
+        "description": "Tüm oyuncuları döngüle"
+    },
+    "Skript Timer": {
+        "prefix": "sktimer",
+        "body": [
+            "every ${1:5 seconds}:",
+            "\t${2:broadcast \"Zamanlayıcı çalıştı!\"}"
+        ],
+        "description": "Zamanlayıcı (scheduler)"
+    },
+    "Skript Options Block": {
+        "prefix": "skoptions",
+        "body": [
+            "options:",
+            "\tprefix: ${1:&a[Plugin]&r}"
+        ],
+        "description": "Options bloğu"
+    },
+    "Skript Cooldown": {
+        "prefix": "skcooldown",
+        "body": [
+            "command /${1:komut}:",
+            "\tcooldown: ${2:30 seconds}",
+            "\tcooldown message: ${3:Bu komutu tekrar kullanmak için %remaining time% bekle!}",
+            "\ttrigger:",
+            "\t\t${4:send \"Komut çalıştırıldı!\" to player}"
+        ],
+        "description": "Cooldown'lu komut"
+    },
+    "Skript Variables": {
+        "prefix": "skvar",
+        "body": [
+            "set {${1:değişken}::${2:%player%}} to ${3:0}"
+        ],
+        "description": "Global değişken ayarla"
+    },
+    "Skript If Condition": {
+        "prefix": "skif",
+        "body": [
+            "if ${1:player has permission \"${2:perm}\"}:",
+            "\t${3:send \"İzin var!\" to player}",
+            "else:",
+            "\t${4:send \"İzin yok!\" to player}"
+        ],
+        "description": "If/else koşulu"
+    },
+    "Skript Teleport": {
+        "prefix": "sktp",
+        "body": [
+            "teleport player to ${1:location(0, 100, 0, world \"world\")}"
+        ],
+        "description": "Oyuncuyu ışınla"
+    },
+    "Skript Give Item": {
+        "prefix": "skgive",
+        "body": [
+            "give ${1:1} ${2:diamond sword} named \"${3:Özel Kılıç}\" with lore \"${4:CraftIDE ile yapıldı}\" to player"
+        ],
+        "description": "Oyuncuya eşya ver"
+    }
+}

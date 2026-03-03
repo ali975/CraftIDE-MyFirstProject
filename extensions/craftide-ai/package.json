@@ -1,0 +1,95 @@
+{
+    "name": "craftide-ai",
+    "displayName": "CraftIDE AI Agent System",
+    "description": "Triple-layer AI agent pipeline for Minecraft plugin generation: Architect → Coder → Validator",
+    "version": "0.1.0",
+    "publisher": "craftide",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "craftide.openChat",
+                "title": "CraftIDE: Open AI Chat",
+                "icon": "$(comment-discussion)"
+            },
+            {
+                "command": "craftide.generatePlugin",
+                "title": "CraftIDE: Generate Plugin from Description"
+            }
+        ],
+        "viewsContainers": {
+            "panel": [
+                {
+                    "id": "craftide-ai-panel",
+                    "title": "CraftIDE AI",
+                    "icon": "$(hubot)"
+                }
+            ]
+        },
+        "views": {
+            "craftide-ai-panel": [
+                {
+                    "type": "webview",
+                    "id": "craftide.chatView",
+                    "name": "AI Chat"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "CraftIDE AI",
+            "properties": {
+                "craftide.ai.provider": {
+                    "type": "string",
+                    "default": "ollama",
+                    "description": "AI model provider",
+                    "enum": [
+                        "ollama",
+                        "openai",
+                        "anthropic",
+                        "google",
+                        "lmstudio"
+                    ]
+                },
+                "craftide.ai.model": {
+                    "type": "string",
+                    "default": "codellama:13b",
+                    "description": "AI model name"
+                },
+                "craftide.ai.endpoint": {
+                    "type": "string",
+                    "default": "http://localhost:11434",
+                    "description": "AI API endpoint (for local models)"
+                },
+                "craftide.ai.apiKey": {
+                    "type": "string",
+                    "default": "",
+                    "description": "API key for cloud providers"
+                },
+                "craftide.ai.maxRetries": {
+                    "type": "number",
+                    "default": 3,
+                    "description": "Maximum validation-fix retries"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.85.0",
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3"
+    }
+}

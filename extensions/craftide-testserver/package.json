@@ -1,0 +1,108 @@
+{
+    "name": "craftide-testserver",
+    "displayName": "CraftIDE Test Server",
+    "description": "Embedded Paper Minecraft test server for plugin development, with automatic JAR deployment and live console",
+    "version": "0.1.0",
+    "publisher": "craftide",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Testing",
+        "Debuggers"
+    ],
+    "activationEvents": [
+        "workspaceContains:**/plugin.yml",
+        "workspaceContains:**/*.sk"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "craftide.server.start",
+                "title": "CraftIDE: Start Test Server",
+                "icon": "$(play)"
+            },
+            {
+                "command": "craftide.server.stop",
+                "title": "CraftIDE: Stop Test Server",
+                "icon": "$(debug-stop)"
+            },
+            {
+                "command": "craftide.server.restart",
+                "title": "CraftIDE: Restart Test Server",
+                "icon": "$(debug-restart)"
+            },
+            {
+                "command": "craftide.server.deployPlugin",
+                "title": "CraftIDE: Deploy Plugin to Test Server",
+                "icon": "$(cloud-upload)"
+            },
+            {
+                "command": "craftide.server.openConsole",
+                "title": "CraftIDE: Open Server Console"
+            },
+            {
+                "command": "craftide.server.sendCommand",
+                "title": "CraftIDE: Send Server Command"
+            }
+        ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "craftide-server",
+                    "title": "Test Server",
+                    "icon": "$(server)"
+                }
+            ]
+        },
+        "views": {
+            "craftide-server": [
+                {
+                    "id": "craftide.serverPanel",
+                    "name": "Sunucu Kontrolü",
+                    "type": "webview"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "CraftIDE Test Server",
+            "properties": {
+                "craftide.server.paperVersion": {
+                    "type": "string",
+                    "default": "1.20.4",
+                    "description": "Paper server version to use"
+                },
+                "craftide.server.jvmArgs": {
+                    "type": "string",
+                    "default": "-Xms512M -Xmx1G",
+                    "description": "JVM arguments for the test server"
+                },
+                "craftide.server.port": {
+                    "type": "number",
+                    "default": 25565,
+                    "description": "Server port"
+                },
+                "craftide.server.autoAcceptEula": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically accept Minecraft EULA for test server"
+                },
+                "craftide.server.autoDeploy": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically deploy plugin on build"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.85.0",
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3"
+    }
+}

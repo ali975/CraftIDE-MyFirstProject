@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "module": "ES2022",
+        "target": "ES2022",
+        "lib": [
+            "ES2022",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "outDir": "dist/renderer",
+        "rootDir": "src/renderer/scripts",
+        "sourceMap": true,
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "moduleResolution": "node"
+    },
+    "include": [
+        "src/renderer/scripts/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules"
+    ]
+}

@@ -1,0 +1,179 @@
+{
+    "Bukkit Plugin Main Class": {
+        "prefix": "bukkit-main",
+        "body": [
+            "package ${1:com.example.plugin};",
+            "",
+            "import org.bukkit.plugin.java.JavaPlugin;",
+            "",
+            "public class ${2:MyPlugin} extends JavaPlugin {",
+            "",
+            "\t@Override",
+            "\tpublic void onEnable() {",
+            "\t\tsaveDefaultConfig();",
+            "\t\tgetLogger().info(\"${2:MyPlugin} aktif!\");",
+            "\t}",
+            "",
+            "\t@Override",
+            "\tpublic void onDisable() {",
+            "\t\tgetLogger().info(\"${2:MyPlugin} deaktif.\");",
+            "\t}",
+            "}"
+        ],
+        "description": "Ana plugin sınıfı (JavaPlugin)"
+    },
+    "Bukkit Command Executor": {
+        "prefix": "bukkit-command",
+        "body": [
+            "package ${1:com.example.plugin.commands};",
+            "",
+            "import org.bukkit.command.Command;",
+            "import org.bukkit.command.CommandExecutor;",
+            "import org.bukkit.command.CommandSender;",
+            "import org.bukkit.entity.Player;",
+            "",
+            "public class ${2:MyCommand} implements CommandExecutor {",
+            "",
+            "\t@Override",
+            "\tpublic boolean onCommand(CommandSender sender, Command command, String label, String[] args) {",
+            "\t\tif (!(sender instanceof Player player)) {",
+            "\t\t\tsender.sendMessage(\"Bu komut sadece oyuncular kullanabilir!\");",
+            "\t\t\treturn true;",
+            "\t\t}",
+            "",
+            "\t\t${3:player.sendMessage(\"Komut çalıştı!\");}",
+            "\t\treturn true;",
+            "\t}",
+            "}"
+        ],
+        "description": "Komut handler sınıfı"
+    },
+    "Bukkit Event Listener": {
+        "prefix": "bukkit-listener",
+        "body": [
+            "package ${1:com.example.plugin.listeners};",
+            "",
+            "import org.bukkit.event.EventHandler;",
+            "import org.bukkit.event.Listener;",
+            "import org.bukkit.event.player.${2:PlayerJoinEvent};",
+            "",
+            "public class ${3:MyListener} implements Listener {",
+            "",
+            "\t@EventHandler",
+            "\tpublic void on${4:PlayerJoin}(${2:PlayerJoinEvent} event) {",
+            "\t\t${5:event.getPlayer().sendMessage(\"Hoş geldin!\");}",
+            "\t}",
+            "}"
+        ],
+        "description": "Event listener sınıfı"
+    },
+    "Bukkit GUI Inventory": {
+        "prefix": "bukkit-gui",
+        "body": [
+            "import org.bukkit.Bukkit;",
+            "import org.bukkit.Material;",
+            "import org.bukkit.entity.Player;",
+            "import org.bukkit.inventory.Inventory;",
+            "import org.bukkit.inventory.ItemStack;",
+            "import org.bukkit.inventory.meta.ItemMeta;",
+            "",
+            "public void openGUI(Player player) {",
+            "\tInventory gui = Bukkit.createInventory(null, ${1:27}, \"${2:Menü}\");",
+            "",
+            "\tItemStack item = new ItemStack(Material.${3:DIAMOND_SWORD});",
+            "\tItemMeta meta = item.getItemMeta();",
+            "\tmeta.setDisplayName(\"${4:Özel Eşya}\");",
+            "\titem.setItemMeta(meta);",
+            "\tgui.setItem(${5:13}, item);",
+            "",
+            "\tplayer.openInventory(gui);",
+            "}"
+        ],
+        "description": "GUI envanter menüsü"
+    },
+    "Bukkit Scheduler": {
+        "prefix": "bukkit-scheduler",
+        "body": [
+            "Bukkit.getScheduler().runTaskLater(this, () -> {",
+            "\t${1:// Gecikmeli görev}",
+            "}, ${2:20}L); // ${3:1 saniye} = 20 tick"
+        ],
+        "description": "Gecikmeli görev (BukkitScheduler)"
+    },
+    "Bukkit Async Task": {
+        "prefix": "bukkit-async",
+        "body": [
+            "Bukkit.getScheduler().runTaskAsynchronously(this, () -> {",
+            "\t${1:// Asenkron görev (ana thread'i bloklamaz)}",
+            "\t// NOT: Bukkit API çağrıları burada YAPILAMAZ!",
+            "\t",
+            "\t// Sonucu ana thread'e geri dön:",
+            "\tBukkit.getScheduler().runTask(${2:plugin}, () -> {",
+            "\t\t${3:// Ana thread'de çalışır — Bukkit API güvenli}",
+            "\t});",
+            "});"
+        ],
+        "description": "Asenkron görev (DB işlemleri için)"
+    },
+    "Bukkit Config Read": {
+        "prefix": "bukkit-config",
+        "body": [
+            "// Config'den oku",
+            "String ${1:value} = getConfig().getString(\"${2:ayar.yol}\", \"${3:varsayılan}\");",
+            "int ${4:number} = getConfig().getInt(\"${5:ayar.sayı}\", ${6:0});",
+            "boolean ${7:flag} = getConfig().getBoolean(\"${8:ayar.aktif}\", ${9:true});"
+        ],
+        "description": "Config dosyasından değer okuma"
+    },
+    "Bukkit Custom Item": {
+        "prefix": "bukkit-item",
+        "body": [
+            "ItemStack ${1:item} = new ItemStack(Material.${2:DIAMOND_SWORD});",
+            "ItemMeta meta = ${1:item}.getItemMeta();",
+            "meta.setDisplayName(\"§a${3:Özel Kılıç}\");",
+            "meta.setLore(java.util.Arrays.asList(",
+            "\t\"§7${4:CraftIDE ile yapıldı}\",",
+            "\t\"§7${5:Hasar: +50}\"",
+            "));",
+            "${1:item}.setItemMeta(meta);"
+        ],
+        "description": "Özel eşya oluşturma"
+    },
+    "Bukkit Register Command": {
+        "prefix": "bukkit-regcmd",
+        "body": [
+            "getCommand(\"${1:komut}\").setExecutor(new ${2:MyCommand}(this));"
+        ],
+        "description": "Komutu kaydet (onEnable içinde)"
+    },
+    "Bukkit Register Listener": {
+        "prefix": "bukkit-regevt",
+        "body": [
+            "getServer().getPluginManager().registerEvents(new ${1:MyListener}(this), this);"
+        ],
+        "description": "Listener'ı kaydet (onEnable içinde)"
+    },
+    "Bukkit EventHandler": {
+        "prefix": "bukkit-event",
+        "body": [
+            "@EventHandler",
+            "public void on${1:Event}(${2:PlayerJoinEvent} event) {",
+            "\t${3:// Event handler}",
+            "}"
+        ],
+        "description": "Tek bir event handler metodu"
+    },
+    "Vault Economy Check": {
+        "prefix": "vault-economy",
+        "body": [
+            "// Vault ekonomi kontrolü",
+            "if (economy.has(player, ${1:100.0})) {",
+            "\teconomy.withdrawPlayer(player, ${1:100.0});",
+            "\tplayer.sendMessage(\"§a${2:Satın alındı!}\");",
+            "} else {",
+            "\tplayer.sendMessage(\"§cYetersiz bakiye!\");",
+            "}"
+        ],
+        "description": "Vault ekonomi kontrolü ve çekim"
+    }
+}

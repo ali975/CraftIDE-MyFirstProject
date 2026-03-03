@@ -1,0 +1,84 @@
+{
+    "name": "craftide-visual",
+    "displayName": "CraftIDE Visual Tools",
+    "description": "Bidirectional AST compiler, visual node-based plugin builder, and 3D geometry engine for Minecraft development",
+    "version": "0.1.0",
+    "publisher": "craftide",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Visualization",
+        "Other"
+    ],
+    "activationEvents": [
+        "onLanguage:java",
+        "onLanguage:skript"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "craftide.visual.openBuilder",
+                "title": "CraftIDE: Open Visual Plugin Builder",
+                "icon": "$(symbol-misc)"
+            },
+            {
+                "command": "craftide.visual.open3DEngine",
+                "title": "CraftIDE: Open 3D Geometry Engine",
+                "icon": "$(telescope)"
+            },
+            {
+                "command": "craftide.visual.syncCodeToVisual",
+                "title": "CraftIDE: Sync Code → Visual Graph"
+            },
+            {
+                "command": "craftide.visual.syncVisualToCode",
+                "title": "CraftIDE: Sync Visual Graph → Code"
+            }
+        ],
+        "menus": {
+            "editor/title": [
+                {
+                    "command": "craftide.visual.openBuilder",
+                    "group": "navigation",
+                    "when": "editorLangId == java || editorLangId == skript"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "CraftIDE Visual",
+            "properties": {
+                "craftide.visual.autoSync": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically sync code and visual graph on changes"
+                },
+                "craftide.visual.gridSize": {
+                    "type": "number",
+                    "default": 20,
+                    "description": "Node graph grid snap size"
+                },
+                "craftide.visual.3d.quality": {
+                    "type": "string",
+                    "default": "medium",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                    ],
+                    "description": "3D engine rendering quality"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.85.0",
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3"
+    }
+}

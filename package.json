@@ -1,0 +1,73 @@
+{
+    "name": "craftide",
+    "version": "0.1.0",
+    "description": "CraftIDE - Minecraft Development Studio: AI-powered IDE for Minecraft plugin and Skript development",
+    "author": "CraftIDE Team",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/USERNAME/craftide.git"
+    },
+    "bugs": {
+        "url": "https://github.com/USERNAME/craftide/issues"
+    },
+    "homepage": "https://github.com/USERNAME/craftide#readme",
+    "main": "dist/main/main.js",
+    "scripts": {
+        "start": "electron .",
+        "dev": "npm run build:main && electron .",
+        "build:main": "tsc -p tsconfig.main.json",
+        "dist": "npm run build:main && electron-builder --win",
+        "dist:portable": "npm run build:main && electron-builder --win portable",
+        "pack": "npm run build:main && electron-builder --dir"
+    },
+    "build": {
+        "appId": "com.craftide.app",
+        "productName": "CraftIDE",
+        "directories": {
+            "output": "release"
+        },
+        "files": [
+            "dist/main/**/*",
+            "src/renderer/**/*",
+            "node_modules/**/*"
+        ],
+        "forceCodeSigning": false,
+        "win": {
+            "target": [
+                {
+                    "target": "portable",
+                    "arch": [
+                        "x64"
+                    ]
+                },
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "signAndEditExecutable": false
+        },
+        "nsis": {
+            "oneClick": false,
+            "perMachine": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "CraftIDE"
+        }
+    },
+    "dependencies": {
+        "monaco-editor": "^0.45.0",
+        "xterm": "^5.3.0",
+        "xterm-addon-fit": "^0.8.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "electron": "^28.1.0",
+        "electron-builder": "^24.9.1",
+        "typescript": "^5.3.3"
+    }
+}

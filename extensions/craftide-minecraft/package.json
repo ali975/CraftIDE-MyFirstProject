@@ -1,0 +1,103 @@
+{
+    "name": "craftide-minecraft",
+    "displayName": "CraftIDE Minecraft Tools",
+    "description": "Minecraft API reference, Skript language support, build system integration, and hover documentation",
+    "version": "0.1.0",
+    "publisher": "craftide",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Programming Languages",
+        "Linters",
+        "Snippets"
+    ],
+    "activationEvents": [
+        "onLanguage:java",
+        "onLanguage:skript",
+        "onLanguage:yaml",
+        "workspaceContains:**/plugin.yml"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "languages": [
+            {
+                "id": "skript",
+                "aliases": [
+                    "Skript",
+                    "sk"
+                ],
+                "extensions": [
+                    ".sk"
+                ],
+                "configuration": "./language-configuration.json",
+                "icon": {
+                    "light": "./media/skript-icon.svg",
+                    "dark": "./media/skript-icon.svg"
+                }
+            }
+        ],
+        "grammars": [
+            {
+                "language": "skript",
+                "scopeName": "source.skript",
+                "path": "./syntaxes/skript.tmLanguage.json"
+            }
+        ],
+        "snippets": [
+            {
+                "language": "skript",
+                "path": "./snippets/skript-snippets.json"
+            },
+            {
+                "language": "java",
+                "path": "./snippets/bukkit-snippets.json"
+            }
+        ],
+        "commands": [
+            {
+                "command": "craftide.mc.buildPlugin",
+                "title": "CraftIDE: Build Plugin (mvn/gradle)",
+                "icon": "$(package)"
+            },
+            {
+                "command": "craftide.mc.apiLookup",
+                "title": "CraftIDE: Minecraft API Lookup"
+            },
+            {
+                "command": "craftide.mc.switchVersion",
+                "title": "CraftIDE: Switch Minecraft Version"
+            }
+        ],
+        "configuration": {
+            "title": "CraftIDE Minecraft",
+            "properties": {
+                "craftide.mc.javaHome": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to Java JDK home directory"
+                },
+                "craftide.mc.autoDetectBuildTool": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Auto-detect Maven or Gradle in the workspace"
+                },
+                "craftide.mc.showDeprecationWarnings": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show warnings for deprecated Minecraft API methods"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.85.0",
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3"
+    }
+}
