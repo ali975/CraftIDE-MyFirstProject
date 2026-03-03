@@ -169,14 +169,14 @@ const DICT = {
 
 class LangManager {
     constructor() {
-        this.currentLang = localStorage.getItem('craftide-lang') || 'en';
+        this.currentLang = localStorage.getItem('setting-language') || 'en';
         document.documentElement.lang = this.currentLang;
     }
 
     setLanguage(lang) {
         if (!['en', 'tr'].includes(lang)) lang = 'en';
         this.currentLang = lang;
-        localStorage.setItem('craftide-lang', lang);
+        localStorage.setItem('setting-language', lang);
         document.documentElement.lang = lang;
         this.applyTranslations();
 

@@ -1509,19 +1509,9 @@ function applySettings() {
     }
 
     // Language Sync logic (ui updates when changed)
-    const lang = document.getElementById('setting-language')?.value || 'tr';
-    if (lang === 'en') {
-        const titlebarFilename = document.getElementById('titlebar-filename');
-        if (titlebarFilename && titlebarFilename.textContent === 'Hoş Geldin') {
-            titlebarFilename.textContent = 'Welcome';
-        }
-        // More comprehensive language sync requires full i18n implementation, 
-        // but this shows functionality is active.
-    } else {
-        const titlebarFilename = document.getElementById('titlebar-filename');
-        if (titlebarFilename && titlebarFilename.textContent === 'Welcome') {
-            titlebarFilename.textContent = 'Hoş Geldin';
-        }
+    const lang = document.getElementById('setting-language')?.value || 'en';
+    if (window.Lang && window.Lang.currentLang !== lang) {
+        window.Lang.setLanguage(lang);
     }
 }
 
@@ -1529,18 +1519,10 @@ function applySettings() {
 // Init
 // ═══════════════════════════════════════════════════════════
 
-console.log('\u26CF\uFE0F CraftIDE renderer initialized!');
+console.log('⛏️ CraftIDE renderer initialized!');
 
 // Ayarları yükle
 
-    const langSelect = document.getElementById('settings-lang');
-    if (langSelect) {
-        langSelect.value = window.Lang.currentLang;
-        langSelect.addEventListener('change', (e) => {
-            window.Lang.setLanguage(e.target.value);
-            if (typeof showNotification === 'function') showNotification('Language updated. Restart may be required for some components.', 'info');
-        });
-    }
 loadSettings();
 
 // Terminal'i otomatik başlat
