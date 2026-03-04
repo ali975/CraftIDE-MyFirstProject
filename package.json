@@ -1,9 +1,9 @@
 {
     "name": "craftide",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "description": "CraftIDE - Minecraft Development Studio: AI-powered IDE for Minecraft plugin and Skript development",
     "author": "CraftIDE Team",
-    "license": "MIT",
+    "license": "AGPL-3.0-only",
     "repository": {
         "type": "git",
         "url": "https://github.com/USERNAME/craftide.git"
@@ -31,10 +31,12 @@
         "files": [
             "dist/main/**/*",
             "src/renderer/**/*",
+            "assets/icons/**/*",
             "node_modules/**/*"
         ],
         "forceCodeSigning": false,
         "win": {
+            "icon": "assets/icons/craftide.ico",
             "target": [
                 {
                     "target": "portable",
@@ -55,6 +57,8 @@
             "oneClick": false,
             "perMachine": false,
             "allowToChangeInstallationDirectory": true,
+            "installerIcon": "assets/icons/craftide.ico",
+            "uninstallerIcon": "assets/icons/craftide.ico",
             "createDesktopShortcut": true,
             "createStartMenuShortcut": true,
             "shortcutName": "CraftIDE"

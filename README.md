@@ -47,8 +47,8 @@ npm run dist
 
 Main output:
 
-- `release/CraftIDE Setup 0.2.0.exe`
-- `release/CraftIDE 0.2.0.exe`
+- `release/CraftIDE Setup 0.2.1.exe`
+- `release/CraftIDE 0.2.1.exe`
 
 ## Release/Distribution Rule
 
@@ -63,4 +63,13 @@ Per project rule, run `npm run dist` after each main update package before publi
 
 ## License
 
-MIT
+CraftIDE is licensed under `GNU AGPL-3.0-only`.
+
+Commercial distribution is allowed by AGPL, but you must comply with AGPL obligations.
+For name/logo/branding usage rules, see [TRADEMARK.md](./TRADEMARK.md).
+
+## Official Distribution Policy
+
+- Official builds are published only from the `ali975/CraftIDE-MyFirstProject` repository.
+- Rebuilds/forks must not be presented as "official CraftIDE" without written trademark permission.
+- Third-party paid redistribution must clearly state it is unofficial and must not use CraftIDE logos/brand assets.

@@ -47,8 +47,8 @@ npm run dist
 
 Ana ciktilar:
 
-- `release/CraftIDE Setup 0.2.0.exe`
-- `release/CraftIDE 0.2.0.exe`
+- `release/CraftIDE Setup 0.2.1.exe`
+- `release/CraftIDE 0.2.1.exe`
 
 ## Dagitim Kurali
 
@@ -63,4 +63,13 @@ Proje kuralina gore her ana guncelleme paketinden sonra release artefact uretimi
 
 ## Lisans
 
-MIT
+CraftIDE `GNU AGPL-3.0-only` ile lisanslanmistir.
+
+AGPL ticari dagitima izin verir; ancak AGPL yukumluluklarina uyulmasi zorunludur.
+Isim/logo/marka kullanim kurallari icin [TRADEMARK.md](./TRADEMARK.md) dosyasina bakin.
+
+## Resmi Dagitim Politikasi
+
+- Resmi buildler sadece `ali975/CraftIDE-MyFirstProject` reposundan yayinlanir.
+- Fork veya yeniden derlenmis surumler, yazili marka izni olmadan "official CraftIDE" olarak sunulamaz.
+- Ucretli ucuncu taraf dagitimlari "resmi degil" bilgisini acikca gostermeli ve CraftIDE marka/logo varliklarini kullanmamalidir.

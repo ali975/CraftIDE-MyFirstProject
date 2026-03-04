@@ -32,7 +32,7 @@ function createWindow(): void {
             webSecurity: false,
             webviewTag: true,
         },
-        icon: path.join(__dirname, '../../assets/icon.png'),
+        icon: path.join(__dirname, '../../assets/icons/icon-256.png'),
     });
 
     // HTML dosyasını yükle

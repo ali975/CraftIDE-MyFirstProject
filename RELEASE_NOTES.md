@@ -1,26 +1,26 @@
-## What's New in v0.2.0: The "Production Pipeline" & i18n Update! 🚀
+## What's New in v0.2.1: License + Branding + Icon Update
 
-CraftIDE v0.2.0 is a massive milestone! We have completely evolved from a simple code-generator to a **full-scale production pipeline** encompassing design, validation, packaging, and documentation. 
+This release focuses on legal clarity and distribution hygiene while keeping CraftIDE fully open source.
 
-### 🌍 Dynamic Language Synchronization
-- **Complete EN/TR Language Switching:** English is now the default language, with full Turkish support available via settings.
-- **100+ Hardcoded Strings Replaced:** The entire UI is now hooked into our massive dynamic dictionary.
-- **Instant Swap:** Changing languages updates the UI immediately without requiring a restart!
+### Legal and Distribution
+- License changed to `GNU AGPL-3.0-only`.
+- Added `TRADEMARK.md` to protect project name/logo/brand identity.
+- Added `NOTICE` file with copyright and brand-policy references.
+- README and README-TR now include:
+  - official vs unofficial distribution rules,
+  - trademark usage boundaries,
+  - AGPL compliance reminder.
 
-### 🏗️ Massive Architectural & Feature Upgrades
-- **No-Code Experience Upgraded:** Wizard-based plugin creation, draggable behavior cards, undo/redo (Ctrl+Z/Y), and live natural language preview.
-- **AI Empowerment:** One-step "NL to Graph to Code to Build" workflow! Added an **One-Click Fix** system that guarantees successful builds by analyzing errors.
-- **New Tools & Designers:** 
-  - Mob Designer & Scoreboard/HUD Designer
-  - Config Editor (C7) & Particle Canvas (C6)
-  - NPC Dialogue Generator (C5) & Event Chain Simulator (C10)
-  - The Template Gallery now holds 30+ ready-to-use blueprints!
-- **Technical Foundations:** 
-  - Introduced robust offline-first fallback mechanisms.
-  - Implemented testing infrastructure (unit tests + CI) and a central state store for renderer modernization.
-  - Added accessibility features: Light Mode, High Contrast, and Font Scaling.
+### App Icon and Packaging
+- Added app icon set under `assets/icons/` (multi-size PNG + Windows `.ico`).
+- Updated Electron runtime window icon to use `assets/icons/icon-256.png`.
+- Updated `electron-builder` config to package and apply `assets/icons/craftide.ico` for:
+  - Windows portable executable,
+  - NSIS installer and uninstaller.
 
-*With these changes, CraftIDE drastically reduces the cost of errors, speeds up your workflow, and generates higher-quality code through simulation and validation!*
+### Versioning
+- App version bumped from `0.2.0` to `0.2.1`.
 
-### 📥 Download
-- **CraftIDE Setup 0.2.0.exe** — Windows installer
+### Important Note
+AGPL allows commercial distribution, but trademark policy restricts brand misuse.
+Unofficial forks must use different branding and clearly state they are unofficial.
