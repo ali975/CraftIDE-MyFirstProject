@@ -448,7 +448,7 @@ function buildTemplateGrid() {
         descEl.textContent = tpl.desc;
         const modeEl = document.createElement('div');
         modeEl.className = 'vb-tpl-mode';
-        modeEl.textContent = tpl.mode;
+        modeEl.textContent = tpl.category ? `${tpl.mode} · ${tpl.category}` : tpl.mode;
         card.appendChild(nameEl);
         card.appendChild(descEl);
         card.appendChild(modeEl);
@@ -1674,6 +1674,30 @@ window.CraftIDEVB = {
     getNodes: () => vbNodes,
     getConnections: () => vbConnections,
     getDefinitions: () => ALL_BLOCK_DEFS,
+    getTemplates: () => [...VB_TEMPLATES],
+    addTemplates: (templates) => {
+        const arr = Array.isArray(templates) ? templates : [];
+        let added = 0;
+        for (const tpl of arr) {
+            if (!tpl || typeof tpl !== 'object') continue;
+            const id = String(tpl.id || '').trim();
+            if (!id) continue;
+            if (VB_TEMPLATES.some((x) => x.id === id)) continue;
+            const normalized = {
+                id,
+                name: tpl.name || id,
+                desc: tpl.desc || '',
+                mode: tpl.mode || 'plugin',
+                category: tpl.category || '',
+                nodes: Array.isArray(tpl.nodes) ? tpl.nodes : [],
+                connections: Array.isArray(tpl.connections) ? tpl.connections : [],
+            };
+            VB_TEMPLATES.push(normalized);
+            added += 1;
+        }
+        if (added > 0) buildTemplateGrid();
+        return added;
+    },
     generateCode: (options) => vbGenerateCode(options || { returnOnly: true }),
 };
 window.highlightEventInVB = highlightEventInVB;

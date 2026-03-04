@@ -21,6 +21,8 @@ window.CraftIDEAppState = {
     getCurrentFilePath: () => currentFilePath,
     getActivePanel: () => activePanel,
     getOpenFiles: () => openFiles,
+    refreshFileTree: async () => { if (currentProjectPath) await renderFileTree(currentProjectPath); return !!currentProjectPath; },
+    openFolder: (...args) => openFolder(...args),
     openFile: (...args) => openFile(...args),
     addTab: (...args) => addTab(...args),
     activateTab: (...args) => activateTab(...args),
@@ -36,6 +38,12 @@ function tr(key, fallback, params) {
     if (!fallback) return key;
     if (!params) return fallback;
     return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), fallback);
+}
+
+function syncRendererStore(patch) {
+    if (window.CraftIDEStore && typeof window.CraftIDEStore.patch === 'function') {
+        window.CraftIDEStore.patch(patch || {});
+    }
 }
 
 const VIRTUAL_TAB_META = {
@@ -247,6 +255,7 @@ document.querySelectorAll('.activity-btn').forEach(btn => {
         if (targetPanel) targetPanel.classList.add('active');
 
         activePanel = actualPanelId; // Update activePanel
+        syncRendererStore({ ui: { activePanel } });
     });
 });
 
@@ -261,6 +270,7 @@ async function openFolder(folderPath) {
     if (!folderPath) return;
 
     currentProjectPath = folderPath;
+    syncRendererStore({ project: { path: currentProjectPath } });
     document.getElementById('titlebar-filename').textContent = nodePath.basename(folderPath);
 
     await renderFileTree(folderPath);
@@ -831,6 +841,10 @@ function activateTab(filePath) {
     }
 
     currentFilePath = filePath;
+    syncRendererStore({
+        ui: { currentFile: currentFilePath },
+        project: { openTabs: document.querySelectorAll('.tab').length },
+    });
     document.getElementById('titlebar-filename').textContent = filePath.startsWith('virtual://') || filePath.includes('//') ? tabName : nodePath.basename(filePath);
 }
 
@@ -892,6 +906,10 @@ function showWelcome() {
     document.getElementById('welcome-screen').classList.add('active');
     document.getElementById('titlebar-filename').textContent = tr('ui.titlebar.welcome', 'Welcome');
     currentFilePath = null;
+    syncRendererStore({
+        ui: { currentFile: null },
+        project: { openTabs: document.querySelectorAll('.tab').length },
+    });
 }
 
 async function saveCurrentFile() {
@@ -1180,7 +1198,12 @@ document.getElementById('wl-open-folder')?.addEventListener('click', async (e) =
 
 document.getElementById('wl-ai-create')?.addEventListener('click', (e) => {
     e.preventDefault();
-    document.querySelector('.activity-btn[data-panel="ai"]').click();
+    if (window.NoCodeSuite?.openOneStepModal) {
+        document.querySelector('.activity-btn[data-action="visual-builder"]')?.click();
+        setTimeout(() => window.NoCodeSuite.openOneStepModal(), 120);
+        return;
+    }
+    document.querySelector('.activity-btn[data-panel="ai"]')?.click();
 });
 
 document.getElementById('wt-get-started')?.addEventListener('click', (e) => {
@@ -2262,18 +2285,18 @@ function _renderGenericYmlEditor(body, content) {
             lbl.style.cssText = 'flex:0 0 180px;font-size:12px;color:var(--text-secondary);text-align:right;padding-left:' + (indent.length * 6) + 'px;';
             lbl.textContent = key + ':';
 
-            let inp;
-            if (val === 'true' || val === 'false') {
-                inp = document.createElement('select');
-                ['true', 'false'].forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; if (val === v) o.selected = true; inp.appendChild(o); });
-            } else {
-                inp = document.createElement('input');
-                inp.type = /^\d+(\.\d+)?$/.test(val) ? 'number' : 'text';
-                inp.value = val;
-            }
+            const inp = _createConfigInput(key, val);
             inp.dataset.cfgKey = key;
+            inp.dataset.cfgDefault = val;
             inp.style.cssText = 'flex:1;padding:4px 6px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;font-size:12px;';
-            row.append(lbl, inp);
+            lbl.title = _cfgHintForKey(key);
+
+            const resetBtn = document.createElement('button');
+            resetBtn.textContent = '↺';
+            resetBtn.title = 'Reset to default';
+            resetBtn.style.cssText = 'padding:3px 6px;background:transparent;border:1px solid var(--border-color);border-radius:4px;color:var(--text-muted);cursor:pointer;';
+            resetBtn.onclick = () => _setConfigInputValue(inp, val);
+            row.append(lbl, inp, resetBtn);
             wrapper.appendChild(row);
         } else {
             // list item veya complex — göster ama değiştirme
@@ -2290,6 +2313,94 @@ function _renderGenericYmlEditor(body, content) {
     body.dataset.type = 'generic';
 }
 
+const _CFG_HINTS = {
+    prefix: 'Chat prefix shown to players.',
+    language: 'Language code used by plugin messages.',
+    debug: 'Enables verbose debug output.',
+    permission: 'Permission string required for the feature.',
+    world: 'Minecraft world name.',
+    material: 'Bukkit/Fabric material id.',
+    color: 'Color value (hex or Minecraft code).',
+    cooldown: 'Delay in seconds/ticks between uses.',
+    amount: 'Numeric amount used by rewards/economy.',
+    x: 'Coordinate X value.',
+    y: 'Coordinate Y value.',
+    z: 'Coordinate Z value.',
+};
+
+const _CFG_MATERIAL_SUGGESTIONS = [
+    'DIAMOND', 'NETHERITE_SWORD', 'IRON_SWORD', 'GOLDEN_APPLE', 'TOTEM_OF_UNDYING',
+    'minecraft:diamond', 'minecraft:netherite_sword', 'minecraft:golden_apple',
+];
+
+function _cfgHintForKey(key) {
+    const k = String(key || '').toLowerCase();
+    for (const [hintKey, hintVal] of Object.entries(_CFG_HINTS)) {
+        if (k.includes(hintKey)) return hintVal;
+    }
+    return 'Config value';
+}
+
+function _ensureCfgMaterialList() {
+    let dl = document.getElementById('cfg-material-list');
+    if (dl) return dl;
+    dl = document.createElement('datalist');
+    dl.id = 'cfg-material-list';
+    _CFG_MATERIAL_SUGGESTIONS.forEach((m) => {
+        const o = document.createElement('option');
+        o.value = m;
+        dl.appendChild(o);
+    });
+    document.body.appendChild(dl);
+    return dl;
+}
+
+function _createConfigInput(key, val) {
+    const k = String(key || '').toLowerCase();
+    const raw = String(val ?? '');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = raw;
+
+    if (raw === 'true' || raw === 'false') {
+        input.type = 'checkbox';
+        input.checked = raw === 'true';
+        input.style.width = '18px';
+        return input;
+    }
+
+    if ((k.includes('color') || k.includes('renk')) && /^#?[0-9a-f]{6}$/i.test(raw)) {
+        input.type = 'color';
+        input.value = raw.startsWith('#') ? raw : `#${raw}`;
+        return input;
+    }
+
+    if (/^-?\d+(\.\d+)?$/.test(raw)) {
+        input.type = 'number';
+        return input;
+    }
+
+    if (k.includes('material') || k.includes('item')) {
+        _ensureCfgMaterialList();
+        input.setAttribute('list', 'cfg-material-list');
+    }
+
+    return input;
+}
+
+function _setConfigInputValue(inp, val) {
+    if (!inp) return;
+    if (inp.type === 'checkbox') inp.checked = String(val) === 'true';
+    else if (inp.type === 'color') inp.value = String(val || '').startsWith('#') ? String(val) : `#${String(val || '').replace('#', '')}`;
+    else inp.value = String(val ?? '');
+}
+
+function _readConfigInputValue(inp) {
+    if (!inp) return '';
+    if (inp.type === 'checkbox') return inp.checked ? 'true' : 'false';
+    return String(inp.value ?? '');
+}
+
 function _addFormField(parent, key, value, type) {
     const row = document.createElement('div');
     row.className = 'cfg-field';
@@ -2297,9 +2408,9 @@ function _addFormField(parent, key, value, type) {
     const lbl = document.createElement('label');
     lbl.style.cssText = 'flex:0 0 140px;font-size:12px;color:var(--text-secondary);text-align:right;';
     lbl.textContent = key + ':';
-    const inp = document.createElement('input');
-    inp.type = 'text';
-    inp.value = value;
+    lbl.title = _cfgHintForKey(key);
+    const inp = _createConfigInput(key, value);
+    _setConfigInputValue(inp, value);
     inp.dataset.cfgKey = key;
     inp.style.cssText = 'flex:1;padding:5px 8px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;font-size:12px;';
     row.append(lbl, inp);
@@ -2330,7 +2441,7 @@ function _serializeConfigForm(body, type) {
     if (type === 'plugin') {
         let yaml = '';
         body.querySelectorAll('[data-cfg-key]').forEach(inp => {
-            yaml += inp.dataset.cfgKey + ': ' + inp.value + '\n';
+            yaml += inp.dataset.cfgKey + ': ' + _readConfigInputValue(inp) + '\n';
         });
         // commands
         yaml += 'commands:\n';
@@ -2349,7 +2460,7 @@ function _serializeConfigForm(body, type) {
             if (node.dataset && node.dataset.lineType === 'kv') {
                 const inp = node.querySelector('[data-cfg-key]');
                 if (inp) {
-                    yaml += (node.dataset.indent || '') + inp.dataset.cfgKey + ': ' + inp.value + '\n';
+                    yaml += (node.dataset.indent || '') + inp.dataset.cfgKey + ': ' + _readConfigInputValue(inp) + '\n';
                 }
             } else if (node.dataset && (node.dataset.lineType === 'comment' || node.dataset.lineType === 'raw')) {
                 yaml += (node.dataset.original || '') + '\n';
@@ -2412,7 +2523,10 @@ function _analyzeStackTrace(lines) {
             <div style="font-size:12px;font-weight:600;color:#e74c3c;">${shortType}</div>
             <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${location || firstLine.slice(0, 80)}</div>
         </div>
-        <button class="cfg-ai-btn" style="white-space:nowrap;padding:3px 8px;font-size:11px;background:rgba(52,152,219,0.2);border:1px solid rgba(52,152,219,0.4);color:#3498db;border-radius:4px;cursor:pointer;">${tr('ui.server.aiAnalyze', 'AI Analyze')}</button>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+            <button class="cfg-ai-btn" style="white-space:nowrap;padding:3px 8px;font-size:11px;background:rgba(52,152,219,0.2);border:1px solid rgba(52,152,219,0.4);color:#3498db;border-radius:4px;cursor:pointer;">${tr('ui.server.aiAnalyze', 'AI Analyze')}</button>
+            <button class="cfg-fix-btn" style="white-space:nowrap;padding:3px 8px;font-size:11px;background:rgba(46,204,113,0.18);border:1px solid rgba(46,204,113,0.45);color:#2ecc71;border-radius:4px;cursor:pointer;">${tr('ui.server.aiFix', 'One-Click Fix')}</button>
+        </div>
     `;
     item.querySelector('.cfg-ai-btn').onclick = () => {
         if (window.aiManager) {
@@ -2424,6 +2538,14 @@ function _analyzeStackTrace(lines) {
                 }
             }, 200);
         }
+    };
+    item.querySelector('.cfg-fix-btn').onclick = async () => {
+        if (!window.NoCodeSuite?.oneClickFixCurrent) {
+            showNotification('One-click fix is not available.', 'warn');
+            return;
+        }
+        document.querySelector('.activity-btn[data-action="visual-builder"]')?.click();
+        setTimeout(() => window.NoCodeSuite.oneClickFixCurrent(), 120);
     };
     problemsList.insertBefore(item, problemsList.firstChild);
 

@@ -7,7 +7,15 @@
     const nodePath = require('path');
 
     const MODE_ALIAS = { paper: 'plugin', spigot: 'plugin', bukkit: 'plugin', plugin: 'plugin', fabric: 'fabric', forge: 'forge', skript: 'skript' };
-    const STATE = { intentGraph: null, validationSig: '', buildRunning: false, cancelBuild: false, attempt: 0 };
+    const STATE = {
+        intentGraph: null,
+        validationSig: '',
+        suggestionSig: '',
+        buildRunning: false,
+        oneStepRunning: false,
+        cancelBuild: false,
+        attempt: 0,
+    };
 
     const PACKS = {
         plugin: [
@@ -92,6 +100,21 @@
 
     function currentGraph() {
         return window.CraftIDEVB?.exportGraph?.() || { version: '2', mode: getMode(), nodes: [], connections: [] };
+    }
+
+    async function ensureVisualBuilderOpen(mode) {
+        const targetMode = normalizeMode(mode || getMode());
+        const currentFile = String(window.CraftIDEAppState?.getCurrentFilePath?.() || '');
+        if (!currentFile.startsWith('visual-builder://')) {
+            if (window.CraftIDEAppState?.openFile) {
+                await window.CraftIDEAppState.openFile('visual-builder://tab', 'Visual Builder');
+            } else {
+                document.querySelector('.activity-btn[data-action="visual-builder"]')?.click();
+            }
+            await sleep(120);
+        }
+        if (window.CraftIDEVB?.setMode) window.CraftIDEVB.setMode(targetMode);
+        await sleep(60);
     }
 
     function applyGraph(graph) {
@@ -201,6 +224,79 @@
     }
 
     async function applyIntent() { if (!STATE.intentGraph) { notify('Analyze first.', 'error'); return; } applyGraph(STATE.intentGraph); closeModal('nc-intent-modal'); await validateGraph(true); }
+
+    function suggestionsForGraph(graph) {
+        const suggestions = [];
+        const nodes = graph.nodes || [];
+        const edges = graph.connections || [];
+        const byId = new Map(nodes.map((n) => [n.id, n]));
+        const outMap = new Map();
+        for (const c of edges) {
+            if (!outMap.has(c.from)) outMap.set(c.from, []);
+            outMap.get(c.from).push(c.to);
+        }
+
+        const descendants = (id, seen = new Set()) => {
+            if (seen.has(id)) return [];
+            seen.add(id);
+            const direct = outMap.get(id) || [];
+            const out = [];
+            for (const child of direct) {
+                out.push(child);
+                descendants(child, seen).forEach((x) => out.push(x));
+            }
+            return out;
+        };
+
+        const cmdNodes = nodes.filter((n) => n.blockId === 'PlayerCommand' || n.blockId === 'SkCommand');
+        for (const cmd of cmdNodes) {
+            const chain = descendants(cmd.id).map((id) => byId.get(id)).filter(Boolean);
+            const ids = chain.map((n) => n.blockId);
+            if (cmd.blockId === 'PlayerCommand' && !ids.includes('CommandEquals')) {
+                suggestions.push({ level: 'warn', text: 'Command flow: Add CommandEquals to avoid matching every command.' });
+            }
+            if (!ids.some((x) => x === 'HasPermission' || x === 'SkHasPerm' || x === 'IsOp' || x === 'SkIsOp')) {
+                suggestions.push({ level: 'warn', text: 'Command security: Add permission/op check before command actions.' });
+            }
+        }
+
+        const teleports = nodes.filter((n) => /Teleport$/.test(String(n.blockId || '')));
+        if (teleports.length && !nodes.some((n) => /SendMsg|SendMessage|Broadcast/.test(String(n.blockId || '')))) {
+            suggestions.push({ level: 'info', text: 'UX: Consider adding a message after teleport so users get feedback.' });
+        }
+
+        const giveItems = nodes.filter((n) => /GiveItem|SkGiveItem|FabricGiveItem/.test(String(n.blockId || '')));
+        for (const item of giveItems) {
+            const raw = item.params?.adet || item.params?.amount || item.params?.count || '1';
+            const amount = Number(raw);
+            if (Number.isFinite(amount) && amount > 16) {
+                suggestions.push({ level: 'warn', text: `Balance: ${item.blockId} gives ${amount} items; consider lower values.` });
+            }
+        }
+
+        if (nodes.some((n) => /RepeatTask|SkScheduleRepeat/.test(String(n.blockId || ''))) && !nodes.some((n) => /CancelTask|Delay|SkWait/.test(String(n.blockId || '')))) {
+            suggestions.push({ level: 'info', text: 'Performance: repeating tasks should have delay/cancel controls.' });
+        }
+
+        return suggestions.slice(0, 8);
+    }
+
+    function renderSuggestions(force = false) {
+        const graph = currentGraph();
+        const sig = `${graph.mode}:${(graph.nodes || []).length}:${(graph.connections || []).length}`;
+        if (!force && sig === STATE.suggestionSig) return;
+        STATE.suggestionSig = sig;
+
+        const body = document.getElementById('nc-suggest-body');
+        if (!body) return;
+
+        const suggestions = suggestionsForGraph(graph);
+        if (!suggestions.length) {
+            body.innerHTML = '<div class="nc-row ok">No immediate issues detected.</div>';
+            return;
+        }
+        body.innerHTML = suggestions.map((s) => `<div class="nc-row ${s.level === 'warn' ? 'warn' : ''}">${esc(s.text)}</div>`).join('');
+    }
 
     async function resolveMainSource(projectPath, mode) {
         if (mode === 'skript') {
@@ -332,6 +428,87 @@
         out.innerHTML = lines.join('');
     }
 
+    function oneStepLog(text, cls) {
+        const out = document.getElementById('nc-one-step-output');
+        if (!out) return;
+        const row = document.createElement('div');
+        row.className = `nc-row ${cls || ''}`;
+        row.textContent = text;
+        out.appendChild(row);
+        out.scrollTop = out.scrollHeight;
+    }
+
+    async function runOneStepCreate() {
+        if (STATE.oneStepRunning) return;
+        const prompt = String(document.getElementById('nc-one-step-input')?.value || '').trim();
+        const mode = normalizeMode(document.getElementById('nc-one-step-mode')?.value || getMode());
+        const doGenerate = !!document.getElementById('nc-one-step-gencode')?.checked;
+        const doBuild = !!document.getElementById('nc-one-step-build')?.checked;
+        const out = document.getElementById('nc-one-step-output');
+        if (!prompt) { notify('Write what you want to build first.', 'error'); return; }
+        if (out) out.innerHTML = '';
+
+        STATE.oneStepRunning = true;
+        const runBtn = document.getElementById('nc-one-step-run');
+        if (runBtn) runBtn.textContent = 'Running...';
+
+        try {
+            oneStepLog(`Architect: parsing request for ${mode}...`, 'info');
+            await ensureVisualBuilderOpen(mode);
+
+            let graph = null;
+            try {
+                const remote = await ipcRenderer.invoke('vb:nl2graph', { text: prompt, platform: mode, strictMode: false });
+                if (remote?.nodes?.length) graph = { version: '2', mode, nodes: remote.nodes, connections: remote.connections || [] };
+            } catch {}
+            if (!graph) {
+                graph = localGraphFromPrompt(prompt, mode);
+                oneStepLog('Architect: local fallback graph generated.', 'warn');
+            } else {
+                oneStepLog(`Architect: ${graph.nodes.length} nodes designed.`, 'ok');
+            }
+
+            oneStepLog('Coder: applying graph to Visual Builder...', 'info');
+            applyGraph(graph);
+
+            oneStepLog('Validator: checking graph quality...', 'info');
+            const result = await validateGraph(true);
+            renderSuggestions(true);
+            if (result?.errors?.length) oneStepLog(`Validator: ${result.errors.length} error(s), review required.`, 'warn');
+            else oneStepLog('Validator: graph passed.', 'ok');
+
+            if (doGenerate) {
+                oneStepLog('Coder: generating source code...', 'info');
+                window.CraftIDEVB?.generateCode?.();
+                oneStepLog('Coder: source generated in editor tab.', 'ok');
+            }
+
+            if (doBuild) {
+                oneStepLog('Validator: running guaranteed build...', 'info');
+                await runGuaranteedBuild();
+                oneStepLog('Validator: guaranteed build flow finished.', 'ok');
+            }
+
+            oneStepLog('Flow completed.', 'ok');
+            notify('One-step flow completed.', 'success');
+        } catch (e) {
+            oneStepLog(`Flow failed: ${e?.message || 'Unknown error'}`, 'err');
+            notify(`One-step flow failed: ${e?.message || 'Unknown error'}`, 'error');
+        } finally {
+            STATE.oneStepRunning = false;
+            if (runBtn) runBtn.textContent = 'Run One-Step Flow';
+        }
+    }
+
+    function openOneStepModal(seedPrompt) {
+        const modeEl = document.getElementById('nc-one-step-mode');
+        const promptEl = document.getElementById('nc-one-step-input');
+        if (modeEl) modeEl.value = getMode();
+        if (promptEl && seedPrompt) promptEl.value = seedPrompt;
+        openModal('nc-one-step-modal');
+        promptEl?.focus();
+    }
+
     function openModal(id) { const el = document.getElementById(id); if (el) el.style.display = 'flex'; }
     function closeModal(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
 
@@ -347,6 +524,7 @@
             .nc-modal-overlay{position:fixed;inset:0;z-index:2600;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.58)}.nc-modal{width:min(900px,92vw);max-height:86vh;overflow:auto;background:#10151d;border:1px solid #2b3340;border-radius:12px}
             .nc-m-head{padding:14px 16px;border-bottom:1px solid #2b3340;display:flex;justify-content:space-between;align-items:center}.nc-m-title{font-size:14px;font-weight:700;color:#e8eef7}.nc-m-body{padding:14px 16px;display:flex;flex-direction:column;gap:10px}.nc-m-foot{padding:12px 16px;border-top:1px solid #2b3340;display:flex;justify-content:flex-end;gap:8px}
             .nc-inp,.nc-sel,.nc-txt{width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #3a4352;background:#0b1118;color:#e8eef7;font-size:12px}.nc-txt{min-height:108px;resize:vertical}.nc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.nc-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.nc-card{border:1px solid #364253;border-radius:8px;padding:10px;background:#0f1620}.nc-sub{color:#9fb0c5;font-size:11px;margin-top:4px}
+            .nc-stack{display:flex;flex-direction:column;gap:8px}.nc-stack .nc-body{max-height:90px}
             @media(max-width:860px){.nc-grid{grid-template-columns:1fr}}
         `;
         document.head.appendChild(s);
@@ -359,6 +537,7 @@
         const wrap = document.createElement('div');
         wrap.className = 'nc-inline';
         wrap.innerHTML = `
+            <button class="nc-btn" id="btn-nc-one-step">One-Step AI</button>
             <button class="nc-btn" id="btn-nc-intent">Intent Wizard</button>
             <button class="nc-btn" id="btn-nc-pack">Behavior Packs</button>
             <button class="nc-btn" id="btn-nc-validate">Validate</button>
@@ -370,18 +549,27 @@
 
         const panel = document.createElement('div');
         panel.className = 'nc-panel';
-        panel.innerHTML = `<div class="nc-head">No-Code Health</div><div id="nc-validator-body" class="nc-body"><div class="nc-row">Validation panel initialized.</div></div><div id="nc-build-log" class="nc-build"></div>`;
+        panel.innerHTML = `
+            <div class="nc-head">No-Code Health</div>
+            <div class="nc-stack">
+                <div id="nc-validator-body" class="nc-body"><div class="nc-row">Validation panel initialized.</div></div>
+                <div id="nc-suggest-body" class="nc-body"><div class="nc-row">Suggestion engine initialized.</div></div>
+            </div>
+            <div id="nc-build-log" class="nc-build"></div>
+        `;
         const vb = document.getElementById('visual-builder-container');
         const canvas = document.querySelector('#visual-builder-container .vb-canvas-area');
         if (vb && canvas) vb.insertBefore(panel, canvas);
 
         document.body.insertAdjacentHTML('beforeend', `
+            <div class="nc-modal-overlay" id="nc-one-step-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">One-Step Natural Language -> Plugin</div><button class="nc-btn" data-close="nc-one-step-modal">Close</button></div><div class="nc-m-body"><div class="nc-grid"><div><label>Target mode</label><select id="nc-one-step-mode" class="nc-sel"><option value="plugin">Paper/Plugin</option><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="skript">Skript</option></select></div><div><label>Options</label><div style="display:flex;flex-direction:column;gap:6px;padding-top:6px;"><label><input type="checkbox" id="nc-one-step-gencode" checked> Generate code tab</label><label><input type="checkbox" id="nc-one-step-build"> Run guaranteed build</label></div></div></div><textarea id="nc-one-step-input" class="nc-txt" placeholder="Describe the full plugin you want in natural language..."></textarea><div id="nc-one-step-output" class="nc-build"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-one-step-run">Run One-Step Flow</button></div></div></div>
             <div class="nc-modal-overlay" id="nc-intent-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">Intent Wizard</div><button class="nc-btn" data-close="nc-intent-modal">Close</button></div><div class="nc-m-body"><div class="nc-grid"><div><label>Target mode</label><select id="nc-intent-mode" class="nc-sel"><option value="plugin">Paper/Plugin</option><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="skript">Skript</option></select></div><div><label>Quick example</label><input id="nc-intent-example" class="nc-inp" placeholder="e.g. /spawn command with teleport"></div></div><textarea id="nc-intent-input" class="nc-txt" placeholder="Describe feature in natural language..."></textarea><div id="nc-intent-plan" class="nc-cards"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-intent-analyze">Analyze</button><button class="nc-btn" id="nc-intent-apply">Apply</button></div></div></div>
             <div class="nc-modal-overlay" id="nc-pack-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">Behavior Packs</div><button class="nc-btn" data-close="nc-pack-modal">Close</button></div><div class="nc-m-body"><div id="nc-pack-list" class="nc-cards"></div></div></div></div>
             <div class="nc-modal-overlay" id="nc-scenario-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">Scenario Runner</div><button class="nc-btn" data-close="nc-scenario-modal">Close</button></div><div class="nc-m-body"><div class="nc-sub">Format: Name|command|expected text|timeoutMs</div><textarea id="nc-scenario-input" class="nc-txt">Spawn check|say [TEST] spawn ok|spawn ok|7000\nJoin check|say [TEST] welcome ok|welcome ok|7000</textarea><div id="nc-scenario-output"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-scenario-run">Run Scenarios</button></div></div></div>
             <div class="nc-modal-overlay" id="nc-release-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">One-Click Release</div><button class="nc-btn" data-close="nc-release-modal">Close</button></div><div class="nc-m-body"><div class="nc-grid"><div><label>Target type</label><select id="nc-release-target" class="nc-sel"><option value="jar">Jar</option><option value="sk">Skript</option><option value="zip">Zip Bundle</option></select></div><div><label>Include docs</label><div style="display:flex;align-items:center;gap:8px;height:34px;"><input type="checkbox" id="nc-release-docs" checked><span class="nc-sub">Create release notes/checksums</span></div></div></div><div id="nc-release-output"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-release-run">Create Release</button></div></div></div>
         `);
 
+        document.getElementById('btn-nc-one-step')?.addEventListener('click', () => openOneStepModal());
         document.getElementById('btn-nc-intent')?.addEventListener('click', () => { document.getElementById('nc-intent-mode').value = getMode(); openModal('nc-intent-modal'); });
         document.getElementById('btn-nc-pack')?.addEventListener('click', () => {
             const mode = getMode();
@@ -401,6 +589,7 @@
         document.getElementById('btn-nc-scenarios')?.addEventListener('click', () => openModal('nc-scenario-modal'));
         document.getElementById('btn-nc-release')?.addEventListener('click', () => openModal('nc-release-modal'));
 
+        document.getElementById('nc-one-step-run')?.addEventListener('click', () => runOneStepCreate());
         document.getElementById('nc-intent-analyze')?.addEventListener('click', () => analyzeIntent());
         document.getElementById('nc-intent-apply')?.addEventListener('click', () => applyIntent());
         document.getElementById('nc-scenario-run')?.addEventListener('click', () => runScenarios());
@@ -417,16 +606,42 @@
         setInterval(() => {
             if (!String(window.CraftIDEAppState?.getCurrentFilePath?.() || '').startsWith('visual-builder://')) return;
             validateGraph(false);
+            renderSuggestions(false);
         }, 2800);
     }
 
-    function init() { injectStyle(); mountUI(); startLiveValidation(); validateGraph(true); }
+    function init() {
+        injectStyle();
+        mountUI();
+        startLiveValidation();
+        validateGraph(true);
+        renderSuggestions(true);
+    }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 
     window.NoCodeSuite = {
         parsePrompt: (prompt, mode) => localGraphFromPrompt(prompt, normalizeMode(mode || getMode())),
         validateGraph: (graph) => localValidate(graph || currentGraph()),
         applyGraph,
+        createFromPrompt: async (prompt, options = {}) => {
+            const mode = normalizeMode(options.mode || getMode());
+            await ensureVisualBuilderOpen(mode);
+            let graph = null;
+            try {
+                const remote = await ipcRenderer.invoke('vb:nl2graph', { text: String(prompt || ''), platform: mode, strictMode: false });
+                if (remote?.nodes?.length) graph = { version: '2', mode, nodes: remote.nodes, connections: remote.connections || [] };
+            } catch {}
+            if (!graph) graph = localGraphFromPrompt(String(prompt || ''), mode);
+            applyGraph(graph);
+            await validateGraph(true);
+            renderSuggestions(true);
+            if (options.generateCode !== false) window.CraftIDEVB?.generateCode?.();
+            if (options.build) await runGuaranteedBuild();
+            return graph;
+        },
         getPacksForMode: (mode) => [...(PACKS[normalizeMode(mode || getMode())] || [])],
+        getSuggestions: (graph) => suggestionsForGraph(graph || currentGraph()),
+        openOneStepModal,
+        oneClickFixCurrent: async () => runGuaranteedBuild(),
     };
 })();

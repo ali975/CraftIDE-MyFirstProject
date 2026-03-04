@@ -327,6 +327,27 @@ Tuval özeti: ${JSON.stringify(context.vbSummary || {})}
                     responseContentDiv.innerHTML = `<p>${this._escapeHtml(rawResponse).replace(/\n/g, '<br>')}</p>`;
                 }
             });
+            if (window.NoCodeSuite?.oneClickFixCurrent) {
+                const quickFix = document.createElement('button');
+                quickFix.className = 'ai-open-editor-btn';
+                quickFix.textContent = 'One-Click Fix (Guaranteed Build)';
+                quickFix.style.marginTop = '8px';
+                quickFix.addEventListener('click', async () => {
+                    quickFix.disabled = true;
+                    quickFix.textContent = 'Running fix...';
+                    try {
+                        document.querySelector('.activity-btn[data-action="visual-builder"]')?.click();
+                        await new Promise((r) => setTimeout(r, 120));
+                        await window.NoCodeSuite.oneClickFixCurrent();
+                        quickFix.textContent = 'Fix completed';
+                    } catch (err) {
+                        quickFix.textContent = 'Fix failed';
+                    } finally {
+                        quickFix.disabled = false;
+                    }
+                });
+                responseContentDiv.appendChild(quickFix);
+            }
             this._addOpenInEditorButtons(responseContentDiv);
             this.chatHistory.push({ role: 'assistant', content: rawResponse });
         } catch (e) {
