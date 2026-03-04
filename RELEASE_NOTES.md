@@ -1,43 +1,26 @@
-## CraftIDE v0.1.1 — Comprehensive i18n Translation Fix
+## What's New in v0.2.0: The "Production Pipeline" & i18n Update! 🚀
 
-### ⚠️ Early Development Notice
-> **This release is in active development.** While we've made significant progress, there may still be bugs, untranslated strings, or unexpected behavior. Please report issues on the [Issues](https://github.com/ali975/CraftIDE-MyFirstProject/issues) page.
+CraftIDE v0.2.0 is a massive milestone! We have completely evolved from a simple code-generator to a **full-scale production pipeline** encompassing design, validation, packaging, and documentation. 
 
-### 🌐 What's New — Full Internationalization (i18n)
+### 🌍 Dynamic Language Synchronization
+- **Complete EN/TR Language Switching:** English is now the default language, with full Turkish support available via settings.
+- **100+ Hardcoded Strings Replaced:** The entire UI is now hooked into our massive dynamic dictionary.
+- **Instant Swap:** Changing languages updates the UI immediately without requiring a restart!
 
-This release focuses on making the entire CraftIDE interface dynamically translatable. Previously, many UI elements were hardcoded in Turkish — now **all UI text** respects the language setting (English/Turkish).
+### 🏗️ Massive Architectural & Feature Upgrades
+- **No-Code Experience Upgraded:** Wizard-based plugin creation, draggable behavior cards, undo/redo (Ctrl+Z/Y), and live natural language preview.
+- **AI Empowerment:** One-step "NL to Graph to Code to Build" workflow! Added an **One-Click Fix** system that guarantees successful builds by analyzing errors.
+- **New Tools & Designers:** 
+  - Mob Designer & Scoreboard/HUD Designer
+  - Config Editor (C7) & Particle Canvas (C6)
+  - NPC Dialogue Generator (C5) & Event Chain Simulator (C10)
+  - The Template Gallery now holds 30+ ready-to-use blueprints!
+- **Technical Foundations:** 
+  - Introduced robust offline-first fallback mechanisms.
+  - Implemented testing infrastructure (unit tests + CI) and a central state store for renderer modernization.
+  - Added accessibility features: Light Mode, High Contrast, and Font Scaling.
 
-#### Translation Fixes
-- **Visual Builder**: ~80 block labels translated (e.g., `Oyuncu Girişi` → `Player Join`, `Blok Kırma` → `Block Break`)
-- **VB Context Menu**: Category headers (`OLAYLAR` → `Events`, `KOŞULLAR` → `Conditions`, etc.)
-- **VB Templates**: All 8 template names and descriptions now in English
-- **GUI Builder**: Row labels, config panel labels, button text, and all notifications
-- **Marketplace**: Empty state, card footers, publish/import notifications
-- **Image Editor**: Toolbar buttons, tool tooltips, grid label, status bar, save/load messages
-- **Recipe Creator**: All labels, buttons, and config panels
-- **Permission Tree**: Title and all toolbar buttons
-- **Command Tree**: Title and all toolbar buttons
-- **Config Editor**: Title, Raw YAML button, Save button
-- **Server Manager**: All buttons and labels
-- **Terminal**: Greeting and working directory messages
-- **MC Version Dropdown**: `(Son)` → `(Latest)` dynamically translated
-- **Build Notifications**: Compiling, success, and error messages
-- **Modal Dialogs**: Project name label
-
-#### UI/UX Improvements
-- **VB Toolbar Buttons**: Fixed SVG icons being stripped during translation — icons now preserved correctly
-- **New Language System**: `applyStaticTranslations()` expanded to cover all UI sections
+*With these changes, CraftIDE drastically reduces the cost of errors, speeds up your workflow, and generates higher-quality code through simulation and validation!*
 
 ### 📥 Download
-Download `CraftIDE.Setup.0.1.0.exe` below to install.
-
-### 🐛 Known Issues
-- Some deeply nested or dynamically generated strings may still appear in Turkish
-- Visual Builder canvas navigation (pan/zoom) is basic
-- Not all panels are resizable yet
-- The application is a development preview — expect rough edges
-
-### 🛠️ Technical Details
-- **Platform**: Windows (Electron)
-- **Node.js**: v18+
-- **Electron**: v28.3.3
+- **CraftIDE Setup 0.2.0.exe** — Windows installer

@@ -4,15 +4,16 @@
 
 CraftIDE, Minecraft eklenti geliştirmeyi hiç kod yazmamış yeni başlayanlardan, güçlü araçlar isteyen deneyimli geliştiricilere kadar herkes için erişilebilir kılmak üzere tasarlanmış özel bir IDE'dir.
 
-## ✨ Özellikler
+## ✨ Özellikler & Mimari
 
-- 🧠 **Sinerjik AI Ağı (CoreAIManager)** — Sadece bir sohbet botu değil! Yapay zeka aktif dosyalarınızın, görsel oluşturucu durumunun ve sunucu terminalinin farkındadır.
-- 🗣️ **Metinden Bloğa (Text-to-Node)** — Yan paneldeki sohbetten bir eklenti oluşturmasını isteyin, zamanlı olarak tuvalinize blok (node) diyagramını çizecektir.
-- 🩹 **Otomatik İyileştirme (Auto-Healing) IDE** — Test Sunucusu, Java çökme günlüklerini yakalar ve doğrudan yapay zekaya aktarır, o da anında düzeltmeler ve açıklamalar üretir.
-- ⚖️ **Oyun Tasarımı Dengesi** — Görsel Node oluşturucu arka planda izlenir; yapay zeka eğitmeni, istediğiniz eşya mantığının OP (çok güçlü) olup olmadığını veya sunucu ekonomisini bozup bozmadığını size bildirir!
-- 🎨 **Görsel Eklenti Oluşturucu** — Paper, Fabric, Forge ve Skript için sürükle-bırak blok tabanlı eklenti oluşturma.
-- 🧪 **Entegre Test Sunucusu** — IDE'den ayrılmadan Spigot/Paper/Fabric/Forge sunucularını tek tıklamayla indirin, çalıştırın ve test edin.
-- 📚 **Canlı API Referansı ve Eğitmen** — Bir blokla ilgili yardıma mı ihtiyacınız var? Anında yapay zeka bağlamı için herhangi bir bloktaki '💡' simgesine tıklamanız yeterlidir.
+- 🚀 **Tam Üretim Hattı (Production Pipeline)** — CraftIDE artık sadece bir kod üretici değil. Tasarım, doğrulama, paketleme ve belgelendirmeyi kapsayan devasa bir üretim hattı!
+- 🧠 **Sinerjik AI Ağı (CoreAIManager)** — Yapay zeka artık ortağınız gibi çalışır; aktif dosyalarınızın, görsel oluşturucu durumunun ve sunucu terminalinin farkındadır.
+- 🗣️ **Tek Adımda Seçimden Koda (One-Step NL to Code)** — Doğal dili girin, CraftIDE bunu bir düğüm (node) diyagramına eşlesin, kodu derlesin ve otomatik olarak test etsin.
+- 🩹 **Otomatik İyileştirme (One-Click Fix)** — Test Sunucusu, Java çökme günlüklerini yakalar ve doğrudan yapay zekaya aktarır, bozulan kod için anında ve garantili tek-tık düzeltmeler (one-click fix) üretir!
+- 🎨 **Gelişmiş Görsel Eklenti Oluşturucu** — Paper, Fabric, Forge ve Skript için geri al/yinele (Ctrl+Z/Y), davranış panelleri ve akıllı tahmin özelliklerine sahip sürükle-bırak blok tabanlı oluşturucu.
+- 🛠️ **Özel İçerik Tasarımcıları** — Mob Tasarımı (C1), Scoreboard/HUD (C4), Config Düzenleyici (C7), Özel Eşya/Tarifler, Partikül Tuvali (C6) ve NPC Diyalog Üretimi (C5) için özel modüller.
+- 🧪 **Entegre Test Sunucusu & Çevrimdışı Çalışma** — Sunucuları tek tıklamayla indirin, çalıştırın ve test edin. İnternetsiz (Offline-first) ortamlarda da güçlü yerel destek.
+- 📚 **Canlı API Referansı ve 30+ Hazır Şablon** — Bir blokla ilgili yardıma mı ihtiyacınız var? '💡' simgesine tıklayın. Veya doğrudan marketten saniyeler içinde 30'dan fazla uzman blueprint'inden birini yükleyin!
 
 ## 🚀 Başlarken
 

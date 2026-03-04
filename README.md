@@ -4,15 +4,16 @@
 
 CraftIDE is a specialized IDE built on top of VS Code, designed to make Minecraft plugin development accessible to everyone — from beginners who've never written code to experienced developers who want powerful tooling.
 
-## ✨ Features
+## ✨ Features & Architecture
 
-- 🧠 **Synergistic AI Network (CoreAIManager)** — Not just a chat bot! The AI is aware of your active files, visual builder state, and server terminal.
-- 🗣️ **Text-to-Node Blueprinting** — Ask the side-panel chat to build a plugin, and it will draw the node diagram visually on your canvas in real-time.
-- 🩹 **Auto-Healing IDE** — The Test Server intercepts Java crash logs and passes them directly to the AI, which generates instant fixes and explanations.
-- ⚖️ **Game Design Balance Checked** — The Visual Node builder is monitored in the background; the AI tutor will warn you if your requested item logic is OP or breaks server economy!
-- 🎨 **Visual Plugin Builder** — Drag & drop node-based plugin creation for Paper, Fabric, Forge, and Skript.
-- 🧪 **Integrated Test Server** — Download, run, and test Spigot/Paper/Fabric/Forge servers with one click without leaving the IDE.
-- 📚 **Live API Reference & Tutor** — Need help with a block? Click the '💡' icon on any node for instant AI context.
+- 🚀 **Full Production Pipeline** — CraftIDE is no longer just a code-generator. It's an entire pipeline covering design, validation, packaging, and documentation!
+- 🧠 **Synergistic AI Network (CoreAIManager)** — The AI acts as your partner. It's aware of your active files, visual builder state, and server terminal.
+- 🗣️ **One-Step NL to Code (Text-to-Node)** — Enter natural language, and CraftIDE will automatically map it to a node diagram, compile the code, and build the JAR.
+- 🩹 **Auto-Healing IDE (One-Click Fix)** — The Test Server intercepts Java crash logs and passes them directly to the AI, creating guaranteed one-click fixes for broken code!
+- 🎨 **Enhanced Visual Plugin Builder** — Drag & drop node-based creation for Paper, Fabric, Forge, and Skript with undo/redo (Ctrl+Z/Y), friendly block labels, and behavior panels.
+- 🛠️ **Dedicated Content Designers** — Specialized tools for Mob Design, Scoreboard/HUD, Config Editing, Custom Recipes, Partical Canvas, and NPC Dialogue Generation.
+- 🧪 **Integrated Test Server & Offline Fallback** — Download, run, and test servers with one click. Strong offline-first capabilities for local environments.
+- 📚 **Live API Reference & 30+ Templates** — Need help with a block? Click '💡'. Or just load one of our 30+ ready-to-use template blueprints from the Marketplace!
 
 ## 🚀 Getting Started
 
