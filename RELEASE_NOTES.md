@@ -1,4 +1,4 @@
-## What's New in v0.2.1: License + Branding + Icon Update
+## What's New in v0.2.2: License + Branding + Icon Update
 
 This release focuses on legal clarity and distribution hygiene while keeping CraftIDE fully open source.
 
@@ -19,7 +19,7 @@ This release focuses on legal clarity and distribution hygiene while keeping Cra
   - NSIS installer and uninstaller.
 
 ### Versioning
-- App version bumped from `0.2.0` to `0.2.1`.
+- App version bumped from `0.2.1` to `0.2.2`.
 
 ### Important Note
 AGPL allows commercial distribution, but trademark policy restricts brand misuse.

@@ -47,8 +47,8 @@ npm run dist
 
 Main output:
 
-- `release/CraftIDE Setup 0.2.1.exe`
-- `release/CraftIDE 0.2.1.exe`
+- `release/CraftIDE Setup 0.2.2.exe`
+- `release/CraftIDE 0.2.2.exe`
 
 ## Release/Distribution Rule
 
