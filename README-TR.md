@@ -1,4 +1,4 @@
-﻿# CraftIDE
+# CraftIDE
 
 Electron + Monaco tabanli, yapay zeka destekli Minecraft gelistirme studosu.
 
@@ -21,6 +21,9 @@ CraftIDE; Paper/Spigot, Fabric, Forge ve Skript odakli projeler icin kod editoru
 - Image Editor parse/runtime kirigi giderildi; `init -> open -> draw -> save` zinciri stabilize edildi.
 - Test Server surum listesi server type bazli dinamik hale getirildi (`server:list-versions`, cache + fallback).
 - Sidebar ucgen ikonu artik ayri `Minecraft Tools Hub` sayfasi aciyor (`mc-tools://`).
+- Ayarlar ekranina resmi build dogrulama paneli eklendi:
+  - yerel `app.asar` hash degeri, resmi GitHub release checksum dosyasi ile karsilastirilir,
+  - guncelleme kontrolu sadece kilitli resmi kanal `ali975/CraftIDE-MyFirstProject` uzerinden yapilir.
 
 ## One Cikan Yetkinlikler
 
@@ -47,8 +50,8 @@ npm run dist
 
 Ana ciktilar:
 
-- `release/CraftIDE Setup 0.2.2.exe`
-- `release/CraftIDE 0.2.2.exe`
+- `release/CraftIDE Setup 0.2.3.exe`
+- `release/CraftIDE 0.2.3.exe`
 
 ## Dagitim Kurali
 
@@ -73,3 +76,4 @@ Isim/logo/marka kullanim kurallari icin [TRADEMARK.md](./TRADEMARK.md) dosyasina
 - Resmi buildler sadece `ali975/CraftIDE-MyFirstProject` reposundan yayinlanir.
 - Fork veya yeniden derlenmis surumler, yazili marka izni olmadan "official CraftIDE" olarak sunulamaz.
 - Ucretli ucuncu taraf dagitimlari "resmi degil" bilgisini acikca gostermeli ve CraftIDE marka/logo varliklarini kullanmamalidir.
+

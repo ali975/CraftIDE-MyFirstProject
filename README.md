@@ -1,4 +1,4 @@
-﻿# CraftIDE
+# CraftIDE
 
 AI-assisted Minecraft development studio built on Electron + Monaco.
 
@@ -21,6 +21,9 @@ CraftIDE provides code editor, visual/no-code builders, test server automation, 
 - Image Editor critical parse/runtime break was fixed; init/open/draw/save flow stabilized.
 - Test Server version list became dynamic by server type via IPC `server:list-versions` with cache + fallback.
 - Triangle sidebar icon now opens dedicated `Minecraft Tools Hub` page (`mc-tools://`).
+- New official build verification panel added in Settings:
+  - checks local `app.asar` hash against official GitHub release checksums,
+  - checks updates only from the locked official channel `ali975/CraftIDE-MyFirstProject`.
 
 ## Feature Highlights
 
@@ -47,8 +50,8 @@ npm run dist
 
 Main output:
 
-- `release/CraftIDE Setup 0.2.2.exe`
-- `release/CraftIDE 0.2.2.exe`
+- `release/CraftIDE Setup 0.2.3.exe`
+- `release/CraftIDE 0.2.3.exe`
 
 ## Release/Distribution Rule
 
@@ -73,3 +76,4 @@ For name/logo/branding usage rules, see [TRADEMARK.md](./TRADEMARK.md).
 - Official builds are published only from the `ali975/CraftIDE-MyFirstProject` repository.
 - Rebuilds/forks must not be presented as "official CraftIDE" without written trademark permission.
 - Third-party paid redistribution must clearly state it is unofficial and must not use CraftIDE logos/brand assets.
+

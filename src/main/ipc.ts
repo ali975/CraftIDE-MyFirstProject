@@ -1,8 +1,9 @@
-import { ipcMain, dialog, MessageBoxOptions } from 'electron';
+import { ipcMain, dialog, MessageBoxOptions, app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
+import * as https from 'https';
 import { exec } from 'child_process';
 import { ProjectScaffolder } from './scaffolder';
 
@@ -30,6 +31,217 @@ type ValidationEntry = {
     code: string;
     message: string;
 };
+
+type GitHubReleaseAsset = {
+    name: string;
+    browser_download_url: string;
+    size: number;
+};
+
+type GitHubRelease = {
+    tag_name: string;
+    html_url: string;
+    published_at: string;
+    body?: string;
+    assets: GitHubReleaseAsset[];
+};
+
+type BuildVerificationResult = {
+    channelLocked: boolean;
+    owner: string;
+    repo: string;
+    appVersion: string;
+    packaged: boolean;
+    localAsarPath: string | null;
+    localAsarSha256: string | null;
+    status: 'development' | 'verified' | 'unverified' | 'unknown' | 'error';
+    reason: string;
+    officialTag?: string;
+    officialReleaseUrl?: string;
+    checksumsAsset?: string;
+};
+
+const OFFICIAL_OWNER = 'ali975';
+const OFFICIAL_REPO = 'CraftIDE-MyFirstProject';
+const OFFICIAL_GITHUB_API = `https://api.github.com/repos/${OFFICIAL_OWNER}/${OFFICIAL_REPO}`;
+
+function compareVersions(aRaw: string, bRaw: string): number {
+    const a = String(aRaw || '').replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
+    const b = String(bRaw || '').replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
+    const len = Math.max(a.length, b.length);
+    for (let i = 0; i < len; i++) {
+        const av = a[i] || 0;
+        const bv = b[i] || 0;
+        if (av > bv) return 1;
+        if (av < bv) return -1;
+    }
+    return 0;
+}
+
+async function fetchGitHubReleaseByTag(version: string): Promise<GitHubRelease | null> {
+    const tagsToTry = [`v${version}`, version];
+    for (const tag of tagsToTry) {
+        const url = `${OFFICIAL_GITHUB_API}/releases/tags/${encodeURIComponent(tag)}`;
+        const res = await httpGet(url, 'application/vnd.github+json');
+        if (res.status >= 200 && res.status < 300) {
+            return JSON.parse(res.body) as GitHubRelease;
+        }
+        if (res.status !== 404) {
+            throw new Error(`GitHub release lookup failed (${res.status})`);
+        }
+    }
+    return null;
+}
+
+async function fetchLatestOfficialRelease(): Promise<GitHubRelease> {
+    const res = await httpGet(`${OFFICIAL_GITHUB_API}/releases/latest`, 'application/vnd.github+json');
+    if (res.status < 200 || res.status >= 300) throw new Error(`GitHub latest release lookup failed (${res.status})`);
+    return JSON.parse(res.body) as GitHubRelease;
+}
+
+function parseSha256Sums(text: string): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const rawLine of String(text || '').split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('#')) continue;
+        const m = line.match(/^([a-fA-F0-9]{64})\s+\*?(.+)$/);
+        if (!m) continue;
+        const hash = m[1].toLowerCase();
+        const name = m[2].trim();
+        map.set(name, hash);
+        map.set(path.basename(name), hash);
+    }
+    return map;
+}
+
+function getLocalAsarPath(): string | null {
+    if (!app.isPackaged) return null;
+    const candidate = path.join(process.resourcesPath, 'app.asar');
+    return fs.existsSync(candidate) ? candidate : null;
+}
+
+async function httpGet(url: string, accept: string): Promise<{ status: number; body: string }> {
+    return await new Promise((resolve, reject) => {
+        const req = https.get(url, {
+            headers: {
+                Accept: accept,
+                'User-Agent': `CraftIDE/${app.getVersion()}`,
+            },
+        }, (res) => {
+            const chunks: Buffer[] = [];
+            res.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+            res.on('end', () => {
+                resolve({
+                    status: res.statusCode || 0,
+                    body: Buffer.concat(chunks).toString('utf-8'),
+                });
+            });
+        });
+        req.on('error', (err) => reject(err));
+    });
+}
+
+async function verifyOfficialBuild(): Promise<BuildVerificationResult> {
+    const appVersion = app.getVersion();
+    const packaged = app.isPackaged;
+    const base: BuildVerificationResult = {
+        channelLocked: true,
+        owner: OFFICIAL_OWNER,
+        repo: OFFICIAL_REPO,
+        appVersion,
+        packaged,
+        localAsarPath: null,
+        localAsarSha256: null,
+        status: 'unknown',
+        reason: 'Verification not executed.',
+    };
+
+    if (!packaged) {
+        return {
+            ...base,
+            status: 'development',
+            reason: 'Running in development mode.',
+        };
+    }
+
+    const localAsarPath = getLocalAsarPath();
+    if (!localAsarPath) {
+        return {
+            ...base,
+            status: 'error',
+            reason: 'Local app.asar not found.',
+        };
+    }
+
+    const localAsarSha256 = hashFileSha256(localAsarPath);
+    const release = await fetchGitHubReleaseByTag(appVersion);
+    if (!release) {
+        return {
+            ...base,
+            localAsarPath,
+            localAsarSha256,
+            status: 'unknown',
+            reason: 'No official GitHub release found for this version.',
+        };
+    }
+
+    const checksumsAsset = release.assets.find((a) => /sha256sums/i.test(a.name) && /\.txt$/i.test(a.name));
+    if (!checksumsAsset) {
+        return {
+            ...base,
+            localAsarPath,
+            localAsarSha256,
+            officialTag: release.tag_name,
+            officialReleaseUrl: release.html_url,
+            status: 'unknown',
+            reason: 'Release checksum asset missing.',
+        };
+    }
+
+    const checksumResponse = await httpGet(checksumsAsset.browser_download_url, 'text/plain');
+    if (checksumResponse.status < 200 || checksumResponse.status >= 300) {
+        return {
+            ...base,
+            localAsarPath,
+            localAsarSha256,
+            officialTag: release.tag_name,
+            officialReleaseUrl: release.html_url,
+            checksumsAsset: checksumsAsset.name,
+            status: 'unknown',
+            reason: `Checksum file fetch failed (${checksumResponse.status}).`,
+        };
+    }
+
+    const checksumText = checksumResponse.body;
+    const checksums = parseSha256Sums(checksumText);
+    const expectedAsar = checksums.get('app.asar');
+    if (!expectedAsar) {
+        return {
+            ...base,
+            localAsarPath,
+            localAsarSha256,
+            officialTag: release.tag_name,
+            officialReleaseUrl: release.html_url,
+            checksumsAsset: checksumsAsset.name,
+            status: 'unknown',
+            reason: 'app.asar hash not found in checksum file.',
+        };
+    }
+
+    const verified = expectedAsar === localAsarSha256;
+    return {
+        ...base,
+        localAsarPath,
+        localAsarSha256,
+        officialTag: release.tag_name,
+        officialReleaseUrl: release.html_url,
+        checksumsAsset: checksumsAsset.name,
+        status: verified ? 'verified' : 'unverified',
+        reason: verified
+            ? 'Local app.asar hash matches official release checksums.'
+            : 'Local app.asar hash does not match official release checksums.',
+    };
+}
 
 function normalizeMode(rawMode: string): 'plugin' | 'fabric' | 'forge' | 'skript' {
     const mode = String(rawMode || '').toLowerCase();
@@ -632,8 +844,47 @@ export function registerIpcHandlers(): void {
         return results;
     });
 
-    ipcMain.handle('app:getVersion', () => '0.1.0');
+    ipcMain.handle('app:getVersion', () => app.getVersion());
     ipcMain.handle('app:getPlatform', () => process.platform);
+    ipcMain.handle('official:verifyBuild', async () => {
+        try {
+            return await verifyOfficialBuild();
+        } catch (err) {
+            return {
+                channelLocked: true,
+                owner: OFFICIAL_OWNER,
+                repo: OFFICIAL_REPO,
+                appVersion: app.getVersion(),
+                packaged: app.isPackaged,
+                localAsarPath: getLocalAsarPath(),
+                localAsarSha256: null,
+                status: 'error',
+                reason: (err as Error).message || 'Verification failed.',
+            } as BuildVerificationResult;
+        }
+    });
+    ipcMain.handle('official:checkUpdates', async () => {
+        const currentVersion = app.getVersion();
+        const latest = await fetchLatestOfficialRelease();
+        const latestVersion = String(latest.tag_name || '').replace(/^v/i, '');
+        const updateAvailable = compareVersions(latestVersion, currentVersion) > 0;
+        return {
+            channelLocked: true,
+            owner: OFFICIAL_OWNER,
+            repo: OFFICIAL_REPO,
+            currentVersion,
+            latestTag: latest.tag_name,
+            latestVersion,
+            updateAvailable,
+            publishedAt: latest.published_at,
+            releaseUrl: latest.html_url,
+            assets: (latest.assets || []).map((a) => ({
+                name: a.name,
+                url: a.browser_download_url,
+                size: a.size,
+            })),
+        };
+    });
 
     ipcMain.handle('marketplace:getList', async () => {
         const dir = path.join(os.homedir(), '.craftide');

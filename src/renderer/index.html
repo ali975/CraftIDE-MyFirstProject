@@ -23,7 +23,7 @@
             <div class="titlebar-logo">
                 <img class="titlebar-icon" src="../../assets/icons/icon-32.png" alt="CraftIDE icon">
                 <span class="titlebar-text">CraftIDE</span>
-                <span class="titlebar-version">v0.2.2</span>
+                <span class="titlebar-version">v0.2.3</span>
             </div>
             <div class="titlebar-filename" id="titlebar-filename" data-i18n="ui.titlebar.welcome">Welcome</div>
         </div>
@@ -849,6 +849,27 @@
                                         <option value="en">English</option>
                                         <option value="tr">Türkçe</option>
                                     </select>
+                                </div>
+                            </div>
+                            <div class="setting-group">
+                                <h3>Official Build Verification</h3>
+                                <p class="setting-help">
+                                    Open source remains enabled, but update and integrity checks are locked to the official CraftIDE GitHub channel.
+                                </p>
+                                <div class="official-check-card">
+                                    <div class="official-check-header">
+                                        <span id="official-verify-status" class="official-check-status pending">Not checked</span>
+                                        <span id="official-channel-lock" class="official-channel-lock">Channel locked: ali975/CraftIDE-MyFirstProject</span>
+                                    </div>
+                                    <div id="official-verify-details" class="official-check-details">
+                                        Press "Verify build" to compare local app hash with official release checksums.
+                                    </div>
+                                    <div class="official-check-actions">
+                                        <button class="btn-secondary" id="btn-official-verify-refresh">Verify build</button>
+                                        <button class="btn-secondary" id="btn-official-check-updates">Check official updates</button>
+                                        <button class="btn-secondary" id="btn-open-official-release">Open official release</button>
+                                    </div>
+                                    <div id="official-update-result" class="official-update-result"></div>
                                 </div>
                             </div>
                             <div class="setting-group">

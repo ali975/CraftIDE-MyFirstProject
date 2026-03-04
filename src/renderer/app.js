@@ -2157,6 +2157,76 @@ function applySettings() {
     }
 }
 
+function renderOfficialStatus(status, reason) {
+    const statusEl = document.getElementById('official-verify-status');
+    const detailsEl = document.getElementById('official-verify-details');
+    if (!statusEl || !detailsEl) return;
+
+    const safeStatus = String(status || 'unknown').toLowerCase();
+    statusEl.classList.remove('pending', 'verified', 'unverified', 'unknown', 'development', 'error');
+    statusEl.classList.add(safeStatus);
+    statusEl.textContent = safeStatus;
+    detailsEl.textContent = reason || 'No detail.';
+}
+
+async function verifyOfficialBuildUi() {
+    const lockEl = document.getElementById('official-channel-lock');
+    const detailsEl = document.getElementById('official-verify-details');
+    const updatesEl = document.getElementById('official-update-result');
+    if (updatesEl) updatesEl.textContent = '';
+
+    renderOfficialStatus('pending', 'Checking local build integrity against official release checksums...');
+    try {
+        const result = await ipcRenderer.invoke('official:verifyBuild');
+        const reasonParts = [result.reason || 'No reason provided.'];
+        if (result.officialTag) reasonParts.push(`Official tag: ${result.officialTag}`);
+        if (result.checksumsAsset) reasonParts.push(`Checksums asset: ${result.checksumsAsset}`);
+        if (result.localAsarSha256) reasonParts.push(`Local app.asar SHA256: ${result.localAsarSha256.slice(0, 12)}...`);
+        renderOfficialStatus(result.status || 'unknown', reasonParts.join(' '));
+        if (lockEl) lockEl.textContent = `Channel locked: ${result.owner}/${result.repo}`;
+        if (detailsEl && result.officialReleaseUrl) {
+            detailsEl.innerHTML = `${escapeHtml(reasonParts.join(' '))} <a href="${result.officialReleaseUrl}" target="_blank" rel="noopener">Official release</a>`;
+        }
+    } catch (err) {
+        renderOfficialStatus('error', `Verification failed: ${err.message || err}`);
+    }
+}
+
+async function checkOfficialUpdatesUi() {
+    const updatesEl = document.getElementById('official-update-result');
+    if (updatesEl) updatesEl.textContent = 'Checking latest official release...';
+    try {
+        const result = await ipcRenderer.invoke('official:checkUpdates');
+        if (!updatesEl) return;
+        const assetNames = (result.assets || []).slice(0, 3).map((a) => a.name).join(', ');
+        if (result.updateAvailable) {
+            updatesEl.innerHTML = `Update available: ${escapeHtml(result.currentVersion)} -> ${escapeHtml(result.latestVersion)}. <a href="${result.releaseUrl}" target="_blank" rel="noopener">Open release</a>${assetNames ? ` (${escapeHtml(assetNames)})` : ''}`;
+            showNotification(`Official update available: ${result.latestVersion}`, 'info');
+        } else {
+            updatesEl.innerHTML = `You are on the latest official version (${escapeHtml(result.currentVersion)}).`;
+        }
+    } catch (err) {
+        if (updatesEl) updatesEl.textContent = `Official update check failed: ${err.message || err}`;
+    }
+}
+
+function initOfficialIntegrityPanel() {
+    const verifyBtn = document.getElementById('btn-official-verify-refresh');
+    const updatesBtn = document.getElementById('btn-official-check-updates');
+    const openBtn = document.getElementById('btn-open-official-release');
+
+    if (!verifyBtn || verifyBtn.dataset.bound === '1') return;
+    verifyBtn.dataset.bound = '1';
+
+    verifyBtn.addEventListener('click', () => verifyOfficialBuildUi());
+    updatesBtn?.addEventListener('click', () => checkOfficialUpdatesUi());
+    openBtn?.addEventListener('click', () => {
+        window.open('https://github.com/ali975/CraftIDE-MyFirstProject/releases/latest', '_blank');
+    });
+
+    verifyOfficialBuildUi();
+}
+
 document.addEventListener('lang:changed', () => {
     refreshLocalizedTabLabels();
     if (!currentFilePath) {
@@ -2282,6 +2352,7 @@ console.log('⛏️ CraftIDE renderer initialized!');
 
 // Ayarları yükle
 loadSettings();
+initOfficialIntegrityPanel();
 
 // Terminal'i otomatik başlat
 initTerminal();
