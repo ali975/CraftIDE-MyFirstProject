@@ -15,6 +15,8 @@ let openFiles = new Map(); // path -> { content, modified }
 let currentFilePath = null;
 let activePanel = 'explorer';
 let activeTerminalId = null; // Gerçek terminal process ID
+let explorerSelectedPath = null;
+let explorerSelectedIsDir = false;
 // Shared runtime API for additional renderer modules (e.g. No-Code Suite)
 window.CraftIDEAppState = {
     getCurrentProjectPath: () => currentProjectPath,
@@ -57,6 +59,7 @@ const VIRTUAL_TAB_META = {
     'recipe-creator://': { key: 'ui.tab.recipeCreator', icon: '🍳', fallback: 'Recipe Creator' },
     'permission-tree://': { key: 'ui.tab.permissionTree', icon: '🔑', fallback: 'Permission Tree' },
     'marketplace://': { key: 'ui.tab.marketplace', icon: '🛍️', fallback: 'Blueprint Marketplace' },
+    'mc-tools://': { key: 'ui.tab.mcToolsHub', icon: '🔺', fallback: 'Tools Hub' },
 };
 
 function getVirtualTabMeta(filePath) {
@@ -231,8 +234,7 @@ document.querySelectorAll('.activity-btn').forEach(btn => {
             } else if (action === 'marketplace') {
                 openFile('marketplace://tab', getVirtualTabName('marketplace://tab'));
             } else if (action === 'mc-tools') {
-                // Toggle MC Tools dropdown
-                toggleMcToolsDropdown(btn);
+                openFile('mc-tools://tab', getVirtualTabName('mc-tools://tab'));
             }
             // New logic for data-action
             const panelId = btn.getAttribute('data-action');
@@ -274,6 +276,7 @@ async function openFolder(folderPath) {
     document.getElementById('titlebar-filename').textContent = nodePath.basename(folderPath);
 
     await renderFileTree(folderPath);
+    markExplorerSelection(null, false);
 
     // Auto-detect project platform and sync Server Manager
     try {
@@ -294,6 +297,7 @@ async function openFolder(folderPath) {
         } catch (e) { }
 
         const smTypeSelect = document.getElementById('sm-type-select');
+        const smVersionSelect = document.getElementById('sm-version-select');
         if (smTypeSelect) {
             if (isForge) {
                 smTypeSelect.value = 'forge';
@@ -305,6 +309,9 @@ async function openFolder(folderPath) {
                 smTypeSelect.value = 'paper';
                 smTypeSelect.disabled = false; // Allow fallback to spigot/vanilla
             }
+            if (smVersionSelect) {
+                await refreshServerVersions(smTypeSelect.value, smVersionSelect, smVersionSelect.value || '');
+            }
         }
     } catch (err) {
         console.error("Platform detection err:", err);
@@ -313,6 +320,152 @@ async function openFolder(folderPath) {
     showNotification('\u{1F4C2} ' + nodePath.basename(folderPath) + ' açıldı', 'success');
 }
 
+
+function markExplorerSelection(path, isDir) {
+    explorerSelectedPath = path || null;
+    explorerSelectedIsDir = !!isDir;
+    document.querySelectorAll('.tree-item.active').forEach((el) => el.classList.remove('active'));
+    if (!explorerSelectedPath) return;
+    const item = document.querySelector(`.tree-item[data-path="${CSS.escape(explorerSelectedPath)}"]`);
+    if (item) item.classList.add('active');
+}
+
+function getExplorerCreateTargetDir(overridePath = null, overrideIsDir = null) {
+    if (overridePath) {
+        return overrideIsDir ? overridePath : nodePath.dirname(overridePath);
+    }
+    if (explorerSelectedPath) {
+        return explorerSelectedIsDir ? explorerSelectedPath : nodePath.dirname(explorerSelectedPath);
+    }
+    return currentProjectPath;
+}
+
+function validateExplorerName(name) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return tr('prompt.quickCreate.nameEmpty', 'Name cannot be empty.');
+    if (/[<>:\"/\\|?*]/.test(trimmed)) return tr('prompt.quickCreate.invalidName', 'Invalid name.');
+    if (trimmed === '.' || trimmed === '..') return tr('prompt.quickCreate.invalidName', 'Invalid name.');
+    return '';
+}
+
+async function openExplorerQuickCreate(kind, targetDir) {
+    const title = kind === 'file'
+        ? tr('prompt.quickCreate.fileTitle', 'Create New File')
+        : tr('prompt.quickCreate.folderTitle', 'Create New Folder');
+    const placeholder = kind === 'file'
+        ? tr('prompt.quickCreate.placeholder.file', 'new-file.java')
+        : tr('prompt.quickCreate.placeholder.folder', 'new-folder');
+
+    return await new Promise((resolve) => {
+        const existing = document.getElementById('explorer-quick-create');
+        if (existing) existing.remove();
+
+        const popup = document.createElement('div');
+        popup.id = 'explorer-quick-create';
+        popup.className = 'explorer-quick-create';
+        popup.innerHTML = `
+            <div class="explorer-quick-create-title">${title}</div>
+            <input id="explorer-quick-create-input" type="text" placeholder="${placeholder}" />
+            <div class="explorer-quick-actions">
+                <button class="btn-secondary" id="explorer-quick-cancel">${tr('dialog.unsaved.cancel', 'Cancel')}</button>
+                <button class="btn-primary" id="explorer-quick-confirm">${tr('btn.create', 'Create')}</button>
+            </div>
+            <div class="explorer-quick-error" id="explorer-quick-error"></div>
+        `;
+        document.body.appendChild(popup);
+
+        const anchor = document.getElementById('panel-explorer') || document.body;
+        const rect = anchor.getBoundingClientRect();
+        popup.style.left = `${Math.max(60, rect.left + 20)}px`;
+        popup.style.top = `${Math.max(60, rect.top + 60)}px`;
+
+        const input = popup.querySelector('#explorer-quick-create-input');
+        const errorEl = popup.querySelector('#explorer-quick-error');
+        const btnConfirm = popup.querySelector('#explorer-quick-confirm');
+        const btnCancel = popup.querySelector('#explorer-quick-cancel');
+
+        const close = (value = null) => {
+            document.removeEventListener('mousedown', onDocMouseDown, true);
+            popup.remove();
+            resolve(value);
+        };
+
+        const submit = async () => {
+            const value = String(input.value || '').trim();
+            const validationErr = validateExplorerName(value);
+            if (validationErr) {
+                errorEl.textContent = validationErr;
+                input.focus();
+                return;
+            }
+            const candidate = nodePath.join(targetDir, value);
+            const exists = await ipcRenderer.invoke('fs:exists', candidate);
+            if (exists) {
+                errorEl.textContent = tr('prompt.quickCreate.exists', 'A file/folder with this name already exists.');
+                input.focus();
+                return;
+            }
+            close(value);
+        };
+
+        const onDocMouseDown = (event) => {
+            if (!popup.contains(event.target)) close(null);
+        };
+
+        btnConfirm.addEventListener('click', submit);
+        btnCancel.addEventListener('click', () => close(null));
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                submit();
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                close(null);
+            }
+        });
+        setTimeout(() => document.addEventListener('mousedown', onDocMouseDown, true), 10);
+        setTimeout(() => input.focus(), 0);
+    });
+}
+
+async function createExplorerEntry(kind, opts = {}) {
+    if (!currentProjectPath) {
+        showNotification(tr('msg.openProjectFirst', 'Open a project first!'), 'error');
+        return null;
+    }
+    const targetDir = getExplorerCreateTargetDir(opts.path || null, opts.isDir ?? null);
+    if (!targetDir) {
+        showNotification(tr('msg.openProjectFirst', 'Open a project first!'), 'error');
+        return null;
+    }
+
+    const name = await openExplorerQuickCreate(kind, targetDir);
+    if (!name) return null;
+    const finalPath = nodePath.join(targetDir, name);
+
+    if (kind === 'file') {
+        const result = await ipcRenderer.invoke('fs:createFile', finalPath);
+        if (!result?.success) {
+            showNotification((result?.error || tr('msg.fileCreateError', 'Could not create file!')), 'error');
+            return null;
+        }
+        showNotification(tr('msg.fileCreated', '{name} created', { name }), 'success');
+        if (currentProjectPath) await renderFileTree(currentProjectPath);
+        markExplorerSelection(finalPath, false);
+        if (opts.openAfterCreate !== false) await openFile(finalPath);
+        return finalPath;
+    }
+
+    const ok = await ipcRenderer.invoke('fs:createDir', finalPath);
+    if (!ok) {
+        showNotification(tr('msg.folderCreateError', 'Could not create folder!'), 'error');
+        return null;
+    }
+    showNotification(tr('msg.fileCreated', '{name} created', { name }), 'success');
+    if (currentProjectPath) await renderFileTree(currentProjectPath);
+    markExplorerSelection(finalPath, true);
+    return finalPath;
+}
 async function renderFileTree(dirPath, parentEl, depth) {
     depth = depth || 0;
     const treeContainer = parentEl || document.getElementById('file-tree');
@@ -373,6 +526,7 @@ async function renderFileTree(dirPath, parentEl, depth) {
             childContainer.style.display = 'none';
 
             item.addEventListener('click', async () => {
+                markExplorerSelection(entry.path, true);
                 expanded = !expanded;
                 if (expanded) {
                     childContainer.style.display = 'block';
@@ -389,9 +543,16 @@ async function renderFileTree(dirPath, parentEl, depth) {
             treeContainer.appendChild(item);
             treeContainer.appendChild(childContainer);
         } else {
-            item.addEventListener('click', () => openFile(entry.path));
+            item.addEventListener('click', () => {
+                markExplorerSelection(entry.path, false);
+                openFile(entry.path);
+            });
             treeContainer.appendChild(item);
         }
+    }
+
+    if (!parentEl && explorerSelectedPath) {
+        markExplorerSelection(explorerSelectedPath, explorerSelectedIsDir);
     }
 }
 
@@ -416,6 +577,7 @@ let contextTarget = { path: '', isDir: false, name: '' };
 
 function showContextMenu(x, y, path, isDir, name) {
     contextTarget = { path, isDir, name };
+    if (path) markExplorerSelection(path, !!isDir);
     const menu = document.getElementById('context-menu');
 
     // Konum ayarla (ekran dışına taşmasını önle)
@@ -459,34 +621,11 @@ document.querySelectorAll('.context-item').forEach(item => {
 
         switch (action) {
             case 'newFile': {
-                const parentDir = contextTarget.isDir ? contextTarget.path : nodePath.dirname(contextTarget.path);
-                const name = prompt(tr('prompt.newFileName', 'New file name:'), 'new-file.java');
-                if (name) {
-                    const filePath = nodePath.join(parentDir, name);
-                    const result = await ipcRenderer.invoke('fs:createFile', filePath);
-                    if (result.success) {
-                        showNotification('📄 ' + tr('msg.fileCreated', '{name} created', { name }), 'success');
-                        if (currentProjectPath) await renderFileTree(currentProjectPath);
-                        await openFile(filePath);
-                    } else {
-                        showNotification('❌ ' + result.error, 'error');
-                    }
-                }
+                await createExplorerEntry('file', { path: contextTarget.path, isDir: contextTarget.isDir, openAfterCreate: true });
                 break;
             }
             case 'newFolder': {
-                const parentDir = contextTarget.isDir ? contextTarget.path : nodePath.dirname(contextTarget.path);
-                const name = prompt(tr('prompt.newFolderName', 'New folder name:'), 'new-folder');
-                if (name) {
-                    const dirPath = nodePath.join(parentDir, name);
-                    const ok = await ipcRenderer.invoke('fs:createDir', dirPath);
-                    if (ok) {
-                        showNotification('📁 ' + tr('msg.fileCreated', '{name} created', { name }), 'success');
-                        if (currentProjectPath) await renderFileTree(currentProjectPath);
-                    } else {
-                        showNotification('❌ ' + tr('msg.folderCreateError', 'Could not create folder!'), 'error');
-                    }
-                }
+                await createExplorerEntry('folder', { path: contextTarget.path, isDir: contextTarget.isDir, openAfterCreate: false });
                 break;
             }
             case 'rename': {
@@ -589,34 +728,11 @@ function startInlineRename(treeItem, entry) {
 // ═══════════════════════════════════════════════════════════
 
 document.getElementById('btn-new-file').addEventListener('click', async () => {
-    if (!currentProjectPath) { showNotification(tr('msg.openProjectFirst', 'Open a project first!'), 'error'); return; }
-    const name = prompt(tr('prompt.newFileName', 'New file name:'), 'new-file.java');
-    if (name) {
-        const filePath = nodePath.join(currentProjectPath, name);
-        const result = await ipcRenderer.invoke('fs:createFile', filePath);
-        if (result.success) {
-            showNotification('📄 ' + tr('msg.fileCreated', '{name} created', { name }), 'success');
-            await renderFileTree(currentProjectPath);
-            await openFile(filePath);
-        } else {
-            showNotification('❌ ' + result.error, 'error');
-        }
-    }
+    await createExplorerEntry('file', { openAfterCreate: true });
 });
 
 document.getElementById('btn-new-folder').addEventListener('click', async () => {
-    if (!currentProjectPath) { showNotification(tr('msg.openProjectFirst', 'Open a project first!'), 'error'); return; }
-    const name = prompt(tr('prompt.newFolderName', 'New folder name:'), 'new-folder');
-    if (name) {
-        const dirPath = nodePath.join(currentProjectPath, name);
-        const ok = await ipcRenderer.invoke('fs:createDir', dirPath);
-        if (ok) {
-            showNotification('📁 ' + tr('msg.fileCreated', '{name} created', { name }), 'success');
-            await renderFileTree(currentProjectPath);
-        } else {
-            showNotification('❌ ' + tr('msg.folderCreateError', 'Could not create folder!'), 'error');
-        }
-    }
+    await createExplorerEntry('folder', { openAfterCreate: false });
 });
 
 document.getElementById('btn-refresh-tree').addEventListener('click', async () => {
@@ -641,7 +757,7 @@ async function openFile(filePath, virtualName = null) {
         return;
     }
 
-    if (filePath.startsWith('visual-builder://') || filePath.startsWith('blockbench://') || filePath.startsWith('settings://') || filePath.startsWith('server-manager://') || filePath.startsWith('image-editor://') || filePath.startsWith('gui-builder://') || filePath.startsWith('command-tree://') || filePath.startsWith('recipe-creator://') || filePath.startsWith('permission-tree://') || filePath.startsWith('marketplace://')) {
+    if (filePath.startsWith('visual-builder://') || filePath.startsWith('blockbench://') || filePath.startsWith('settings://') || filePath.startsWith('server-manager://') || filePath.startsWith('image-editor://') || filePath.startsWith('gui-builder://') || filePath.startsWith('command-tree://') || filePath.startsWith('recipe-creator://') || filePath.startsWith('permission-tree://') || filePath.startsWith('marketplace://') || filePath.startsWith('mc-tools://')) {
         openFiles.set(filePath, { content: '', modified: false, virtual: true });
         addTab(filePath, getVirtualTabName(filePath, virtualName));
         activateTab(filePath);
@@ -788,6 +904,9 @@ function activateTab(filePath) {
     } else if (filePath.startsWith('marketplace://')) {
         document.getElementById('marketplace-container').style.display = 'flex';
         if (typeof window.initMarketplace === 'function') setTimeout(() => window.initMarketplace(), 50);
+    } else if (filePath.startsWith('mc-tools://')) {
+        document.getElementById('mc-tools-hub-container').style.display = 'flex';
+        if (typeof renderMcToolsHub === 'function') setTimeout(() => renderMcToolsHub(), 30);
     } else if (filePath.startsWith('image-editor://') || ['.png', '.jpg', '.jpeg'].includes(ext)) {
         document.getElementById('image-editor-container').style.display = 'block';
         // İlk açılışta editörü başlat
@@ -987,6 +1106,11 @@ document.querySelectorAll('.platform-card').forEach(card => {
             if (labelName) labelName.textContent = tr('modal.label.pluginName', 'Plugin Name');
             if (inputName) inputName.placeholder = 'MyAwesomePlugin';
         }
+
+        const projectVersionSelect = document.getElementById('input-mc-version');
+        if (projectVersionSelect) {
+            refreshServerVersions(serverTypeFromPlatform(platform), projectVersionSelect, projectVersionSelect.value || '');
+        }
     });
 });
 
@@ -1165,22 +1289,7 @@ document.getElementById('btn-new-project')?.addEventListener('click', (e) => {
 
 document.getElementById('wl-new-file')?.addEventListener('click', async (e) => {
     e.preventDefault();
-    if (!currentProjectPath) {
-        showNotification(tr('msg.openProjectFirst', 'Open a project first!'), 'error');
-        return;
-    }
-    const name = prompt(tr('prompt.newFileName', 'New file name:'), 'new-file.java');
-    if (name) {
-        const filePath = nodePath.join(currentProjectPath, name);
-        const result = await ipcRenderer.invoke('fs:createFile', filePath);
-        if (result.success) {
-            showNotification('📄 ' + tr('msg.fileCreated', '{name} created', { name }), 'success');
-            await renderFileTree(currentProjectPath);
-            await openFile(filePath);
-        } else {
-            showNotification('❌ ' + result.error, 'error');
-        }
-    }
+    await createExplorerEntry('file', { openAfterCreate: true });
 });
 
 document.getElementById('wl-open-file')?.addEventListener('click', async (e) => {
@@ -1358,6 +1467,13 @@ document.getElementById('btn-test-server')?.addEventListener('click', async () =
 });
 
 // -- Server Manager UI Bindings --
+document.getElementById('sm-type-select')?.addEventListener('change', async (event) => {
+    const versionSelect = document.getElementById('sm-version-select');
+    if (versionSelect) {
+        await refreshServerVersions(event.target.value, versionSelect, '');
+    }
+});
+
 document.getElementById('btn-sm-start')?.addEventListener('click', async () => {
     const status = await ipcRenderer.invoke('server:status');
     if (status && status.status === 'running') {
@@ -1366,7 +1482,13 @@ document.getElementById('btn-sm-start')?.addEventListener('click', async () => {
     }
 
     const type = document.getElementById('sm-type-select')?.value || 'paper';
-    const version = document.getElementById('sm-version-select')?.value || '1.21.11';
+    const versionSelect = document.getElementById('sm-version-select');
+    const version = versionSelect?.value || '1.21.11';
+    const payload = serverVersionPayloadByType[type] || await refreshServerVersions(type, versionSelect, version);
+    if (payload && Array.isArray(payload.versions) && payload.versions.length && !payload.versions.includes(version)) {
+        showNotification('Selected Minecraft version is not supported for this server type.', 'error');
+        return;
+    }
 
     showNotification('🚀 Test sunucusu başlatılıyor (' + type + ' ' + version + ')...', 'info');
 
@@ -1720,27 +1842,252 @@ document.getElementById('btn-api-ref').addEventListener('click', () => {
 // Keyboard Shortcuts
 // ═══════════════════════════════════════════════════════════
 
-document.addEventListener('keydown', (e) => {
-    // Ctrl+S -> Save
-    if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        saveCurrentFile();
+const SHORTCUTS_STORAGE_KEY = 'craftide.shortcuts.bindings';
+const SHORTCUTS_VERSION_KEY = 'craftide.shortcuts.version';
+const SHORTCUTS_VERSION = '1';
+let shortcutBindings = {};
+let captureShortcutCommandId = null;
+
+const SHORTCUT_COMMANDS = [
+    { id: 'app.save', label: 'Save Current File', scope: 'global', defaultBinding: 'Ctrl+S', handler: () => saveCurrentFile() },
+    { id: 'app.openFolder', label: 'Open Folder', scope: 'global', defaultBinding: 'Ctrl+O', handler: () => openFolder() },
+    { id: 'app.newProject', label: 'New Project', scope: 'global', defaultBinding: 'Ctrl+N', handler: () => showNewProjectModal() },
+    { id: 'app.settings', label: 'Open Settings', scope: 'global', defaultBinding: 'Ctrl+,', handler: () => openFile('settings://tab', getVirtualTabName('settings://tab')) },
+    { id: 'app.toggleTerminal', label: 'Toggle Terminal Panel', scope: 'global', defaultBinding: 'Ctrl+`', handler: () => document.getElementById('btn-toggle-panel')?.click() },
+    { id: 'app.closeModal', label: 'Close Modal', scope: 'global', defaultBinding: 'Escape', handler: () => hideNewProjectModal() },
+
+    { id: 'vb.deleteNode', label: 'Delete Selected Node', scope: 'vb', defaultBinding: 'Delete', handler: () => window.CraftIDEVB?.deleteSelectedNode?.() },
+    { id: 'vb.undo', label: 'Undo', scope: 'vb', defaultBinding: 'Ctrl+Z', handler: () => (window.CraftIDEVB?.history?.undo?.() || document.getElementById('btn-vb-undo')?.click()) },
+    { id: 'vb.redo', label: 'Redo', scope: 'vb', defaultBinding: 'Ctrl+Y', handler: () => (window.CraftIDEVB?.history?.redo?.() || document.getElementById('btn-vb-redo')?.click()) },
+    { id: 'vb.generate', label: 'Generate Code', scope: 'vb', defaultBinding: 'Ctrl+Enter', handler: () => document.getElementById('btn-vb-generate')?.click() },
+    { id: 'vb.clear', label: 'Clear Canvas', scope: 'vb', defaultBinding: 'Ctrl+Shift+Delete', handler: () => document.getElementById('btn-vb-clear')?.click() },
+    { id: 'vb.templates', label: 'Open Templates', scope: 'vb', defaultBinding: 'Ctrl+Shift+T', handler: () => (window.CraftIDEVB?.showTemplatesModal?.() || document.getElementById('btn-vb-templates')?.click()) },
+
+    { id: 'explorer.newFile', label: 'Explorer New File', scope: 'explorer', defaultBinding: 'Ctrl+Alt+N', handler: () => createExplorerEntry('file', { openAfterCreate: true }) },
+    { id: 'explorer.newFolder', label: 'Explorer New Folder', scope: 'explorer', defaultBinding: 'Ctrl+Alt+Shift+N', handler: () => createExplorerEntry('folder', { openAfterCreate: false }) },
+    { id: 'explorer.refresh', label: 'Explorer Refresh', scope: 'explorer', defaultBinding: 'F5', handler: () => currentProjectPath && renderFileTree(currentProjectPath) },
+
+    { id: 'image.save', label: 'Image Save', scope: 'image', defaultBinding: 'Ctrl+S', handler: () => window.saveImageEditorFile?.() },
+    { id: 'image.undo', label: 'Image Undo', scope: 'image', defaultBinding: 'Ctrl+Z', handler: () => document.getElementById('ie-undo')?.click() },
+    { id: 'image.redo', label: 'Image Redo', scope: 'image', defaultBinding: 'Ctrl+Y', handler: () => document.getElementById('ie-redo')?.click() },
+    { id: 'image.tool.pencil', label: 'Image Tool Pencil', scope: 'image', defaultBinding: 'P', handler: () => document.querySelector('.ie-tool[data-tool="pencil"]')?.click() },
+    { id: 'image.tool.eraser', label: 'Image Tool Eraser', scope: 'image', defaultBinding: 'E', handler: () => document.querySelector('.ie-tool[data-tool="eraser"]')?.click() },
+    { id: 'image.tool.fill', label: 'Image Tool Fill', scope: 'image', defaultBinding: 'F', handler: () => document.querySelector('.ie-tool[data-tool="fill"]')?.click() },
+    { id: 'image.tool.hand', label: 'Image Tool Pan', scope: 'image', defaultBinding: 'H', handler: () => document.querySelector('.ie-tool[data-tool="hand"]')?.click() },
+];
+
+const SHORTCUT_COMMAND_MAP = new Map(SHORTCUT_COMMANDS.map((cmd) => [cmd.id, cmd]));
+
+function getScopeLabel(scope) {
+    if (scope === 'vb') return tr('ui.shortcuts.scope.vb', 'Visual Builder');
+    if (scope === 'explorer') return tr('ui.shortcuts.scope.explorer', 'Explorer');
+    if (scope === 'image') return tr('ui.shortcuts.scope.image', 'Image Editor');
+    return tr('ui.shortcuts.scope.global', 'Global');
+}
+
+function normalizeBinding(value) {
+    return String(value || '').trim();
+}
+
+function bindingFromKeyboardEvent(event) {
+    const key = String(event.key || '');
+    if (!key) return '';
+    if (['Control', 'Shift', 'Alt', 'Meta'].includes(key)) return '';
+    const parts = [];
+    if (event.ctrlKey || event.metaKey) parts.push('Ctrl');
+    if (event.altKey) parts.push('Alt');
+    if (event.shiftKey) parts.push('Shift');
+    const keyMap = {
+        ' ': 'Space',
+        Escape: 'Escape',
+        Enter: 'Enter',
+        Tab: 'Tab',
+        Backspace: 'Backspace',
+        Delete: 'Delete',
+        ArrowUp: 'ArrowUp',
+        ArrowDown: 'ArrowDown',
+        ArrowLeft: 'ArrowLeft',
+        ArrowRight: 'ArrowRight',
+    };
+    const normalizedKey = keyMap[key] || (key.length === 1 ? key.toUpperCase() : key);
+    parts.push(normalizedKey);
+    return parts.join('+');
+}
+
+function getCurrentShortcutContext() {
+    const path = String(currentFilePath || '');
+    if (path.startsWith('visual-builder://')) return 'vb';
+    if (path.startsWith('image-editor://') || ['.png', '.jpg', '.jpeg'].includes(nodePath.extname(path).toLowerCase())) return 'image';
+    if (activePanel === 'explorer' || document.activeElement?.closest?.('#panel-explorer')) return 'explorer';
+    return 'global';
+}
+
+function loadShortcutBindings() {
+    const version = localStorage.getItem(SHORTCUTS_VERSION_KEY);
+    if (version !== SHORTCUTS_VERSION) {
+        shortcutBindings = {};
+        SHORTCUT_COMMANDS.forEach((cmd) => {
+            shortcutBindings[cmd.id] = cmd.defaultBinding;
+        });
+        localStorage.setItem(SHORTCUTS_VERSION_KEY, SHORTCUTS_VERSION);
+        localStorage.setItem(SHORTCUTS_STORAGE_KEY, JSON.stringify(shortcutBindings));
+        return;
     }
-    // Ctrl+N -> New Project
-    if (e.ctrlKey && e.key === 'n') {
-        e.preventDefault();
-        showNewProjectModal();
+    try {
+        const parsed = JSON.parse(localStorage.getItem(SHORTCUTS_STORAGE_KEY) || '{}');
+        SHORTCUT_COMMANDS.forEach((cmd) => {
+            shortcutBindings[cmd.id] = normalizeBinding(parsed[cmd.id] || cmd.defaultBinding);
+        });
+    } catch {
+        shortcutBindings = {};
+        SHORTCUT_COMMANDS.forEach((cmd) => {
+            shortcutBindings[cmd.id] = cmd.defaultBinding;
+        });
     }
-    // Ctrl+O -> Open Folder
-    if (e.ctrlKey && e.key === 'o') {
-        e.preventDefault();
-        openFolder();
+}
+
+function persistShortcutBindings() {
+    localStorage.setItem(SHORTCUTS_STORAGE_KEY, JSON.stringify(shortcutBindings));
+    localStorage.setItem(SHORTCUTS_VERSION_KEY, SHORTCUTS_VERSION);
+}
+
+function getShortcutConflicts(commandId, binding) {
+    if (!binding) return [];
+    const command = SHORTCUT_COMMAND_MAP.get(commandId);
+    if (!command) return [];
+    const conflicts = [];
+    SHORTCUT_COMMANDS.forEach((other) => {
+        if (other.id === commandId) return;
+        const otherBinding = normalizeBinding(shortcutBindings[other.id]);
+        if (!otherBinding || otherBinding !== binding) return;
+        if (other.scope === command.scope || other.scope === 'global' || command.scope === 'global') {
+            conflicts.push(other);
+        }
+    });
+    return conflicts;
+}
+
+function renderShortcutSettings() {
+    const list = document.getElementById('shortcuts-list');
+    if (!list) return;
+    list.innerHTML = SHORTCUT_COMMANDS.map((cmd) => {
+        const binding = normalizeBinding(shortcutBindings[cmd.id]);
+        const display = binding || tr('ui.shortcuts.unbound', 'Unbound');
+        const conflicts = getShortcutConflicts(cmd.id, binding);
+        const warning = conflicts.length
+            ? `<div class="shortcut-warning">${tr('ui.shortcuts.conflict', 'Conflict with: {command}', { command: conflicts.map((c) => c.label).join(', ') })}</div>`
+            : '';
+        return `
+            <div class="shortcut-item" data-shortcut-id="${cmd.id}">
+                <div class="shortcut-meta">
+                    <div class="shortcut-title">${cmd.label}</div>
+                    <div class="shortcut-sub">${getScopeLabel(cmd.scope)}</div>
+                </div>
+                <button class="btn-secondary shortcut-bind-btn ${captureShortcutCommandId === cmd.id ? 'capturing' : ''}" data-shortcut-bind="${cmd.id}">
+                    ${captureShortcutCommandId === cmd.id ? tr('ui.shortcuts.capture', 'Press keys...') : display}
+                </button>
+                <button class="btn-secondary" data-shortcut-reset="${cmd.id}">Reset</button>
+                ${warning}
+            </div>
+        `;
+    }).join('');
+
+    list.querySelectorAll('[data-shortcut-bind]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const commandId = btn.getAttribute('data-shortcut-bind');
+            captureShortcutCommandId = captureShortcutCommandId === commandId ? null : commandId;
+            renderShortcutSettings();
+        });
+    });
+    list.querySelectorAll('[data-shortcut-reset]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const commandId = btn.getAttribute('data-shortcut-reset');
+            const command = SHORTCUT_COMMAND_MAP.get(commandId);
+            if (!command) return;
+            shortcutBindings[commandId] = command.defaultBinding;
+            persistShortcutBindings();
+            renderShortcutSettings();
+        });
+    });
+}
+
+function commandMatchesBinding(command, binding) {
+    const assigned = normalizeBinding(shortcutBindings[command.id]);
+    return assigned && assigned === binding;
+}
+
+async function executeShortcutCommand(command) {
+    if (!command || typeof command.handler !== 'function') return false;
+    const result = command.handler();
+    if (result && typeof result.then === 'function') {
+        await result;
     }
-    // Escape -> Close modal
-    if (e.key === 'Escape') {
-        hideNewProjectModal();
+    return true;
+}
+
+async function handleShortcutKeydown(event) {
+    if (captureShortcutCommandId) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.key === 'Escape') {
+            captureShortcutCommandId = null;
+            renderShortcutSettings();
+            return;
+        }
+        if ((event.key === 'Backspace' || event.key === 'Delete') && !(event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)) {
+            shortcutBindings[captureShortcutCommandId] = '';
+            captureShortcutCommandId = null;
+            persistShortcutBindings();
+            renderShortcutSettings();
+            return;
+        }
+        const binding = bindingFromKeyboardEvent(event);
+        if (!binding) return;
+        shortcutBindings[captureShortcutCommandId] = binding;
+        captureShortcutCommandId = null;
+        persistShortcutBindings();
+        renderShortcutSettings();
+        return;
     }
-});
+
+    const target = event.target;
+    const tag = String(target?.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable) return;
+
+    const binding = bindingFromKeyboardEvent(event);
+    if (!binding) return;
+    const context = getCurrentShortcutContext();
+    let command = SHORTCUT_COMMANDS.find((cmd) => cmd.scope === context && commandMatchesBinding(cmd, binding));
+    if (!command) {
+        command = SHORTCUT_COMMANDS.find((cmd) => cmd.scope === 'global' && commandMatchesBinding(cmd, binding));
+    }
+    if (!command) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    await executeShortcutCommand(command);
+}
+
+function resetAllShortcuts() {
+    SHORTCUT_COMMANDS.forEach((cmd) => {
+        shortcutBindings[cmd.id] = cmd.defaultBinding;
+    });
+    persistShortcutBindings();
+    renderShortcutSettings();
+}
+
+function initShortcutSystem() {
+    loadShortcutBindings();
+    renderShortcutSettings();
+    document.getElementById('btn-shortcuts-reset-all')?.addEventListener('click', resetAllShortcuts);
+    document.addEventListener('keydown', (event) => {
+        handleShortcutKeydown(event);
+    });
+    document.addEventListener('lang:changed', () => {
+        renderShortcutSettings();
+    });
+}
+initShortcutSystem();
 
 // ═══════════════════════════════════════════════════════════
 // Settings Logic & Language Sync
@@ -2017,122 +2364,264 @@ if (bottomResizer && bottomPanel) {
 // MC Tools Dropdown
 // ═══════════════════════════════════════════════════════════
 
-let mcToolsDropdown = null;
+// Visual Builder Top Region Resizer
+const vbTopResizer = document.getElementById('vb-top-resizer');
+const vbTopRegion = document.getElementById('vb-top-region');
+const VB_TOP_REGION_KEY = 'craftide.vb.topRegionHeight';
+const VB_TOP_REGION_MIN = 84;
+const VB_TOP_REGION_MAX = 360;
+const VB_TOP_REGION_DEFAULT = 136;
 
-function toggleMcToolsDropdown(btnEl) {
-    // If dropdown is open, close it
-    if (mcToolsDropdown) {
-        mcToolsDropdown.remove();
-        mcToolsDropdown = null;
+if (vbTopResizer && vbTopRegion) {
+    const parseHeight = (value, fallback) => {
+        const parsed = Number.parseInt(String(value || ''), 10);
+        if (!Number.isFinite(parsed)) return fallback;
+        return Math.max(VB_TOP_REGION_MIN, Math.min(parsed, VB_TOP_REGION_MAX));
+    };
+
+    let isResizingVbTop = false;
+    const savedHeight = parseHeight(localStorage.getItem(VB_TOP_REGION_KEY), VB_TOP_REGION_DEFAULT);
+    vbTopRegion.style.height = savedHeight + 'px';
+
+    vbTopResizer.addEventListener('mousedown', (e) => {
+        isResizingVbTop = true;
+        document.body.style.cursor = 'row-resize';
+        vbTopResizer.classList.add('active');
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizingVbTop) return;
+        const container = document.getElementById('visual-builder-container');
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const targetHeight = e.clientY - rect.top;
+        const clampedHeight = Math.max(VB_TOP_REGION_MIN, Math.min(targetHeight, VB_TOP_REGION_MAX));
+        vbTopRegion.style.height = clampedHeight + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (!isResizingVbTop) return;
+        isResizingVbTop = false;
+        document.body.style.cursor = 'default';
+        vbTopResizer.classList.remove('active');
+        const finalHeight = parseHeight(vbTopRegion.style.height, VB_TOP_REGION_DEFAULT);
+        vbTopRegion.style.height = finalHeight + 'px';
+        localStorage.setItem(VB_TOP_REGION_KEY, String(finalHeight));
+        window.dispatchEvent(new Event('resize'));
+    });
+}
+
+let vbToolbarMoreObserver = null;
+
+function syncVBToolbarMore() {
+    const right = document.getElementById('vb-toolbar-right');
+    const wrap = document.getElementById('vb-toolbar-more-wrap');
+    const menu = document.getElementById('vb-toolbar-more-menu');
+    if (!right || !wrap || !menu) return;
+
+    const rightChildren = Array.from(right.children).filter((el) => el !== wrap);
+    rightChildren.forEach((child) => {
+        const isPrimary = child.getAttribute('data-vb-primary') === '1';
+        if (!isPrimary && child.parentElement === right) {
+            menu.appendChild(child);
+        }
+    });
+
+    wrap.style.display = menu.children.length ? 'inline-flex' : 'none';
+}
+
+function initVBToolbarMore() {
+    const right = document.getElementById('vb-toolbar-right');
+    const wrap = document.getElementById('vb-toolbar-more-wrap');
+    const btn = document.getElementById('btn-vb-more');
+    if (!right || !wrap || !btn) return;
+
+    btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        wrap.classList.toggle('open');
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!wrap.contains(event.target)) wrap.classList.remove('open');
+    });
+
+    if (!vbToolbarMoreObserver) {
+        vbToolbarMoreObserver = new MutationObserver(() => syncVBToolbarMore());
+        vbToolbarMoreObserver.observe(right, { childList: true });
+    }
+
+    window.addEventListener('resize', syncVBToolbarMore);
+    document.addEventListener('lang:changed', syncVBToolbarMore);
+    setTimeout(syncVBToolbarMore, 100);
+}
+initVBToolbarMore();
+
+const MC_TOOLS_HUB_ITEMS = [
+    { id: 'visual-builder', category: 'builder', icon: '🧩', titleKey: 'ui.mctools.visualBuilder', title: 'Visual Builder', desc: 'Build plugin/mod flow graphs visually.' },
+    { id: 'gui-builder', category: 'builder', icon: '🗃️', titleKey: 'ui.mctools.guiBuilder', title: 'Chest GUI Builder', desc: 'Design GUI inventories quickly.' },
+    { id: 'command-tree', category: 'builder', icon: '⌨️', titleKey: 'ui.mctools.commandTree', title: 'Command Tree Designer', desc: 'Build command hierarchies and arguments.' },
+    { id: 'recipe-creator', category: 'builder', icon: '🍳', titleKey: 'ui.mctools.recipeCreator', title: 'Recipe Creator', desc: 'Create custom items and recipes.' },
+    { id: 'permission-tree', category: 'builder', icon: '🔑', titleKey: 'ui.mctools.permissionTree', title: 'Permission Tree', desc: 'Generate structured permissions.' },
+    { id: 'marketplace', category: 'integrations', icon: '🛍️', titleKey: 'ui.mctools.marketplace', title: 'Blueprint Marketplace', desc: 'Browse and publish templates.' },
+    { id: 'server-manager', category: 'server', icon: '🖹', titleKey: 'ui.mctools.testServer', title: 'Test Server', desc: 'Start, stop and test local server.' },
+    { id: 'blockbench', category: 'integrations', icon: '🎮', titleKey: 'ui.mctools.blockbench', title: 'Blockbench Editor', desc: 'Open model editor workspace.' },
+    { id: 'new-plugin', category: 'builder', icon: '🚀', titleKey: 'ui.mctools.newPlugin', title: 'New Plugin', desc: 'Create a new project scaffold.' },
+];
+
+function openMcHubTool(toolId) {
+    switch (toolId) {
+        case 'new-plugin': showNewProjectModal(); break;
+        case 'visual-builder': openFile('visual-builder://tab', getVirtualTabName('visual-builder://tab')); break;
+        case 'gui-builder': openFile('gui-builder://tab', getVirtualTabName('gui-builder://tab')); break;
+        case 'command-tree': openFile('command-tree://tab', getVirtualTabName('command-tree://tab')); break;
+        case 'recipe-creator': openFile('recipe-creator://tab', getVirtualTabName('recipe-creator://tab')); break;
+        case 'permission-tree': openFile('permission-tree://tab', getVirtualTabName('permission-tree://tab')); break;
+        case 'marketplace': openFile('marketplace://tab', getVirtualTabName('marketplace://tab')); break;
+        case 'server-manager': openFile('server-manager://tab', getVirtualTabName('server-manager://tab')); break;
+        case 'blockbench': openFile('blockbench://tab', getVirtualTabName('blockbench://tab')); break;
+    }
+}
+
+function renderMcToolsHub() {
+    const grid = document.getElementById('mc-hub-grid');
+    const searchEl = document.getElementById('mc-hub-search');
+    const categoryEl = document.getElementById('mc-hub-category');
+    if (!grid || !searchEl || !categoryEl) return;
+
+    const query = String(searchEl.value || '').trim().toLowerCase();
+    const category = String(categoryEl.value || 'all');
+
+    const items = MC_TOOLS_HUB_ITEMS.filter((item) => {
+        if (category !== 'all' && item.category !== category) return false;
+        if (!query) return true;
+        const title = tr(item.titleKey, item.title).toLowerCase();
+        return title.includes(query) || String(item.desc || '').toLowerCase().includes(query);
+    });
+
+    if (!items.length) {
+        grid.innerHTML = `<div class="mc-hub-empty">${tr('ui.mchub.empty', 'No tools match your search.')}</div>`;
         return;
     }
 
-    mcToolsDropdown = document.createElement('div');
-    mcToolsDropdown.className = 'mc-tools-dropdown';
-    mcToolsDropdown.innerHTML = `
-        <div class="mc-tool-item" data-tool="new-plugin">🚀 ${tr('ui.mctools.newPlugin', 'Create New Plugin')}</div>
-        <div class="mc-tool-item" data-tool="visual-builder">🧩 ${tr('ui.mctools.visualBuilder', 'Visual Builder')}</div>
-        <div class="mc-tool-sep"></div>
-        <div class="mc-tool-item" data-tool="gui-builder">🗃️ ${tr('ui.mctools.guiBuilder', 'Chest GUI Builder')}</div>
-        <div class="mc-tool-item" data-tool="command-tree">⌨️ ${tr('ui.mctools.commandTree', 'Command Tree Designer')}</div>
-        <div class="mc-tool-item" data-tool="recipe-creator">🍳 ${tr('ui.mctools.recipeCreator', 'Custom Item and Recipe')}</div>
-        <div class="mc-tool-item" data-tool="permission-tree">🔑 ${tr('ui.mctools.permissionTree', 'Permission Tree Generator')}</div>
-        <div class="mc-tool-sep"></div>
-        <div class="mc-tool-item" data-tool="build">🔨 ${tr('ui.mctools.build', 'Build Plugin')}</div>
-        <div class="mc-tool-item" data-tool="test-server">🧪 ${tr('ui.mctools.testServer', 'Test Server')}</div>
-        <div class="mc-tool-sep"></div>
-        <div class="mc-tool-item" data-tool="marketplace">🛍️ ${tr('ui.mctools.marketplace', 'Blueprint Marketplace')}</div>
-        <div class="mc-tool-item" data-tool="api-ref">📚 ${tr('ui.mctools.api', 'API Reference')}</div>
-        <div class="mc-tool-item" data-tool="blockbench">🎮 ${tr('ui.mctools.blockbench', 'Blockbench Editor')}</div>
-        <div class="mc-tool-sep"></div>
-        <div class="mc-tool-item" data-tool="welcome">🏠 ${tr('ui.mctools.welcome', 'Welcome Page')}</div>
-    `;
+    grid.innerHTML = items.map((item) => `
+        <article class="mc-hub-card" data-tool="${item.id}">
+            <div class="mc-hub-card-top">
+                <div class="mc-hub-card-icon">${item.icon}</div>
+                <div class="mc-hub-card-title">${tr(item.titleKey, item.title)}</div>
+            </div>
+            <div class="mc-hub-card-desc">${item.desc}</div>
+            <div class="mc-hub-card-footer">
+                <button class="vb-toolbar-btn" data-tool-open="${item.id}">${tr('ui.mchub.open', 'Open')}</button>
+            </div>
+        </article>
+    `).join('');
 
-    // Position next to button
-    const rect = btnEl.getBoundingClientRect();
-    mcToolsDropdown.style.left = (rect.right + 4) + 'px';
-    mcToolsDropdown.style.top = rect.top + 'px';
-
-    document.body.appendChild(mcToolsDropdown);
-
-    mcToolsDropdown.addEventListener('click', (e) => {
-        const item = e.target.closest('.mc-tool-item');
-        if (!item) return;
-        const tool = item.getAttribute('data-tool');
-        switch (tool) {
-            case 'new-plugin': showNewProjectModal(); break;
-            case 'visual-builder': openFile('visual-builder://tab', getVirtualTabName('visual-builder://tab')); break;
-            case 'gui-builder': openFile('gui-builder://tab', getVirtualTabName('gui-builder://tab')); break;
-            case 'command-tree': openFile('command-tree://tab', getVirtualTabName('command-tree://tab')); break;
-            case 'recipe-creator': openFile('recipe-creator://tab', getVirtualTabName('recipe-creator://tab')); break;
-            case 'permission-tree': openFile('permission-tree://tab', getVirtualTabName('permission-tree://tab')); break;
-            case 'marketplace': openFile('marketplace://tab', getVirtualTabName('marketplace://tab')); break;
-            case 'build': document.getElementById('btn-build-plugin')?.click(); break;
-            case 'test-server': document.getElementById('btn-test-server')?.click(); break;
-            case 'api-ref': document.getElementById('btn-api-ref')?.click(); break;
-            case 'blockbench': openFile('blockbench://tab', getVirtualTabName('blockbench://tab')); break;
-            case 'welcome': showWelcome(); break;
-        }
-        mcToolsDropdown.remove();
-        mcToolsDropdown = null;
-    });
-
-    // Close on click outside
-    setTimeout(() => {
-        document.addEventListener('click', function closeMcTools(e) {
-            if (mcToolsDropdown && !mcToolsDropdown.contains(e.target) && !btnEl.contains(e.target)) {
-                mcToolsDropdown.remove();
-                mcToolsDropdown = null;
-                document.removeEventListener('click', closeMcTools);
-            }
+    grid.querySelectorAll('[data-tool-open]').forEach((btn) => {
+        btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            openMcHubTool(btn.getAttribute('data-tool-open'));
         });
-    }, 10);
+    });
 }
 
-// ═══════════════════════════════════════════════════════════
-// Dynamic MC Version Fetching
-// ═══════════════════════════════════════════════════════════
-async function fetchMinecraftVersions() {
+(() => {
+    const searchEl = document.getElementById('mc-hub-search');
+    const categoryEl = document.getElementById('mc-hub-category');
+    if (searchEl && !searchEl.dataset.bound) {
+        searchEl.dataset.bound = '1';
+        searchEl.addEventListener('input', renderMcToolsHub);
+    }
+    if (categoryEl && !categoryEl.dataset.bound) {
+        categoryEl.dataset.bound = '1';
+        categoryEl.addEventListener('change', renderMcToolsHub);
+    }
+    document.addEventListener('lang:changed', () => {
+        renderMcToolsHub();
+    });
+})();
+
+const SERVER_VERSION_FALLBACK = {
+    paper: ['1.21.4', '1.21.1', '1.20.6', '1.20.4', '1.19.4', '1.18.2'],
+    spigot: ['1.21.4', '1.21.1', '1.20.6', '1.20.4', '1.19.4'],
+    fabric: ['1.21.4', '1.21.1', '1.20.6', '1.20.4', '1.19.4'],
+    forge: ['1.21.1', '1.20.1', '1.19.2', '1.18.2'],
+    vanilla: ['1.21.4', '1.21.1', '1.20.6', '1.20.4', '1.19.4'],
+};
+const serverVersionPayloadByType = {};
+
+function normalizeServerType(raw) {
+    const type = String(raw || '').toLowerCase();
+    if (type === 'paper' || type === 'spigot' || type === 'fabric' || type === 'forge' || type === 'vanilla') return type;
+    return 'paper';
+}
+
+function serverTypeFromPlatform(platform) {
+    const p = String(platform || '').toLowerCase();
+    if (p === 'fabric') return 'fabric';
+    if (p === 'forge') return 'forge';
+    if (p === 'spigot') return 'spigot';
+    if (p === 'vanilla') return 'vanilla';
+    return 'paper';
+}
+
+function renderVersionSelect(selectEl, versions, selectedValue) {
+    const items = Array.isArray(versions) ? versions.filter(Boolean) : [];
+    if (!selectEl) return;
+    if (!items.length) {
+        selectEl.innerHTML = `<option value="1.21.4">1.21.4 (${tr('ui.common.latestOffline', 'Latest - Offline')})</option>`;
+        return;
+    }
+    const preferred = selectedValue && items.includes(selectedValue) ? selectedValue : items[0];
+    selectEl.innerHTML = items.map((v, i) => {
+        const isSelected = v === preferred || (!selectedValue && i === 0);
+        const suffix = i === 0 ? ` (${tr('ui.common.latest', 'Latest')})` : '';
+        return `<option value="${v}"${isSelected ? ' selected' : ''}>${v}${suffix}</option>`;
+    }).join('');
+}
+
+async function refreshServerVersions(type, targetSelect, preferredVersion = '') {
+    const normalizedType = normalizeServerType(type);
+    const fallback = SERVER_VERSION_FALLBACK[normalizedType] || SERVER_VERSION_FALLBACK.paper;
+    let payload = null;
     try {
-        const response = await fetch('https://api.papermc.io/v2/projects/paper');
-        if (!response.ok) throw new Error('API fetch failed');
-        const data = await response.json();
-        const versions = data.versions;
-        if (!versions || versions.length === 0) return;
+        payload = await ipcRenderer.invoke('server:list-versions', normalizedType);
+    } catch (error) {
+        console.warn('server:list-versions failed:', error);
+    }
 
-        // Reverse array to put newest first
-        const sortedVersions = versions.reverse();
+    if (!payload || !Array.isArray(payload.versions) || !payload.versions.length) {
+        payload = {
+            serverType: normalizedType,
+            versions: fallback,
+            defaultVersion: fallback[0],
+            source: 'fallback',
+            fetchedAt: new Date().toISOString(),
+        };
+    }
 
-        const inputSelect = document.getElementById('input-mc-version');
-        const smSelect = document.getElementById('sm-version-select');
+    serverVersionPayloadByType[normalizedType] = payload;
+    renderVersionSelect(targetSelect, payload.versions, preferredVersion || payload.defaultVersion);
+    return payload;
+}
 
-        let html = '';
-        sortedVersions.forEach((v, i) => {
-            html += `<option value="${v}"${i === 0 ? ' selected' : ''}>${v}${i === 0 ? ' (' + tr('ui.common.latest', 'Latest') + ')' : ''}</option>`;
-        });
+async function initializeVersionSelectors() {
+    const smType = document.getElementById('sm-type-select');
+    const smVersion = document.getElementById('sm-version-select');
+    const projectVersion = document.getElementById('input-mc-version');
+    const activePlatform = document.querySelector('.platform-card.active');
+    const platformType = serverTypeFromPlatform(activePlatform?.dataset?.platform || 'paper');
 
-        if (inputSelect) inputSelect.innerHTML = html;
-        if (smSelect) smSelect.innerHTML = html;
-
-    } catch (err) {
-        console.error('Failed to fetch MC versions:', err);
-        const fallbackHTML = `
-            <option value="1.21.4" selected>1.21.4 (${tr('ui.common.latestOffline', 'Latest - Offline')})</option>
-            <option value="1.21.1">1.21.1</option>
-            <option value="1.20.4">1.20.4</option>
-            <option value="1.19.4">1.19.4</option>
-            <option value="1.18.2">1.18.2</option>
-        `;
-        const inputSelect = document.getElementById('input-mc-version');
-        const smSelect = document.getElementById('sm-version-select');
-        if (inputSelect) inputSelect.innerHTML = fallbackHTML;
-        if (smSelect) smSelect.innerHTML = fallbackHTML;
+    if (smType && smVersion) {
+        await refreshServerVersions(smType.value || 'paper', smVersion, smVersion.value || '');
+    }
+    if (projectVersion) {
+        await refreshServerVersions(platformType, projectVersion, projectVersion.value || '');
     }
 }
 
-// İstemci tarafında versiyonları çek (Gecikmeli)
 setTimeout(() => {
-    fetchMinecraftVersions();
+    initializeVersionSelectors();
 }, 500);
 
 // ═══════════════════════════════════════════════════════════
@@ -2554,5 +3043,6 @@ function _analyzeStackTrace(lines) {
 
     showNotification('⚠️ ' + (location ? tr('msg.serverErrorLocation', 'Server error: {type} ({location})', { type: shortType, location }) : tr('msg.serverError', 'Server error: {type}', { type: shortType })), 'error');
 }
+
 
 

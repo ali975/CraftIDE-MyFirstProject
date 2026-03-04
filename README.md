@@ -1,63 +1,66 @@
-# ⛏️ CraftIDE — Minecraft Development Studio
+﻿# CraftIDE
 
-> AI-powered VS Code fork for Minecraft plugin and Skript development
+AI-assisted Minecraft development studio built on Electron + Monaco.
 
-CraftIDE is a specialized IDE built on top of VS Code, designed to make Minecraft plugin development accessible to everyone — from beginners who've never written code to experienced developers who want powerful tooling.
+CraftIDE provides code editor, visual/no-code builders, test server automation, and packaging in one desktop app for Paper/Spigot, Fabric, Forge, and Skript workflows.
 
-## ✨ Features & Architecture
+## What's New (Root Revision Sprint)
 
-- 🚀 **Full Production Pipeline** — CraftIDE is no longer just a code-generator. It's an entire pipeline covering design, validation, packaging, and documentation!
-- 🧠 **Synergistic AI Network (CoreAIManager)** — The AI acts as your partner. It's aware of your active files, visual builder state, and server terminal.
-- 🗣️ **One-Step NL to Code (Text-to-Node)** — Enter natural language, and CraftIDE will automatically map it to a node diagram, compile the code, and build the JAR.
-- 🩹 **Auto-Healing IDE (One-Click Fix)** — The Test Server intercepts Java crash logs and passes them directly to the AI, creating guaranteed one-click fixes for broken code!
-- 🎨 **Enhanced Visual Plugin Builder** — Drag & drop node-based creation for Paper, Fabric, Forge, and Skript with undo/redo (Ctrl+Z/Y), friendly block labels, and behavior panels.
-- 🛠️ **Dedicated Content Designers** — Specialized tools for Mob Design, Scoreboard/HUD, Config Editing, Custom Recipes, Partical Canvas, and NPC Dialogue Generation.
-- 🧪 **Integrated Test Server & Offline Fallback** — Download, run, and test servers with one click. Strong offline-first capabilities for local environments.
-- 📚 **Live API Reference & 30+ Templates** — Need help with a block? Click '💡'. Or just load one of our 30+ ready-to-use template blueprints from the Marketplace!
+- Visual Builder top region is now vertically resizable (`84px` to `360px`) with persisted height (`craftide.vb.topRegionHeight`).
+- Visual Builder toolbar was redesigned to single-line priority actions + `More` menu for secondary actions.
+- Empty-canvas pan supports `Left Mouse Drag` (plus legacy `Middle Mouse` and `Alt+Left` compatibility).
+- `Browse Templates` button and templates modal integration were fixed.
+- 12 new Visual Builder templates added across Plugin/Fabric/Forge/Skript.
+- Visual Builder EN/TR dynamic i18n coverage expanded for toolbar/no-code UI/node parameter labels.
+- New centralized keyboard shortcut system added:
+  - global + context registry,
+  - conflict warning,
+  - per-command reset + reset-all,
+  - settings UI integration.
+- Explorer `New File / New Folder` was rebuilt with in-app quick create (no browser `prompt()` dependency).
+- Image Editor critical parse/runtime break was fixed; init/open/draw/save flow stabilized.
+- Test Server version list became dynamic by server type via IPC `server:list-versions` with cache + fallback.
+- Triangle sidebar icon now opens dedicated `Minecraft Tools Hub` page (`mc-tools://`).
 
-## 🚀 Getting Started
+## Feature Highlights
+
+- Visual Builder for node-based plugin/mod/script logic.
+- No-code extension layer with validation and behavior packs.
+- Integrated test server manager for local workflow.
+- Image editor and additional Minecraft tool pages.
+- Dynamic EN/TR localization system.
+
+## Build and Run
 
 ```bash
-# Clone the repository
-git clone https://github.com/craftide/craftide.git
-cd craftide
-
-# Install dependencies
+git clone https://github.com/ali975/CraftIDE-MyFirstProject.git
+cd CraftIDE-MyFirstProject/craftide
 npm install
-
-# Start development
 npm run dev
+```
 
-# Build final executable
+Build distributable:
+
+```bash
 npm run dist
 ```
 
-## 📦 Extensions (Internal Context)
+Main output:
 
-| Extension | Description |
-|-----------|-------------|
-| `craftide-core` | Theme, welcome view, base utilities |
-| `craftide-ai` | Synergistic AI Agent system |
-| `craftide-minecraft` | Project templates, API reference, Skript support |
-| `craftide-visual` | Visual plugin builder, AST compiler |
-| `craftide-testserver` | Embedded Minecraft test server |
+- `release/CraftIDE Setup 0.2.0.exe`
+- `release/CraftIDE 0.2.0.exe`
 
-## 🌍 Internationalization
-CraftIDE supports multiple languages via the internal engine, defaulting to English.
+## Release/Distribution Rule
 
-## 🚀 About the Project
-This project is a Windows application built to make Minecraft development accessible to literally anyone. It provides a purely functional environment where you can create custom **plugins, mods, and scripts without needing to know a single line of code**.
+Per project rule, run `npm run dist` after each main update package before publishing release artifacts.
 
-* **Core Purpose:** I wanted to completely remove the technical hurdles of syntax and rote memorization. This way, you can focus on what actually matters: your creative ideas and the logical design behind your gameplay mechanics.
-* **Development & Future:** I've been developing this independently for quite some time, focusing heavily on making the user experience as smooth and structured as possible. This is an actively maintained passion project! I'm fully committed to constantly releasing updates, tweaking the mechanics, and adding new features to keep it a tool you can rely on.
+## Repository Structure (Core)
 
-## 👨‍💻 About the Developer
-Hi! I'm a university student in Turkey, currently studying Mathematics Education. More than anything, I have a massive passion for building cool, meaningful tools and systems from absolute scratch.
+- `src/main` Electron main process + IPC
+- `src/renderer` UI, Visual Builder, editor integrations
+- `release` generated installer/artifacts
+- `tests` unit tests
 
-* **My Drive:** Being a student comes with its own set of financial constraints and everyday challenges, but despite the limited resources, I'm fiercely dedicated to bringing this project to life.
-* **My Philosophy:** I see software development a lot like mathematics—it's not just a bunch of rigid rules to memorize, but a playground for logical exploration and building things piece by piece.
+## License
 
-This repository might not have thousands of stars (yet!), but it represents my deep commitment to learning, solving problems, and creating things people can enjoy. I'm always super open to feedback, ideas, or contributions!
-
-## 📄 License
-MIT License.
+MIT

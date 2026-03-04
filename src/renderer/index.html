@@ -395,6 +395,7 @@
                 <!-- Visual Builder Container (Tab View) -->
                 <div class="editor-container" id="visual-builder-container"
                     style="display:none; flex-direction:column; height:100%; background:var(--bg-primary);">
+                    <div class="vb-top-region" id="vb-top-region">
                     <!-- Visual Builder Toolbar -->
                     <div class="vb-toolbar">
                         <div class="vb-toolbar-left">
@@ -409,22 +410,22 @@
                             <span class="vb-toolbar-hint" style="margin-left:8px;" data-i18n="ui.vb.hint">Right click →
                                 Add block | Drag ports → Connect | Right click on connection → Delete</span>
                         </div>
-                        <div class="vb-toolbar-right">
-                            <button class="vb-toolbar-btn" id="btn-vb-save" title="Save blueprint (.vbp)">💾
+                        <div class="vb-toolbar-right" id="vb-toolbar-right">
+                            <button class="vb-toolbar-btn" id="btn-vb-save" title="Save blueprint (.vbp)" data-vb-primary="1">💾
                                 Save</button>
-                            <button class="vb-toolbar-btn" id="btn-vb-load" title="Load blueprint (.vbp)">📂
+                            <button class="vb-toolbar-btn" id="btn-vb-load" title="Load blueprint (.vbp)" data-vb-primary="1">📂
                                 Load</button>
-                            <button class="vb-toolbar-btn" id="btn-vb-templates" title="Templates">
+                            <button class="vb-toolbar-btn" id="btn-vb-templates" title="Templates" data-vb-primary="1">
                                 📋 Templates
                             </button>
-                            <button class="vb-toolbar-btn" id="btn-vb-generate" title="Generate Code">
+                            <button class="vb-toolbar-btn" id="btn-vb-generate" title="Generate Code" data-vb-primary="1">
                                 <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
                                     <path
                                         d="M4.708 5.578L2.061 8.224l2.647 2.646-.708.708L.293 7.87l.354-.354 3-3 .707.708-.646.354zM11.292 5.578L13.939 8.224l-2.647 2.646.708.708L15.707 7.87l-.354-.354-3-3-.707.708.646.354zM7.293 13.721l1.414-1.415.293.293-2.122 2.121-.707-.707 4.243-12.02.707.707L7.293 13.72z" />
                                 </svg>
                                 Generate Code
                             </button>
-                            <button class="vb-toolbar-btn danger" id="btn-vb-clear" title="Clear all blocks">
+                            <button class="vb-toolbar-btn danger" id="btn-vb-clear" title="Clear all blocks" data-vb-primary="1">
                                 <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
                                     <path
                                         d="M5.5 5.5A.5.5 0 016 6v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5zm2.5 0a.5.5 0 01.5.5v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5zm3 .5a.5.5 0 00-1 0v6a.5.5 0 001 0V6z" />
@@ -435,14 +436,20 @@
                             </button>
                             <button class="vb-toolbar-btn" id="btn-vb-deploy"
                                 title="Generate code, build and deploy to test server"
-                                style="background:rgba(46,204,113,0.15);border-color:#2ecc71;color:#2ecc71;">
+                                style="background:rgba(46,204,113,0.15);border-color:#2ecc71;color:#2ecc71;" data-vb-primary="1">
                                 &#9654; Build &amp; Test
                             </button>
-                            <label class="vb-debug-toggle" title="Show server events live in VB">
+                            <label class="vb-debug-toggle" title="Show server events live in VB" data-vb-primary="1">
                                 <input type="checkbox" id="vb-debug-mode"> Debug
                             </label>
+                            <div class="vb-toolbar-more-wrap" id="vb-toolbar-more-wrap">
+                                <button class="vb-toolbar-btn" id="btn-vb-more" title="More actions" data-i18n="ui.vb.more">More</button>
+                                <div class="vb-toolbar-more-menu" id="vb-toolbar-more-menu"></div>
+                            </div>
                         </div>
                     </div>
+                    </div>
+                    <div class="vb-top-resizer" id="vb-top-resizer" title="Resize Visual Builder Top Area"></div>
                     <!-- Canvas Area for Visual Builder -->
                     <div class="vb-canvas-area" style="flex:1; position:relative; overflow:hidden;"
                         id="visual-builder-canvas-wrapper">
@@ -492,6 +499,26 @@
                 <!-- Pixel Art Image Editor Container -->
                 <div class="editor-container" id="image-editor-container"
                     style="display:none; height:100%; position:relative; overflow:hidden;"></div>
+
+                <!-- Minecraft Tools Hub Container -->
+                <div class="editor-container" id="mc-tools-hub-container"
+                    style="display:none; height:100%; flex-direction:column; background:var(--bg-primary);">
+                    <div class="mc-hub-header">
+                        <h1 data-i18n="ui.mchub.title">Minecraft Tools Hub</h1>
+                        <p data-i18n="ui.mchub.desc">Open tools quickly with search, categories and one-click actions.</p>
+                    </div>
+                    <div class="mc-hub-controls">
+                        <input id="mc-hub-search" type="text" data-i18n-placeholder="ui.mchub.search"
+                            placeholder="Search tools..." />
+                        <select id="mc-hub-category">
+                            <option value="all" data-i18n="ui.mchub.cat.all">All</option>
+                            <option value="builder" data-i18n="ui.mchub.cat.builder">Builders</option>
+                            <option value="server" data-i18n="ui.mchub.cat.server">Server</option>
+                            <option value="integrations" data-i18n="ui.mchub.cat.integrations">Integrations</option>
+                        </select>
+                    </div>
+                    <div class="mc-hub-grid" id="mc-hub-grid"></div>
+                </div>
 
                 <!-- GUI Builder Container -->
                 <div class="editor-container" id="gui-builder-container"
@@ -823,6 +850,14 @@
                                         <option value="tr">Türkçe</option>
                                     </select>
                                 </div>
+                            </div>
+                            <div class="setting-group">
+                                <h3 data-i18n="ui.shortcuts.title">Keyboard Shortcuts</h3>
+                                <p class="setting-help" data-i18n="ui.shortcuts.desc">Customize command shortcuts. Context shortcuts override global shortcuts.</p>
+                                <div class="shortcuts-toolbar">
+                                    <button class="btn-secondary" id="btn-shortcuts-reset-all" data-i18n="ui.shortcuts.resetAll">Reset All</button>
+                                </div>
+                                <div class="shortcuts-list" id="shortcuts-list"></div>
                             </div>
                         </div>
                     </div>

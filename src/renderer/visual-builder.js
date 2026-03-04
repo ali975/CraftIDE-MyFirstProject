@@ -319,6 +319,186 @@ const VB_TEMPLATES = [
             { from: 0, to: 2 },
         ],
     },
+    {
+        id: 'plugin_welcome_kit',
+        name: '📦 Plugin Welcome Kit',
+        desc: 'Welcome message, starter item and sound on first join flow',
+        mode: 'plugin',
+        nodes: [
+            { blockId: 'PlayerJoin', x: 80, y: 120 },
+            { blockId: 'SendMessage', x: 320, y: 80, params: { mesaj: '&aWelcome! Enjoy your starter kit.' } },
+            { blockId: 'GiveItem', x: 320, y: 180, params: { material: 'BREAD', adet: '8' } },
+            { blockId: 'PlaySound', x: 560, y: 120, params: { ses: 'ENTITY_PLAYER_LEVELUP' } },
+        ],
+        connections: [
+            { from: 0, to: 1 },
+            { from: 0, to: 2 },
+            { from: 0, to: 3 },
+        ],
+    },
+    {
+        id: 'plugin_home_command',
+        name: '🏠 Plugin Home Command',
+        desc: 'Simple /home teleport command with confirmation message',
+        mode: 'plugin',
+        nodes: [
+            { blockId: 'PlayerCommand', x: 80, y: 120, params: { command: '/home' } },
+            { blockId: 'CommandEquals', x: 320, y: 80, params: { cmd: '/home' } },
+            { blockId: 'Teleport', x: 560, y: 80, params: { x: '100', y: '64', z: '100' } },
+            { blockId: 'SendMessage', x: 560, y: 180, params: { mesaj: '&aTeleported to home.' } },
+            { blockId: 'CancelEvent', x: 320, y: 200, params: {} },
+        ],
+        connections: [
+            { from: 0, to: 1 },
+            { from: 1, to: 2 },
+            { from: 1, to: 3 },
+            { from: 0, to: 4 },
+        ],
+    },
+    {
+        id: 'plugin_auto_broadcast',
+        name: '📢 Plugin Auto Broadcast',
+        desc: 'Repeating server tips broadcast',
+        mode: 'plugin',
+        nodes: [
+            { blockId: 'ServerLoad', x: 80, y: 120 },
+            { blockId: 'RepeatTask', x: 320, y: 120, params: { baslangic: '20', aralik: '1200' } },
+            { blockId: 'Broadcast', x: 560, y: 120, params: { mesaj: '&eTip: Use /spawn to go back to center.' } },
+        ],
+        connections: [
+            { from: 0, to: 1 },
+            { from: 1, to: 2 },
+        ],
+    },
+    {
+        id: 'plugin_death_penalty',
+        name: '💀 Plugin Death Penalty',
+        desc: 'On death, warn player and reset health after a short delay',
+        mode: 'plugin',
+        nodes: [
+            { blockId: 'PlayerDeath', x: 80, y: 120 },
+            { blockId: 'SendMessage', x: 320, y: 80, params: { mesaj: '&cYou died and lost your streak!' } },
+            { blockId: 'Delay', x: 320, y: 180, params: { tick: '40' } },
+            { blockId: 'SetHealth', x: 560, y: 180, params: { can: '20' } },
+        ],
+        connections: [
+            { from: 0, to: 1 },
+            { from: 0, to: 2 },
+            { from: 2, to: 3 },
+        ],
+    },
+    {
+        id: 'fabric_join_reward',
+        name: '🧵 Fabric Join Reward',
+        desc: 'Send message and reward item on Fabric player join',
+        mode: 'fabric',
+        nodes: [
+            { blockId: 'FabricPlayerJoin', x: 80, y: 120 },
+            { blockId: 'FabricSendMsg', x: 320, y: 80, params: { mesaj: 'Welcome to the Fabric server!' } },
+            { blockId: 'FabricGiveItem', x: 320, y: 180, params: { item: 'minecraft:bread', adet: '4' } },
+        ],
+        connections: [
+            { from: 0, to: 1 },
+            { from: 0, to: 2 },
+        ],
+    },
+    {
+        id: 'fabric_break_alert',
+        name: '🧵 Fabric Break Alert',
+        desc: 'Alert all players when a block is broken',
+        mode: 'fabric',
+        nodes: [
+            { blockId: 'FabricBlockBreak', x: 80, y: 120 },
+            { blockId: 'FabricBroadcast', x: 320, y: 120, params: { mesaj: 'A block was broken nearby.' } },
+        ],
+        connections: [{ from: 0, to: 1 }],
+    },
+    {
+        id: 'fabric_scheduled_tip',
+        name: '🧵 Fabric Scheduled Tip',
+        desc: 'Start periodic tip broadcast when server starts',
+        mode: 'fabric',
+        nodes: [
+            { blockId: 'FabricServerStart', x: 80, y: 120 },
+            { blockId: 'FabricSchedule', x: 320, y: 120, params: { tick: '1200' } },
+            { blockId: 'FabricBroadcast', x: 560, y: 120, params: { mesaj: 'Tip: Keep your spawn area protected.' } },
+        ],
+        connections: [
+            { from: 0, to: 1 },
+            { from: 1, to: 2 },
+        ],
+    },
+    {
+        id: 'forge_login_message',
+        name: '🔨 Forge Login Message',
+        desc: 'Send a custom message when Forge player logs in',
+        mode: 'forge',
+        nodes: [
+            { blockId: 'ForgePlayerLogin', x: 80, y: 120 },
+            { blockId: 'ForgeSendMsg', x: 320, y: 120, params: { mesaj: 'Forge systems online. Welcome!' } },
+        ],
+        connections: [{ from: 0, to: 1 }],
+    },
+    {
+        id: 'forge_guardian_spawn',
+        name: '🔨 Forge Guardian Spawn',
+        desc: 'When block breaks, cancel and warn with guardian zone message',
+        mode: 'forge',
+        nodes: [
+            { blockId: 'ForgeBreak', x: 80, y: 120 },
+            { blockId: 'ForgeCancelEvent', x: 320, y: 80, params: {} },
+            { blockId: 'ForgeSendMsg', x: 320, y: 180, params: { mesaj: 'This zone is guarded. Breaking denied.' } },
+        ],
+        connections: [
+            { from: 0, to: 1 },
+            { from: 0, to: 2 },
+        ],
+    },
+    {
+        id: 'skript_warp_command',
+        name: '📜 Skript Warp Command',
+        desc: 'Create a /warp command that teleports player and confirms',
+        mode: 'skript',
+        nodes: [
+            { blockId: 'SkCommand', x: 80, y: 120, params: { komut: '/warp' } },
+            { blockId: 'SkTeleport', x: 320, y: 80, params: { x: '200', y: '70', z: '200' } },
+            { blockId: 'SkSendMsg', x: 320, y: 200, params: { mesaj: '&aWarped to destination.' } },
+        ],
+        connections: [
+            { from: 0, to: 1 },
+            { from: 0, to: 2 },
+        ],
+    },
+    {
+        id: 'skript_daily_reward',
+        name: '📜 Skript Daily Reward',
+        desc: 'Timed reward reminder and variable increment',
+        mode: 'skript',
+        nodes: [
+            { blockId: 'SkScheduleRepeat', x: 80, y: 120, params: { aralik: '1 day' } },
+            { blockId: 'SkBroadcast', x: 320, y: 80, params: { mesaj: '&eDaily reward is now available!' } },
+            { blockId: 'SkVarAdd', x: 320, y: 190, params: { miktar: '1', degisken: '{dailyRewards}' } },
+        ],
+        connections: [
+            { from: 0, to: 1 },
+            { from: 0, to: 2 },
+        ],
+    },
+    {
+        id: 'skript_chat_filter',
+        name: '📜 Skript Chat Filter',
+        desc: 'Cancel chat and notify player with simple moderation flow',
+        mode: 'skript',
+        nodes: [
+            { blockId: 'SkChat', x: 80, y: 120 },
+            { blockId: 'SkCancel', x: 320, y: 80, params: {} },
+            { blockId: 'SkSendMsg', x: 320, y: 180, params: { mesaj: '&cPlease avoid forbidden words in chat.' } },
+        ],
+        connections: [
+            { from: 0, to: 1 },
+            { from: 0, to: 2 },
+        ],
+    },
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -338,6 +518,113 @@ let vbCurrentMode = 'plugin';
 let vbViewOffset = { x: 0, y: 0 };
 let vbPanning = false;
 let vbPanStart = { x: 0, y: 0 };
+
+const VB_PARAM_LABEL_KEYS = {
+    command: 'ui.vb.param.command',
+    cmd: 'ui.vb.param.cmd',
+    komut: 'ui.vb.param.command',
+    message: 'ui.vb.param.message',
+    mesaj: 'ui.vb.param.mesaj',
+    item: 'ui.vb.param.item',
+    material: 'ui.vb.param.material',
+    amount: 'ui.vb.param.amount',
+    adet: 'ui.vb.param.adet',
+    count: 'ui.vb.param.count',
+    permission: 'ui.vb.param.permission',
+    perm: 'ui.vb.param.permission',
+    world: 'ui.vb.param.world',
+    reason: 'ui.vb.param.reason',
+    sebep: 'ui.vb.param.reason',
+    sound: 'ui.vb.param.sound',
+    ses: 'ui.vb.param.ses',
+    mode: 'ui.vb.param.mode',
+    mod: 'ui.vb.param.mode',
+    x: 'ui.vb.param.x',
+    y: 'ui.vb.param.y',
+    z: 'ui.vb.param.z',
+    key: 'ui.vb.param.key',
+    value: 'ui.vb.param.value',
+    deger: 'ui.vb.param.value',
+    name: 'ui.vb.param.name',
+    variable: 'ui.vb.param.variable',
+    degisken: 'ui.vb.param.variable',
+    delay: 'ui.vb.param.delay',
+    tick: 'ui.vb.param.tick',
+    slot: 'ui.vb.param.slot',
+    inventory: 'ui.vb.param.inventory',
+    envanter: 'ui.vb.param.inventory',
+    entity: 'ui.vb.param.entity',
+    entitytype: 'ui.vb.param.type',
+    type: 'ui.vb.param.type',
+    start: 'ui.vb.param.start',
+    baslangic: 'ui.vb.param.start',
+    interval: 'ui.vb.param.interval',
+    aralik: 'ui.vb.param.interval',
+    title: 'ui.vb.param.title',
+    baslik: 'ui.vb.param.title',
+    subtitle: 'ui.vb.param.subtitle',
+    alt: 'ui.vb.param.subtitle',
+};
+
+function vbTr(key, fallback, params) {
+    if (window.Lang && typeof window.Lang.t === 'function') {
+        return window.Lang.t(key, params || {});
+    }
+    if (!fallback) return key;
+    if (!params) return fallback;
+    return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), fallback);
+}
+
+function normalizeParamKey(name) {
+    const raw = String(name || '').trim();
+    const plain = raw.toLowerCase()
+        .replace(/[ş]/g, 's')
+        .replace(/[ı]/g, 'i')
+        .replace(/[ç]/g, 'c')
+        .replace(/[ğ]/g, 'g')
+        .replace(/[ö]/g, 'o')
+        .replace(/[ü]/g, 'u');
+    return plain.replace(/[^a-z0-9]/g, '');
+}
+
+function humanizeParamName(name) {
+    const text = String(name || '');
+    if (!text) return '';
+    const spaced = text
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_\-]+/g, ' ');
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function getParamLabel(paramName) {
+    const normalized = normalizeParamKey(paramName);
+    const key = VB_PARAM_LABEL_KEYS[normalized];
+    if (key) {
+        return vbTr(key, humanizeParamName(paramName));
+    }
+    return humanizeParamName(paramName);
+}
+
+function refreshNodesLanguage() {
+    const defs = getCurrentBlockDefs();
+    vbNodes.forEach((node) => {
+        const def = defs[node.blockId];
+        if (!def) return;
+        node.label = def.label;
+        const el = document.getElementById('vb-node-' + node.id);
+        if (!el) return;
+        const title = el.querySelector('.vb-node-header > span');
+        if (title) title.textContent = node.label;
+        el.querySelectorAll('.vb-param-label').forEach((labelEl) => {
+            const name = labelEl.dataset.paramName || '';
+            labelEl.textContent = getParamLabel(name);
+        });
+        el.querySelectorAll('input[data-param-name], select[data-param-name]').forEach((inputEl) => {
+            const name = inputEl.dataset.paramName || '';
+            if (inputEl.tagName === 'INPUT') inputEl.placeholder = getParamLabel(name);
+        });
+    });
+}
 
 function getCurrentBlockDefs() {
     return ALL_BLOCK_DEFS[vbCurrentMode] || ALL_BLOCK_DEFS.plugin;
@@ -366,13 +653,17 @@ function initVisualBuilder() {
         }
     });
 
-    // Middle mouse / Alt+drag to pan
+    area.style.cursor = 'grab';
+
+    // Empty canvas drag / middle mouse / Alt+drag to pan
     area.addEventListener('mousedown', (e) => {
         if (e.target === area || e.target === canvas) {
             selectNode(null);
-            if (e.button === 1 || (e.button === 0 && e.altKey)) {
+            const isPanGesture = e.button === 1 || e.button === 0 || (e.button === 0 && e.altKey);
+            if (isPanGesture) {
                 vbPanning = true;
                 vbPanStart = { x: e.clientX - vbViewOffset.x, y: e.clientY - vbViewOffset.y };
+                area.style.cursor = 'grabbing';
                 e.preventDefault();
             }
         }
@@ -411,13 +702,24 @@ function initVisualBuilder() {
         modeSelect.addEventListener('change', () => {
             vbCurrentMode = modeSelect.value;
             rebuildContextMenu();
+            refreshNodesLanguage();
         });
     }
 
     // Templates button
     document.getElementById('btn-vb-templates')?.addEventListener('click', showTemplatesModal);
+    document.getElementById('btn-vb-templates')?.addEventListener('mousedown', (e) => e.stopPropagation());
     document.getElementById('btn-vb-load-template-hint')?.addEventListener('click', showTemplatesModal);
+    document.getElementById('btn-vb-load-template-hint')?.addEventListener('mousedown', (e) => e.stopPropagation());
     document.getElementById('vb-templates-close')?.addEventListener('click', hideTemplatesModal);
+
+    if (!document.body.dataset.vbLangBound) {
+        document.body.dataset.vbLangBound = '1';
+        document.addEventListener('lang:changed', () => {
+            refreshNodesLanguage();
+            buildTemplateGrid();
+        });
+    }
 
     // Build template grid
     buildTemplateGrid();
@@ -585,7 +887,12 @@ function refreshNodeInputs(node) {
         const name = inp.dataset.paramName;
         if (name && node.params[name] !== undefined) {
             inp.value = node.params[name];
+            if (inp.tagName === 'INPUT') inp.placeholder = getParamLabel(name);
         }
+    });
+    el.querySelectorAll('.vb-param-label').forEach((labelEl) => {
+        const name = labelEl.dataset.paramName || '';
+        labelEl.textContent = getParamLabel(name);
     });
 }
 
@@ -690,8 +997,10 @@ function renderNode(node) {
         body.className = 'vb-node-body';
         for (const p of def.params) {
             const lbl = document.createElement('div');
+            lbl.className = 'vb-param-label';
+            lbl.dataset.paramName = p.n;
             lbl.style.cssText = 'font-size:10px;color:#8b949e;margin-top:4px;';
-            lbl.textContent = p.n;
+            lbl.textContent = getParamLabel(p.n);
             body.appendChild(lbl);
 
             if (p.t === 'select' && p.opts) {
@@ -709,7 +1018,7 @@ function renderNode(node) {
                 const inp = document.createElement('input');
                 inp.type = p.t === 'number' ? 'number' : 'text';
                 inp.value = node.params[p.n] || '';
-                inp.placeholder = p.n;
+                inp.placeholder = getParamLabel(p.n);
                 inp.dataset.paramName = p.n;
                 inp.addEventListener('input', () => { node.params[p.n] = inp.value; });
                 body.appendChild(inp);
@@ -782,12 +1091,18 @@ function selectNode(id) {
     }
 }
 
+function deleteSelectedNode() {
+    if (vbSelectedNode) deleteNode(vbSelectedNode);
+}
+
 // ═══════════════════════════════════════════════════════════
 // Mouse Events
 // ═══════════════════════════════════════════════════════════
 
 document.addEventListener('mousemove', (e) => {
     if (vbPanning) {
+        const area = document.getElementById('visual-builder-canvas-wrapper');
+        if (area) area.style.cursor = 'grabbing';
         vbViewOffset = { x: e.clientX - vbPanStart.x, y: e.clientY - vbPanStart.y };
         // Move all nodes
         vbNodes.forEach(node => {
@@ -817,7 +1132,9 @@ document.addEventListener('mousemove', (e) => {
 });
 
 document.addEventListener('mouseup', (e) => {
+    const area = document.getElementById('visual-builder-canvas-wrapper');
     vbPanning = false;
+    if (area) area.style.cursor = 'grab';
 
     if (vbConnecting) {
         const target = document.elementFromPoint(e.clientX, e.clientY);
@@ -1675,6 +1992,10 @@ window.CraftIDEVB = {
     getConnections: () => vbConnections,
     getDefinitions: () => ALL_BLOCK_DEFS,
     getTemplates: () => [...VB_TEMPLATES],
+    showTemplatesModal,
+    hideTemplatesModal,
+    loadTemplate,
+    deleteSelectedNode,
     addTemplates: (templates) => {
         const arr = Array.isArray(templates) ? templates : [];
         let added = 0;

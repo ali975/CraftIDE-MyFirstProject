@@ -16,8 +16,101 @@ interface ServerState {
     serverDir: string;
 }
 
+type SupportedServerType = 'paper' | 'spigot' | 'fabric' | 'forge' | 'vanilla';
+
+interface ServerVersionPayload {
+    serverType: SupportedServerType;
+    versions: string[];
+    defaultVersion: string;
+    source: string;
+    fetchedAt: string;
+}
+
 let serverProcess: ChildProcess | null = null;
 let serverState: ServerState = { status: 'stopped', mcVersion: '1.21.11', serverDir: '' };
+const VERSION_CACHE_MS = 5 * 60 * 1000;
+const versionCache = new Map<SupportedServerType, { at: number; payload: ServerVersionPayload }>();
+const VERSION_FALLBACK: Record<SupportedServerType, string[]> = {
+    paper: ['1.21.4', '1.21.1', '1.20.6', '1.20.4', '1.19.4'],
+    spigot: ['1.21.4', '1.21.1', '1.20.6', '1.20.4', '1.19.4'],
+    fabric: ['1.21.4', '1.21.1', '1.20.6', '1.20.4', '1.19.4'],
+    forge: ['1.21.1', '1.20.1', '1.19.2', '1.18.2'],
+    vanilla: ['1.21.4', '1.21.1', '1.20.6', '1.20.4', '1.19.4'],
+};
+
+function normalizeServerType(raw: string | undefined): SupportedServerType {
+    const type = String(raw || '').toLowerCase();
+    if (type === 'paper' || type === 'spigot' || type === 'fabric' || type === 'forge' || type === 'vanilla') {
+        return type;
+    }
+    return 'paper';
+}
+
+function compareVersionDesc(a: string, b: string): number {
+    const pa = a.split('.').map((x) => Number.parseInt(x, 10) || 0);
+    const pb = b.split('.').map((x) => Number.parseInt(x, 10) || 0);
+    const max = Math.max(pa.length, pb.length);
+    for (let i = 0; i < max; i += 1) {
+        const diff = (pb[i] || 0) - (pa[i] || 0);
+        if (diff !== 0) return diff;
+    }
+    return 0;
+}
+
+function sanitizeVersionList(list: unknown[]): string[] {
+    return Array.from(new Set((list || [])
+        .map((v) => String(v || '').trim())
+        .filter((v) => /^\d+\.\d+(\.\d+)?$/.test(v)))).sort(compareVersionDesc);
+}
+
+function makeVersionPayload(serverType: SupportedServerType, versions: string[], source: string): ServerVersionPayload {
+    const clean = sanitizeVersionList(versions);
+    const finalVersions = clean.length ? clean : VERSION_FALLBACK[serverType];
+    return {
+        serverType,
+        versions: finalVersions,
+        defaultVersion: finalVersions[0],
+        source,
+        fetchedAt: new Date().toISOString(),
+    };
+}
+
+async function fetchVersionPayload(serverType: SupportedServerType): Promise<ServerVersionPayload> {
+    const cached = versionCache.get(serverType);
+    if (cached && (Date.now() - cached.at) < VERSION_CACHE_MS) {
+        return cached.payload;
+    }
+
+    let payload: ServerVersionPayload;
+    try {
+        if (serverType === 'paper' || serverType === 'spigot') {
+            const data = await fetchJson('https://api.papermc.io/v2/projects/paper');
+            payload = makeVersionPayload(serverType, data?.versions || [], 'papermc');
+        } else if (serverType === 'fabric') {
+            const data = await fetchJson('https://meta.fabricmc.net/v2/versions/game');
+            const versions = Array.isArray(data) ? data.filter((x: any) => x?.stable !== false).map((x: any) => x.version) : [];
+            payload = makeVersionPayload(serverType, versions, 'fabric-meta');
+        } else if (serverType === 'forge') {
+            const promos = await fetchJson('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
+            const keys = Object.keys(promos?.promos || {});
+            const versions = keys
+                .filter((k) => /-(latest|recommended)$/.test(k))
+                .map((k) => k.replace(/-(latest|recommended)$/, ''));
+            payload = makeVersionPayload(serverType, versions, 'forge-promotions');
+        } else {
+            const manifest = await fetchJson('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json');
+            const versions = Array.isArray(manifest?.versions)
+                ? manifest.versions.filter((x: any) => x?.type === 'release').map((x: any) => x.id)
+                : [];
+            payload = makeVersionPayload(serverType, versions, 'mojang-manifest');
+        }
+    } catch (error) {
+        payload = makeVersionPayload(serverType, VERSION_FALLBACK[serverType], 'fallback');
+    }
+
+    versionCache.set(serverType, { at: Date.now(), payload });
+    return payload;
+}
 
 function downloadFile(url: string, dest: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -60,6 +153,10 @@ function fetchJson(url: string): Promise<any> {
 }
 
 export function registerTestServerHandlers(mainWindow: BrowserWindow): void {
+    ipcMain.handle('server:list-versions', async (_, rawType?: string) => {
+        const serverType = normalizeServerType(rawType);
+        return fetchVersionPayload(serverType);
+    });
 
     // Sunucu başlat
     ipcMain.handle('server:start', async (_, options: { mcVersion: string; serverDir: string; serverType?: string; javaPath?: string }) => {

@@ -677,6 +677,7 @@
     function onKeyDown(e) {
         const container = document.getElementById('image-editor-container');
         if (!container || container.style.display === 'none') return;
+        if (e.defaultPrevented) return;
         // Monaco editörü aktifse işleme
         if (document.activeElement && document.activeElement.closest('.monaco-editor')) return;
 
@@ -719,7 +720,14 @@
             const fs = require('fs');
             fs.writeFileSync(currentImagePath, buffer);
             isDirty = false;
-            if (window.showNotification) window.showNotification(`${typeof tr === 'function' ? tr('msg.imageSaved', 'Saved: {name}', { name: currentImagePath.split(/[/\\]/).pop()}`, 'success');
+            if (window.showNotification) {
+                window.showNotification(
+                    typeof tr === 'function'
+                        ? tr('msg.imageSaved', 'Saved: {name}', { name: currentImagePath.split(/[/\\]/).pop() })
+                        : `Saved: ${currentImagePath.split(/[/\\]/).pop()}`,
+                    'success'
+                );
+            }
         } catch (err) {
             console.error('[ImageEditor] Kaydetme hatası:', err);
             if (window.showNotification) window.showNotification(typeof tr === 'function' ? tr('msg.imageSaveError', 'Error: Could not save — ' + err.message, { error: err.message }) : 'Save error: ' + err.message, 'error');
@@ -788,8 +796,14 @@
             isDirty = false; // yeni yüklenen dosya temiz
             render();
             updateStatus();
-            if (window.showNotification)
-                window.showNotification(`Yüklendi: ${filePath.split(/[/\\]/).pop()} (${canvasW}×${canvasH})`, 'success');
+                if (window.showNotification) {
+                    window.showNotification(
+                        typeof tr === 'function'
+                            ? tr('msg.imageLoaded', 'Loaded: {name} ({size})', { name: filePath.split(/[/\\]/).pop(), size: `${canvasW}×${canvasH}` })
+                            : `Loaded: ${filePath.split(/[/\\]/).pop()} (${canvasW}×${canvasH})`,
+                        'success'
+                    );
+                }
         } catch (err) {
             console.error('[ImageEditor] Yükleme hatası:', err);
             if (window.showNotification)

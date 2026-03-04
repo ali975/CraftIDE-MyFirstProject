@@ -94,6 +94,12 @@
 
     function normalizeMode(raw) { return MODE_ALIAS[String(raw || '').toLowerCase()] || 'plugin'; }
     function getMode() { return normalizeMode(window.CraftIDEVB?.getMode?.() || 'plugin'); }
+    function t(key, fallback, params) {
+        if (window.Lang && typeof window.Lang.t === 'function') return window.Lang.t(key, params || {});
+        if (!fallback) return key;
+        if (!params) return fallback;
+        return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), fallback);
+    }
     function notify(msg, type = 'info') { window.CraftIDEAppState?.showNotification ? window.CraftIDEAppState.showNotification(msg, type) : console.log(msg); }
     function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
     function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
@@ -196,10 +202,10 @@
 
         const body = document.getElementById('nc-validator-body');
         if (!body) return result;
-        const lines = [`<div class="nc-row"><strong>Validation:</strong> ${result.errors.length} error(s), ${result.warnings.length} warning(s)</div>`];
+        const lines = [`<div class="nc-row"><strong>${esc(t('ui.nc.validate', 'Validate'))}:</strong> ${result.errors.length} error(s), ${result.warnings.length} warning(s)</div>`];
         for (const e of result.errors.slice(0, 4)) lines.push(`<div class="nc-row err">E: ${esc(e.message)}</div>`);
         for (const w of result.warnings.slice(0, 6)) lines.push(`<div class="nc-row warn">W: ${esc(w.message)}</div>`);
-        if (!result.errors.length && !result.warnings.length) lines.push('<div class="nc-row ok">Graph looks good.</div>');
+        if (!result.errors.length && !result.warnings.length) lines.push(`<div class="nc-row ok">${esc(t('ui.nc.validationReady', 'Validation panel initialized.'))}</div>`);
         body.innerHTML = lines.join('');
         return result;
     }
@@ -292,7 +298,7 @@
 
         const suggestions = suggestionsForGraph(graph);
         if (!suggestions.length) {
-            body.innerHTML = '<div class="nc-row ok">No immediate issues detected.</div>';
+            body.innerHTML = `<div class="nc-row ok">${esc(t('ui.nc.suggestionReady', 'Suggestion engine initialized.'))}</div>`;
             return;
         }
         body.innerHTML = suggestions.map((s) => `<div class="nc-row ${s.level === 'warn' ? 'warn' : ''}">${esc(s.text)}</div>`).join('');
@@ -361,6 +367,7 @@
     function logBuild(text, cls) {
         const log = document.getElementById('nc-build-log');
         if (!log) return;
+        log.style.display = 'block';
         const row = document.createElement('div');
         row.className = `nc-line ${cls || ''}`;
         row.textContent = text;
@@ -372,7 +379,7 @@
         const btn = document.getElementById('btn-nc-guaranteed');
         if (!btn) return;
         if (STATE.buildRunning) { btn.textContent = 'Cancel Build'; btn.classList.add('danger'); }
-        else { btn.textContent = 'Guaranteed Build'; btn.classList.remove('danger'); }
+        else { btn.textContent = t('ui.nc.guaranteed', 'Guaranteed Build'); btn.classList.remove('danger'); }
     }
 
     function parseScenarios() {
@@ -520,14 +527,47 @@
             .nc-inline{display:flex;gap:6px;flex-wrap:wrap;margin-right:8px}.nc-btn{padding:6px 10px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:11px;cursor:pointer}.nc-btn.danger{border-color:#e74c3c;color:#e74c3c}
             .nc-panel{border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color);background:rgba(0,0,0,.18);padding:8px 12px;display:flex;flex-direction:column;gap:6px}.nc-head{font-size:11px;color:var(--text-secondary)}.nc-body{max-height:120px;overflow:auto;display:flex;flex-direction:column;gap:4px}
             .nc-row{font-size:11px;padding:3px 4px;border-radius:4px;background:rgba(255,255,255,.03)}.nc-row.err{color:#ff7675;border-left:2px solid #ff7675}.nc-row.warn{color:#fdcb6e;border-left:2px solid #fdcb6e}.nc-row.ok{color:#55efc4;border-left:2px solid #55efc4}
-            .nc-build{max-height:108px;overflow:auto;border:1px solid #2e3846;border-radius:8px;padding:6px;background:#0c121a}.nc-line{font-size:11px;padding:3px 4px;border-bottom:1px dashed rgba(255,255,255,.08)}.nc-line.info{color:#8ab4f8}.nc-line.warn{color:#fdcb6e}.nc-line.ok{color:#55efc4}
+            .nc-build{max-height:72px;overflow:auto;border:1px solid #2e3846;border-radius:8px;padding:6px;background:#0c121a}.nc-line{font-size:11px;padding:3px 4px;border-bottom:1px dashed rgba(255,255,255,.08)}.nc-line.info{color:#8ab4f8}.nc-line.warn{color:#fdcb6e}.nc-line.ok{color:#55efc4}
             .nc-modal-overlay{position:fixed;inset:0;z-index:2600;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.58)}.nc-modal{width:min(900px,92vw);max-height:86vh;overflow:auto;background:#10151d;border:1px solid #2b3340;border-radius:12px}
             .nc-m-head{padding:14px 16px;border-bottom:1px solid #2b3340;display:flex;justify-content:space-between;align-items:center}.nc-m-title{font-size:14px;font-weight:700;color:#e8eef7}.nc-m-body{padding:14px 16px;display:flex;flex-direction:column;gap:10px}.nc-m-foot{padding:12px 16px;border-top:1px solid #2b3340;display:flex;justify-content:flex-end;gap:8px}
             .nc-inp,.nc-sel,.nc-txt{width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #3a4352;background:#0b1118;color:#e8eef7;font-size:12px}.nc-txt{min-height:108px;resize:vertical}.nc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.nc-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.nc-card{border:1px solid #364253;border-radius:8px;padding:10px;background:#0f1620}.nc-sub{color:#9fb0c5;font-size:11px;margin-top:4px}
-            .nc-stack{display:flex;flex-direction:column;gap:8px}.nc-stack .nc-body{max-height:90px}
+            .nc-stack{display:flex;flex-direction:column;gap:6px}.nc-stack .nc-body{max-height:48px}
             @media(max-width:860px){.nc-grid{grid-template-columns:1fr}}
         `;
         document.head.appendChild(s);
+    }
+
+    function localizeNoCodeUI() {
+        const setText = (selector, key, fallback) => {
+            const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
+            if (el) el.textContent = t(key, fallback);
+        };
+        setText('#btn-nc-one-step', 'ui.nc.oneStep', 'One-Step AI');
+        setText('#btn-nc-intent', 'ui.nc.intent', 'Intent Wizard');
+        setText('#btn-nc-pack', 'ui.nc.packs', 'Behavior Packs');
+        setText('#btn-nc-validate', 'ui.nc.validate', 'Validate');
+        setText('#btn-nc-guaranteed', 'ui.nc.guaranteed', 'Guaranteed Build');
+        setText('#btn-nc-scenarios', 'ui.nc.scenario', 'Scenario Test');
+        setText('#btn-nc-release', 'ui.nc.release', 'One-Click Release');
+        setText('.nc-panel .nc-head', 'ui.nc.health', 'No-Code Health');
+        setText('#nc-one-step-modal .nc-m-title', 'ui.nc.modal.oneStepTitle', 'One-Step Natural Language -> Plugin');
+        setText('#nc-intent-modal .nc-m-title', 'ui.nc.modal.intentTitle', 'Intent Wizard');
+        setText('#nc-pack-modal .nc-m-title', 'ui.nc.modal.packTitle', 'Behavior Packs');
+        setText('#nc-scenario-modal .nc-m-title', 'ui.nc.modal.scenarioTitle', 'Scenario Runner');
+        setText('#nc-release-modal .nc-m-title', 'ui.nc.modal.releaseTitle', 'One-Click Release');
+        document.querySelectorAll('[data-close]').forEach((btn) => setText(btn, 'ui.nc.close', 'Close'));
+        setText('#nc-one-step-run', 'ui.nc.run', 'Run');
+        setText('#nc-intent-analyze', 'ui.nc.analyze', 'Analyze');
+        setText('#nc-intent-apply', 'ui.nc.apply', 'Apply');
+        setText('#nc-scenario-run', 'ui.nc.run', 'Run');
+        setText('#nc-release-run', 'ui.nc.run', 'Run');
+        const oneStepInput = document.getElementById('nc-one-step-input');
+        if (oneStepInput) oneStepInput.placeholder = t('ui.nc.placeholder.oneStep', 'Describe the full plugin you want in natural language...');
+        const intentInput = document.getElementById('nc-intent-input');
+        if (intentInput) intentInput.placeholder = t('ui.nc.placeholder.intent', 'Describe feature in natural language...');
+        const intentExample = document.getElementById('nc-intent-example');
+        if (intentExample) intentExample.placeholder = t('ui.nc.placeholder.example', 'e.g. /spawn command with teleport');
+        renderBuildButton();
     }
 
     function mountUI() {
@@ -555,11 +595,16 @@
                 <div id="nc-validator-body" class="nc-body"><div class="nc-row">Validation panel initialized.</div></div>
                 <div id="nc-suggest-body" class="nc-body"><div class="nc-row">Suggestion engine initialized.</div></div>
             </div>
-            <div id="nc-build-log" class="nc-build"></div>
+            <div id="nc-build-log" class="nc-build" style="display:none;"></div>
         `;
-        const vb = document.getElementById('visual-builder-container');
+        const vbTopRegion = document.getElementById('vb-top-region');
         const canvas = document.querySelector('#visual-builder-container .vb-canvas-area');
-        if (vb && canvas) vb.insertBefore(panel, canvas);
+        if (vbTopRegion) {
+            vbTopRegion.appendChild(panel);
+        } else {
+            const vb = document.getElementById('visual-builder-container');
+            if (vb && canvas) vb.insertBefore(panel, canvas);
+        }
 
         document.body.insertAdjacentHTML('beforeend', `
             <div class="nc-modal-overlay" id="nc-one-step-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">One-Step Natural Language -> Plugin</div><button class="nc-btn" data-close="nc-one-step-modal">Close</button></div><div class="nc-m-body"><div class="nc-grid"><div><label>Target mode</label><select id="nc-one-step-mode" class="nc-sel"><option value="plugin">Paper/Plugin</option><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="skript">Skript</option></select></div><div><label>Options</label><div style="display:flex;flex-direction:column;gap:6px;padding-top:6px;"><label><input type="checkbox" id="nc-one-step-gencode" checked> Generate code tab</label><label><input type="checkbox" id="nc-one-step-build"> Run guaranteed build</label></div></div></div><textarea id="nc-one-step-input" class="nc-txt" placeholder="Describe the full plugin you want in natural language..."></textarea><div id="nc-one-step-output" class="nc-build"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-one-step-run">Run One-Step Flow</button></div></div></div>
@@ -598,6 +643,7 @@
 
         document.querySelectorAll('[data-close]').forEach((btn) => btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close'))));
         document.querySelectorAll('.nc-modal-overlay').forEach((el) => el.addEventListener('click', (e) => { if (e.target === el) el.style.display = 'none'; }));
+        localizeNoCodeUI();
     }
 
     function startLiveValidation() {
@@ -616,6 +662,11 @@
         startLiveValidation();
         validateGraph(true);
         renderSuggestions(true);
+        document.addEventListener('lang:changed', () => {
+            localizeNoCodeUI();
+            validateGraph(true);
+            renderSuggestions(true);
+        });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 

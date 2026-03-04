@@ -476,6 +476,117 @@ body {
     border-color: var(--accent);
 }
 
+
+/* Minecraft Tools Hub */
+.mc-hub-header {
+    padding: 22px 28px 12px;
+    border-bottom: 1px solid var(--border-primary);
+    background: linear-gradient(135deg, rgba(46, 204, 113, 0.12), rgba(52, 152, 219, 0.08));
+}
+
+.mc-hub-header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.mc-hub-header p {
+    margin: 6px 0 0;
+    color: var(--text-secondary);
+}
+
+.mc-hub-controls {
+    display: flex;
+    gap: 10px;
+    padding: 12px 28px;
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-secondary);
+}
+
+.mc-hub-controls input,
+.mc-hub-controls select {
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.mc-hub-controls input {
+    flex: 1;
+    min-width: 140px;
+}
+
+.mc-hub-grid {
+    flex: 1;
+    overflow: auto;
+    padding: 18px 28px 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+}
+
+.mc-hub-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: var(--transition);
+}
+
+.mc-hub-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.mc-hub-card-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mc-hub-card-icon {
+    width: 28px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.mc-hub-card-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.mc-hub-card-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    min-height: 32px;
+}
+
+.mc-hub-card-footer {
+    margin-top: auto;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.mc-hub-empty {
+    grid-column: 1 / -1;
+    padding: 14px;
+    border: 1px dashed var(--border-secondary);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+@media (max-width: 880px) {
+    .mc-hub-controls {
+        flex-direction: column;
+    }
+}
+
 /* ─── AI Chat Panel ──────────────────────────────────────────── */
 .ai-chat-container {
     flex: 1;
@@ -657,6 +768,75 @@ body {
 .setting-item input:focus,
 .setting-item select:focus {
     border-color: var(--accent);
+}
+
+
+.setting-help {
+    margin: -2px 0 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.shortcuts-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+}
+
+.shortcuts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.shortcut-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+}
+
+.shortcut-meta {
+    min-width: 0;
+}
+
+.shortcut-title {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.shortcut-sub {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.shortcut-bind-btn {
+    min-width: 128px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+
+.shortcut-bind-btn.capturing {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+.shortcut-warning {
+    grid-column: 1 / -1;
+    color: #fdcb6e;
+    font-size: 11px;
+}
+
+@media (max-width: 860px) {
+    .shortcut-item {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ─── Search Panel ───────────────────────────────────────────── */
@@ -1100,44 +1280,80 @@ body {
 }
 
 /* ─── Visual Builder Toolbar ─────────────────────────────────── */
+.vb-top-region {
+    display: flex;
+    flex-direction: column;
+    height: 136px;
+    min-height: 84px;
+    max-height: 360px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.vb-top-resizer {
+    height: 4px;
+    cursor: row-resize;
+    background: transparent;
+    position: relative;
+    z-index: 12;
+    flex-shrink: 0;
+}
+
+.vb-top-resizer:hover,
+.vb-top-resizer.active {
+    background: var(--accent);
+}
+
 .vb-toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 6px 12px;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 6px 10px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-primary);
     flex-shrink: 0;
+    min-height: 42px;
+    overflow: hidden;
 }
 
 .vb-toolbar-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    min-width: 0;
+    flex: 1 1 auto;
 }
 
 .vb-toolbar-title {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
+    white-space: nowrap;
 }
 
 .vb-toolbar-hint {
     font-size: 11px;
     color: var(--text-muted);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .vb-toolbar-right {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-wrap: nowrap;
+    flex: 0 0 auto;
 }
 
 .vb-toolbar-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 12px;
+    padding: 4px 10px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-sm);
@@ -1161,6 +1377,44 @@ body {
     color: var(--danger);
 }
 
+.vb-toolbar-more-wrap {
+    position: relative;
+    display: none;
+}
+
+.vb-toolbar-more-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 220px;
+    max-width: min(360px, 90vw);
+    max-height: min(60vh, 480px);
+    overflow: auto;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-lg);
+    z-index: 2500;
+}
+
+.vb-toolbar-more-wrap.open .vb-toolbar-more-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vb-toolbar-more-menu > * {
+    width: 100%;
+}
+
+@media (max-width: 1520px) {
+    .vb-toolbar-hint {
+        display: none;
+    }
+}
+
 /* ─── VB Empty State ─────────────────────────────────────────── */
 .vb-empty-hint {
     position: absolute;
@@ -1169,8 +1423,12 @@ body {
     transform: translate(-50%, -50%);
     text-align: center;
     z-index: 2;
-    pointer-events: none;
+    pointer-events: auto;
     opacity: 0.6;
+}
+
+.vb-empty-hint .btn-primary {
+    pointer-events: auto;
 }
 
 .vb-empty-icon {
@@ -1811,17 +2069,51 @@ body {
 }
 
 /* ─── Inline Rename ──────────────────────────────────────────── */
-.tree-item .rename-input {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--accent);
-    color: var(--text-primary);
+
+.explorer-quick-create {
+    position: fixed;
+    z-index: 12000;
+    width: min(360px, 92vw);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+    padding: 12px;
+}
+
+.explorer-quick-create-title {
     font-size: 12px;
-    font-family: var(--font-sans);
-    padding: 2px 6px;
-    border-radius: 3px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.explorer-quick-create input {
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 7px;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.explorer-quick-create input:focus {
     outline: none;
-    flex: 1;
-    min-width: 0;
+    border-color: var(--accent);
+}
+
+.explorer-quick-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.explorer-quick-error {
+    margin-top: 7px;
+    min-height: 14px;
+    color: #ff7675;
+    font-size: 11px;
 }
 
 /* ─── Visual Builder Blocks ──────────────────────────────────── */
@@ -1867,6 +2159,7 @@ body {
     flex: 1;
     overflow: hidden;
     min-height: 400px;
+    cursor: grab;
 }
 
 .vb-node {
@@ -2462,12 +2755,6 @@ body {
 .vb-toolbar {
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-secondary);
-    padding: 8px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-shrink: 0;
 }
 
 /* ─── Server manager improvements ───────────────────────────── */
@@ -2895,3 +3182,6 @@ body {
         padding-right: 10px !important;
     }
 }
+
+
+

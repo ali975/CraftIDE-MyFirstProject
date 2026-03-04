@@ -1,53 +1,66 @@
-# ⛏️ CraftIDE — Minecraft Geliştirme Stüdyosu
+﻿# CraftIDE
 
-> Minecraft eklenti ve Skript geliştirmek için yapay zeka destekli VS Code uyarlaması.
+Electron + Monaco tabanli, yapay zeka destekli Minecraft gelistirme studosu.
 
-CraftIDE, Minecraft eklenti geliştirmeyi hiç kod yazmamış yeni başlayanlardan, güçlü araçlar isteyen deneyimli geliştiricilere kadar herkes için erişilebilir kılmak üzere tasarlanmış özel bir IDE'dir.
+CraftIDE; Paper/Spigot, Fabric, Forge ve Skript odakli projeler icin kod editoru, gorsel/no-code uretim, test sunucusu ve paketleme adimlarini tek masaustu uygulamasinda birlestirir.
 
-## ✨ Özellikler & Mimari
+## Son Koklu Revizyonlar
 
-- 🚀 **Tam Üretim Hattı (Production Pipeline)** — CraftIDE artık sadece bir kod üretici değil. Tasarım, doğrulama, paketleme ve belgelendirmeyi kapsayan devasa bir üretim hattı!
-- 🧠 **Sinerjik AI Ağı (CoreAIManager)** — Yapay zeka artık ortağınız gibi çalışır; aktif dosyalarınızın, görsel oluşturucu durumunun ve sunucu terminalinin farkındadır.
-- 🗣️ **Tek Adımda Seçimden Koda (One-Step NL to Code)** — Doğal dili girin, CraftIDE bunu bir düğüm (node) diyagramına eşlesin, kodu derlesin ve otomatik olarak test etsin.
-- 🩹 **Otomatik İyileştirme (One-Click Fix)** — Test Sunucusu, Java çökme günlüklerini yakalar ve doğrudan yapay zekaya aktarır, bozulan kod için anında ve garantili tek-tık düzeltmeler (one-click fix) üretir!
-- 🎨 **Gelişmiş Görsel Eklenti Oluşturucu** — Paper, Fabric, Forge ve Skript için geri al/yinele (Ctrl+Z/Y), davranış panelleri ve akıllı tahmin özelliklerine sahip sürükle-bırak blok tabanlı oluşturucu.
-- 🛠️ **Özel İçerik Tasarımcıları** — Mob Tasarımı (C1), Scoreboard/HUD (C4), Config Düzenleyici (C7), Özel Eşya/Tarifler, Partikül Tuvali (C6) ve NPC Diyalog Üretimi (C5) için özel modüller.
-- 🧪 **Entegre Test Sunucusu & Çevrimdışı Çalışma** — Sunucuları tek tıklamayla indirin, çalıştırın ve test edin. İnternetsiz (Offline-first) ortamlarda da güçlü yerel destek.
-- 📚 **Canlı API Referansı ve 30+ Hazır Şablon** — Bir blokla ilgili yardıma mı ihtiyacınız var? '💡' simgesine tıklayın. Veya doğrudan marketten saniyeler içinde 30'dan fazla uzman blueprint'inden birini yükleyin!
+- Visual Builder ust bolgesi artik dikey olarak resize edilebilir (`84px` - `360px`) ve yukseklik `craftide.vb.topRegionHeight` ile kalicidir.
+- Visual Builder toolbar tek satir + `More` menusu modeline gecirildi; kalabalik azaltildi.
+- Canvas bos alanda `Sol Tik + Surukle` pan eklendi (`Orta Tik` ve `Alt+Sol` uyumlulugu korunur).
+- `Browse Templates` butonu ve template modal akisi duzeltildi.
+- Plugin/Fabric/Forge/Skript icin toplam 12 yeni Visual Builder sablonu eklendi.
+- Visual Builder icin EN/TR dinamik i18n kapsami genisletildi (toolbar, no-code metinleri, node param etiketleri).
+- Merkezi kisayol sistemi eklendi:
+  - global + context komut kaydi,
+  - cakisma uyari sistemi,
+  - komut bazli reset + tumunu sifirla,
+  - ayarlar ekrani entegrasyonu.
+- Explorer `New File / New Folder` akisi in-app quick-create olarak yeniden yazildi (`prompt()` bagimliligi kalkti).
+- Image Editor parse/runtime kirigi giderildi; `init -> open -> draw -> save` zinciri stabilize edildi.
+- Test Server surum listesi server type bazli dinamik hale getirildi (`server:list-versions`, cache + fallback).
+- Sidebar ucgen ikonu artik ayri `Minecraft Tools Hub` sayfasi aciyor (`mc-tools://`).
 
-## 🚀 Başlarken
+## One Cikan Yetkinlikler
+
+- Node tabanli Visual Builder ile plugin/mod/script akisi.
+- No-code katmani (validation, behavior packs vb.).
+- Entegre test sunucusu yonetimi.
+- Image Editor ve ek Minecraft arac sayfalari.
+- Dinamik EN/TR dil sistemi.
+
+## Kurulum ve Calistirma
 
 ```bash
-# Depoyu klonla
-git clone https://github.com/craftide/craftide.git
-cd craftide
-
-# Bağımlılıkları yükle
+git clone https://github.com/ali975/CraftIDE-MyFirstProject.git
+cd CraftIDE-MyFirstProject/craftide
 npm install
-
-# Geliştirme modunda başlat
 npm run dev
+```
 
-# Nihai exe dosyasını oluştur
+Dagitim paketi icin:
+
+```bash
 npm run dist
 ```
 
-## 🌍 Dil Desteği
-CraftIDE, dili dinamik olarak İngilizce ve Türkçe olarak entegre eder ve varsayılan dil İngilizce'dir.
+Ana ciktilar:
 
-## 🚀 Proje Hakkında
-Bu proje, Minecraft geliştirmeyi kelimenin tam anlamıyla herkes için erişilebilir kılmak amacıyla tasarlanmış bir Windows uygulamasıdır. Kullanıcıların **hiçbir kodlama bilgisine ihtiyaç duymadan kendi eklentilerini (plugin), modlarını ve betiklerini (script) oluşturabileceği** işlevsel bir ortam sunar.
+- `release/CraftIDE Setup 0.2.0.exe`
+- `release/CraftIDE 0.2.0.exe`
 
-* **Temel Amacım:** Kod dillerinin kafa karıştırıcı kuralları (syntax) ve mekanik ezber gibi sıkıcı engelleri tamamen ortadan kaldırmak. Böylece enerjinizi doğrudan oyun modifikasyonunun mantıksal tasarımına ve kendi yaratıcılığınıza odaklayabilirsiniz.
-* **Geliştirme ve Gelecek:** Yapılandırılmış ve yormayan bir kullanıcı deneyimi oluşturmak için bu projeyi uzun süredir tek başıma geliştiriyorum. Bu tozlu raflara kalkacak bir proje değil; tam aksine, sürekli olarak yeni güncellemeler yayınlamaya, mekaniklerini pürüzsüzleştirmeye ve yeni özellikler ekleyerek onu her zaman güncel tutmaya son derece kararlıyım.
+## Dagitim Kurali
 
-## 👨‍💻 Geliştirici Hakkında
-Merhaba! Ben Türkiye'de Matematik Öğretmenliği okuyan bir üniversite öğrencisiyim. Sıfırdan anlamlı araçlar ve sistemler inşa etmeye karşı içimde kocaman bir tutku var.
+Proje kuralina gore her ana guncelleme paketinden sonra release artefact uretimi icin `npm run dist` calistirilir.
 
-* **Motivasyonum:** Öğrenciliğin getirdiği o meşhur maddi kısıtlamalara ve zorluklara rağmen, elimdeki sınırlı kaynaklarla bu projeyi hayata geçirmeye tüm kalbimle inanıyorum.
-* **Felsefem:** Yazılım geliştirmeye tıpkı matematiğe yaklaştığım gibi yaklaşıyorum. Benim için kodlama, ezberlenecek donuk kurallar bütünü değil; mantıksal bir keşif alanı ve parça parça inşa edilen zevkli bir süreç.
+## Dizin Ozetleri
 
-Bu deponun (repository) henüz binlerce yıldızı olmayabilir, ancak sürekli öğrenmeye, problem çözmeye ve üretmeye olan derin bir bağlılığı temsil ediyor. Desteklerinize, geri bildirimlerinize ve katkılarınıza her zaman açığım!
+- `src/main` Electron main process + IPC
+- `src/renderer` arayuz, Visual Builder, editor entegrasyonlari
+- `release` olusan kurulum dosyalari
+- `tests` birim testleri
 
-## 📄 Lisans
-MIT Lisansı.
+## Lisans
+
+MIT
