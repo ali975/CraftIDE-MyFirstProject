@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CraftIDE Language System (i18n)
  */
 

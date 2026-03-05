@@ -1163,6 +1163,7 @@ document.addEventListener('mouseup', (e) => {
             }
         }
         vbConnecting = null;
+        drawConnections();
     }
     vbDragging = null;
 });
@@ -1211,6 +1212,24 @@ function drawConnections() {
         vbCtx.arc(to.x, to.y, 4, 0, Math.PI * 2);
         vbCtx.fillStyle = '#2ecc71';
         vbCtx.fill();
+    }
+
+    // Draw active dragging connection
+    if (typeof vbConnecting !== 'undefined' && vbConnecting && vbConnecting.currentX !== undefined && vbConnecting.currentY !== undefined) {
+        const from = getPortCenter(vbConnecting.fromId, 'out');
+        if (from) {
+            const to = { x: vbConnecting.currentX, y: vbConnecting.currentY };
+            const dx = Math.abs(to.x - from.x);
+            const cpx = dx * 0.5;
+            vbCtx.beginPath();
+            vbCtx.moveTo(from.x, from.y);
+            vbCtx.bezierCurveTo(from.x + cpx, from.y, to.x - cpx, to.y, to.x, to.y);
+            vbCtx.strokeStyle = 'rgba(46, 204, 113, 0.7)';
+            vbCtx.lineWidth = 2.5;
+            vbCtx.setLineDash([8, 8]);
+            vbCtx.stroke();
+            vbCtx.setLineDash([]);
+        }
     }
 }
 
