@@ -9,6 +9,12 @@ let ctInitialized = false;
 
 const CT_ARG_TYPES = ['player', 'string', 'integer', 'double', 'boolean', 'enum'];
 
+function ctTr(key, fallback, params) {
+    if (typeof tr === 'function') return tr(key, fallback, params);
+    if (!params) return fallback || key;
+    return Object.entries(params).reduce((acc, [paramKey, value]) => acc.replaceAll(`{${paramKey}}`, String(value)), fallback || key);
+}
+
 // ═══════════════════════════════════════════════════════════
 // Başlatma
 // ═══════════════════════════════════════════════════════════
@@ -42,7 +48,7 @@ function initCommandTree() {
         ctSelectedNode = ctTree;
         ctRenderTree();
         ctRenderConfig();
-        if (typeof showNotification === 'function') showNotification('🗑️ Alt komut silindi', 'info');
+        if (typeof showNotification === 'function') showNotification(ctTr('msg.commandDeleted', 'Subcommand deleted'), 'info');
     });
 
     document.getElementById('btn-ct-generate-java')?.addEventListener('click', ctGenerateJava);
@@ -50,6 +56,10 @@ function initCommandTree() {
 
     ctRenderTree();
     ctRenderConfig();
+    document.addEventListener('lang:changed', () => {
+        ctRenderTree();
+        ctRenderConfig();
+    });
 }
 
 function _ctDeleteFromTree(parent, target) {
@@ -132,7 +142,7 @@ function ctRenderConfig() {
 
     const title = document.createElement('div');
     title.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;';
-    title.textContent = isRoot ? 'Kök Komut' : 'Alt Komut';
+    title.textContent = isRoot ? ctTr('ui.command.root', 'Root Command') : ctTr('ui.command.sub', 'Subcommand');
     panel.appendChild(title);
 
     const addField = (label, key, placeholder) => {
@@ -148,23 +158,23 @@ function ctRenderConfig() {
         panel.append(lbl, inp);
     };
 
-    addField('Komut Adı', 'name', 'mycommand');
-    addField('Açıklama', 'description', 'Komut açıklaması');
-    addField('Yetki (permission)', 'permission', 'myplugin.command');
-    if (isRoot) addField('Takma Adlar (virgülle)', 'aliasesStr', 'mc, spawn');
+    addField(ctTr('ui.command.name', 'Command Name'), 'name', 'mycommand');
+    addField(ctTr('ui.command.desc', 'Description'), 'description', ctTr('ui.command.descPlaceholder', 'Command description'));
+    addField(ctTr('ui.command.permission', 'Permission'), 'permission', ctTr('ui.command.permissionPlaceholder', 'myplugin.command'));
+    if (isRoot) addField(ctTr('ui.command.aliases', 'Aliases (comma separated)'), 'aliasesStr', ctTr('ui.command.aliasesPlaceholder', 'mc, spawn'));
 
     // Argümanlar
     if (node.args && node.args.length > 0) {
         const argTitle = document.createElement('div');
         argTitle.style.cssText = 'font-size:11px;font-weight:700;color:var(--text-secondary);margin-top:12px;border-top:1px solid var(--border-color);padding-top:8px;';
-        argTitle.textContent = 'ARGÜMANLAR';
+        argTitle.textContent = ctTr('ui.command.args', 'Arguments').toUpperCase();
         panel.appendChild(argTitle);
 
         node.args.forEach((arg, i) => {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex;gap:4px;align-items:center;margin-top:4px;';
 
-            const ni = document.createElement('input'); ni.placeholder = 'ad'; ni.value = arg.name;
+            const ni = document.createElement('input'); ni.placeholder = ctTr('ui.command.argName', 'name'); ni.value = arg.name;
             ni.style.cssText = 'flex:1;padding:4px 6px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:11px;';
             ni.addEventListener('input', () => { arg.name = ni.value; ctRenderTree(); });
 
@@ -173,7 +183,7 @@ function ctRenderConfig() {
             CT_ARG_TYPES.forEach(t => { const o = document.createElement('option'); o.value=t; o.textContent=t; if (arg.type===t) o.selected=true; ts.appendChild(o); });
             ts.addEventListener('change', () => { arg.type = ts.value; ctRenderTree(); });
 
-            const optChk = document.createElement('input'); optChk.type='checkbox'; optChk.checked=arg.optional; optChk.title='İsteğe bağlı';
+            const optChk = document.createElement('input'); optChk.type='checkbox'; optChk.checked=arg.optional; optChk.title = ctTr('ui.command.argOptional', 'Optional');
             optChk.addEventListener('change', () => { arg.optional = optChk.checked; ctRenderTree(); });
 
             const rm = document.createElement('button'); rm.textContent='✕'; rm.style.cssText='background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;';
@@ -303,7 +313,7 @@ function _ctOpenTab(code, fileName) {
         if (existing) existing.remove();
         addTab(virtualPath, fileName);
         activateTab(virtualPath);
-        if (typeof showNotification === 'function') showNotification('⚡ ' + fileName + ' üretildi!', 'success');
+        if (typeof showNotification === 'function') showNotification(ctTr('msg.fileGenerated', '{name} generated!', { name: fileName }), 'success');
     }
 }
 

@@ -18,6 +18,10 @@ function main() {
     const releaseDir = path.join(root, 'release');
     const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8'));
     const version = String(packageJson.version || '0.0.0');
+    const expectedBlockmaps = [
+        `CraftIDE-Setup-${version}.exe.blockmap`,
+        `CraftIDE-${version}.exe.blockmap`,
+    ];
 
     if (!fs.existsSync(releaseDir)) {
         console.log('[checksums] release directory not found, skipping');
@@ -27,6 +31,10 @@ function main() {
     const lines = [];
     maybePushChecksum(lines, path.join(releaseDir, `CraftIDE-${version}.exe`), `CraftIDE-${version}.exe`);
     maybePushChecksum(lines, path.join(releaseDir, `CraftIDE-Setup-${version}.exe`), `CraftIDE-Setup-${version}.exe`);
+    maybePushChecksum(lines, path.join(releaseDir, 'latest.yml'), 'latest.yml');
+    for (const blockmapName of expectedBlockmaps) {
+        maybePushChecksum(lines, path.join(releaseDir, blockmapName), blockmapName);
+    }
     maybePushChecksum(lines, path.join(releaseDir, 'win-unpacked', 'resources', 'app.asar'), 'app.asar');
 
     if (!lines.length) {

@@ -4,6 +4,15 @@
  * Bu sınıf tüm IDE'nin durumunu (context) tutar ve LLM Provider ile
  * IDE bileşenleri (Visual Builder, Editor, Terminal) arasında köprü görevi görür.
  */
+function aiTr(key, fallback, params) {
+    if (window.Lang && typeof window.Lang.t === 'function') {
+        const translated = window.Lang.t(key, params || {});
+        if (translated !== key || !fallback) return translated;
+    }
+    if (!fallback) return key;
+    if (!params) return fallback;
+    return Object.entries(params).reduce((acc, [paramKey, value]) => acc.replaceAll(`{${paramKey}}`, String(value)), fallback);
+}
 
 class CraftAIManager {
     constructor() {
@@ -114,7 +123,7 @@ class CraftAIManager {
         const context = this.getIdeContext();
 
         // Asistan mesajı konteyneri oluştur
-        const responseContentDiv = this.appendMessage('assistant', 'Düşünüyor...', true);
+        const responseContentDiv = this.appendMessage('assistant', aiTr('ai.thinking', 'Thinking...'), true);
 
         try {
             if (context.isVisualBuilderOpen) {
@@ -126,7 +135,7 @@ class CraftAIManager {
             }
         } catch (error) {
             console.error(error);
-            responseContentDiv.innerHTML = `<p style="color:#e74c3c;">Hata: ${error.message}</p>`;
+            responseContentDiv.innerHTML = `<p style="color:#e74c3c;">${this._escapeHtml(aiTr('msg.error', 'Error: {error}', { error: error.message }))}</p>`;
         } finally {
             this.isProcessing = false;
             this.sendBtn.disabled = false;
@@ -162,7 +171,7 @@ Kullanıcıya Minecraft eklenti, mod veya Skript geliştirmesinde yardımcı ol.
             if (codeEl.parentElement.querySelector('.ai-open-editor-btn')) return;
             const btn = document.createElement('button');
             btn.className = 'ai-open-editor-btn';
-            btn.textContent = '📂 Editörde Aç';
+            btn.textContent = aiTr('ai.editorOpen', 'Open in Editor');
             btn.addEventListener('click', () => {
                 const cls = codeEl.className || '';
                 const ext = cls.includes('java') ? '.java' : cls.includes('sk') || cls.includes('skript') ? '.sk' : '.txt';
@@ -171,7 +180,7 @@ Kullanıcıya Minecraft eklenti, mod veya Skript geliştirmesinde yardımcı ol.
                     openFiles.set(vPath, { content: codeEl.textContent, modified: false, virtual: true, generated: true });
                     const ex = document.querySelector(`.tab[data-tab="${CSS.escape(vPath)}"]`);
                     if (ex) ex.remove();
-                    addTab(vPath, 'AI Kod' + idx + ext);
+                    addTab(vPath, aiTr('ai.generatedSnippet', 'AI Code') + idx + ext);
                     activateTab(vPath);
                 }
             });
@@ -180,7 +189,7 @@ Kullanıcıya Minecraft eklenti, mod veya Skript geliştirmesinde yardımcı ol.
     }
 
     async processTextToNode(userText, context, responseContentDiv) {
-        responseContentDiv.innerHTML = `<p>Sizin için blokları hazırlıyorum... <span class="ai-loading"></span></p>`;
+        responseContentDiv.innerHTML = `<p>${this._escapeHtml(aiTr('ai.preparingBlocks', 'Preparing blocks for you...'))} <span class="ai-loading"></span></p>`;
 
         const mode = context.visualBuilderMode || 'plugin';
 
@@ -241,9 +250,9 @@ Not: fromIndex ve toIndex "nodes" dizisindeki sıraya (0'dan başlayarak) işare
             const resultJSON = JSON.parse(jsonString);
 
             // UI Güncelle
-            responseContentDiv.innerHTML = `<p>${resultJSON.message}</p>
+            responseContentDiv.innerHTML = `<p>${this._escapeHtml(resultJSON.message)}</p>
             <div style="margin-top: 8px; padding: 8px; background: rgba(46, 204, 113, 0.1); border-left: 3px solid #2ecc71; border-radius: 4px; font-size: 12px;">
-                ✓ ${resultJSON.nodes.length} blok ve ${resultJSON.connections.length} bağlantı oluşturuldu.
+                ${this._escapeHtml(aiTr('ai.blueprintCreated', '{nodes} blocks and {connections} connections created.', { nodes: resultJSON.nodes.length, connections: resultJSON.connections.length }))}
             </div>`;
 
             // Canvas'ı temizle
@@ -256,8 +265,8 @@ Not: fromIndex ve toIndex "nodes" dizisindeki sıraya (0'dan başlayarak) işare
 
         } catch (e) {
             console.error("JSON Parse Error:", e, rawResponse);
-            responseContentDiv.innerHTML = `<p style="color:#e74c3c;">Üzgünüm, blok şemasını oluştururken bir hata oluştu. Lütfen komutunu biraz daha netleştirip tekrar dene.</p>
-            <details style="font-size:10px; margin-top:5px; opacity:0.7"><summary>Hata Detayı</summary>${e.message}<br>${rawResponse}</details>`;
+            responseContentDiv.innerHTML = `<p style="color:#e74c3c;">${this._escapeHtml(aiTr('ai.blueprintCreateError', 'An error occurred while creating the block plan. Please clarify your request and try again.'))}</p>
+            <details style="font-size:10px; margin-top:5px; opacity:0.7"><summary>${this._escapeHtml(aiTr('ai.errorDetails', 'Error Details'))}</summary>${this._escapeHtml(e.message)}<br>${this._escapeHtml(rawResponse)}</details>`;
         }
     }
 
@@ -303,7 +312,7 @@ Not: fromIndex ve toIndex "nodes" dizisindeki sıraya (0'dan başlayarak) işare
         // Yeni bir sohbet balonu aç
         document.querySelector('.activity-btn[data-panel="ai"]')?.click();
 
-        const responseContentDiv = this.appendMessage('assistant', 'Bir sunucu hatası tespit ettim, inceliyorum...', true);
+        const responseContentDiv = this.appendMessage('assistant', aiTr('ai.serverInspecting', 'I detected a server error and I am analyzing it...'), true);
         this.isProcessing = true;
         this.sendBtn.disabled = true;
 
@@ -330,18 +339,18 @@ Tuval özeti: ${JSON.stringify(context.vbSummary || {})}
             if (window.NoCodeSuite?.oneClickFixCurrent) {
                 const quickFix = document.createElement('button');
                 quickFix.className = 'ai-open-editor-btn';
-                quickFix.textContent = 'One-Click Fix (Guaranteed Build)';
+                quickFix.textContent = aiTr('ai.quickFix', 'One-Click Fix (Guaranteed Build)');
                 quickFix.style.marginTop = '8px';
                 quickFix.addEventListener('click', async () => {
                     quickFix.disabled = true;
-                    quickFix.textContent = 'Running fix...';
+                    quickFix.textContent = aiTr('ai.quickFixRunning', 'Running fix...');
                     try {
                         document.querySelector('.activity-btn[data-action="visual-builder"]')?.click();
                         await new Promise((r) => setTimeout(r, 120));
                         await window.NoCodeSuite.oneClickFixCurrent();
-                        quickFix.textContent = 'Fix completed';
+                        quickFix.textContent = aiTr('ai.quickFixDone', 'Fix completed');
                     } catch (err) {
-                        quickFix.textContent = 'Fix failed';
+                        quickFix.textContent = aiTr('ai.quickFixFailed', 'Fix failed');
                     } finally {
                         quickFix.disabled = false;
                     }
@@ -351,7 +360,7 @@ Tuval özeti: ${JSON.stringify(context.vbSummary || {})}
             this._addOpenInEditorButtons(responseContentDiv);
             this.chatHistory.push({ role: 'assistant', content: rawResponse });
         } catch (e) {
-            responseContentDiv.innerHTML = `<p style="color:#e74c3c;">Hata incelenirken bir sorun oluştu.</p>`;
+            responseContentDiv.innerHTML = `<p style="color:#e74c3c;">${this._escapeHtml(aiTr('ai.serverInspectFailed', 'A problem occurred while analyzing the error.'))}</p>`;
         } finally {
             this.isProcessing = false;
             this.sendBtn.disabled = false;
@@ -384,7 +393,7 @@ ${summaryStr}`;
 
             if (fullText.trim() !== 'OK' && fullText.length > 5 && !fullText.includes('"OK"')) {
                 document.querySelector('.activity-btn[data-panel="ai"]')?.click();
-                this.appendMessage('assistant', `⚖️ **Denge Uyarısı:** ${this._escapeHtml(fullText)}`, true);
+                this.appendMessage('assistant', `**${aiTr('ai.balanceWarning', 'Balance Warning')}:** ${this._escapeHtml(fullText)}`, true);
                 this.chatHistory.push({ role: 'assistant', content: fullText });
             }
         } catch (e) {

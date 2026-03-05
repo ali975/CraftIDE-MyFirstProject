@@ -8,6 +8,24 @@ let mkBlueprints = [];
 let mkFilterMode = 'all';
 let mkSearchTerm = '';
 
+function mkTr(key, fallback, params) {
+    if (typeof tr === 'function') return tr(key, fallback, params);
+    if (!params) return fallback || key;
+    return Object.entries(params).reduce((acc, [paramKey, value]) => acc.replaceAll(`{${paramKey}}`, String(value)), fallback || key);
+}
+
+function mkModeLabel(mode) {
+    const normalized = String(mode || 'plugin').toLowerCase();
+    const modeKeys = {
+        plugin: ['ui.market.mode.plugin', 'Plugin'],
+        fabric: ['ui.market.mode.fabric', 'Fabric'],
+        forge: ['ui.market.mode.forge', 'Forge'],
+        skript: ['ui.market.mode.skript', 'Skript'],
+    };
+    const [key, fallback] = modeKeys[normalized] || ['ui.market.mode.plugin', normalized];
+    return mkTr(key, fallback);
+}
+
 function initMarketplace() {
     if (mkInitialized) { mkLoadAndRender(); return; }
     mkInitialized = true;
@@ -30,6 +48,7 @@ function initMarketplace() {
     document.getElementById('btn-mk-publish')?.addEventListener('click', mkPublish);
 
     mkLoadAndRender();
+    document.addEventListener('lang:changed', () => mkRenderList());
 }
 
 async function mkLoadAndRender() {
@@ -56,7 +75,7 @@ function mkRenderList() {
     if (filtered.length === 0) {
         const empty = document.createElement('div');
         empty.style.cssText = 'text-align:center;padding:60px 20px;color:var(--text-muted);';
-        empty.innerHTML = '<div style="font-size:40px;margin-bottom:16px;">&#128230;</div><div style="font-size:14px;">' + (typeof tr === 'function' ? tr('ui.market.emptyTitle', 'No templates yet') : 'No templates yet') + '</div><div style="font-size:12px;margin-top:8px;">' + (typeof tr === 'function' ? tr('ui.market.emptyDesc', 'Create a blueprint in Visual Builder and click Publish') : '') + '</div>';
+        empty.innerHTML = '<div style="font-size:40px;margin-bottom:16px;">&#128230;</div><div style="font-size:14px;">' + mkTr('ui.market.emptyTitle', 'No templates yet') + '</div><div style="font-size:12px;margin-top:8px;">' + mkTr('ui.market.emptyDesc', 'Create a blueprint in Visual Builder and click Publish') + '</div>';
         container.appendChild(empty);
         return;
     }
@@ -71,12 +90,12 @@ function mkRenderList() {
         card.innerHTML = `
             <div class="mk-card-header">
                 <span class="mk-card-title">${_mkEscape(bp.name)}</span>
-                <span class="mk-mode-badge" style="background:${modeColor}20;color:${modeColor};border:1px solid ${modeColor}40;">${bp.mode || 'plugin'}</span>
+                <span class="mk-mode-badge" style="background:${modeColor}20;color:${modeColor};border:1px solid ${modeColor}40;">${_mkEscape(mkModeLabel(bp.mode))}</span>
             </div>
-            <div class="mk-card-desc">${_mkEscape(bp.description || (typeof tr === 'function' ? tr('ui.market.noDesc', 'No description') : 'No description'))}</div>
+            <div class="mk-card-desc">${_mkEscape(bp.description || mkTr('ui.market.noDesc', 'No description'))}</div>
             <div class="mk-card-footer">
-                <span style="font-size:10px;color:var(--text-muted);">${bp.author || (typeof tr === 'function' ? tr('ui.market.anonymous', 'Anonymous') : 'Anonymous')} • ${bp.created || ''} • ${(bp.nodes || []).length} ${typeof tr === 'function' ? tr('ui.market.blocks', 'blocks') : 'blocks'}</span>
-                <button class="mk-import-btn vb-toolbar-btn" data-id="${bp.id}">&#8595; ${typeof tr === 'function' ? tr('ui.market.load', 'Load') : 'Load'}</button>
+                <span style="font-size:10px;color:var(--text-muted);">${bp.author || mkTr('ui.market.anonymous', 'Anonymous')} | ${bp.created || ''} | ${(bp.nodes || []).length} ${mkTr('ui.market.blocks', 'blocks')}</span>
+                <button class="mk-import-btn vb-toolbar-btn" data-id="${bp.id}">&#8595; ${mkTr('ui.market.load', 'Load')}</button>
             </div>
         `;
 
@@ -91,7 +110,7 @@ function _mkEscape(str) {
 
 async function mkPublish() {
     if (typeof vbNodes === 'undefined' || !vbNodes || vbNodes.length === 0) {
-        if (typeof showNotification === 'function') showNotification('⚠️ ' + (typeof tr === 'function' ? tr('msg.noBlocksInVB', 'Add blocks in Visual Builder first!') : 'No blocks'), 'error');
+        if (typeof showNotification === 'function') showNotification(mkTr('msg.noBlocksInVB', 'Add blocks in Visual Builder first!'), 'error');
         return;
     }
 
@@ -99,7 +118,7 @@ async function mkPublish() {
     const desc = document.getElementById('mk-publish-desc')?.value.trim();
 
     if (!name) {
-        if (typeof showNotification === 'function') showNotification('❌ ' + (typeof tr === 'function' ? tr('msg.enterBlueprintName', 'Enter a blueprint name!') : 'Enter name'), 'error');
+        if (typeof showNotification === 'function') showNotification(mkTr('msg.enterBlueprintName', 'Enter a blueprint name!'), 'error');
         return;
     }
 
@@ -107,26 +126,26 @@ async function mkPublish() {
         name,
         description: desc || '',
         mode: typeof vbCurrentMode !== 'undefined' ? vbCurrentMode : 'plugin',
-        author: (typeof tr === 'function' ? tr('ui.market.anonymous', 'Anonymous') : 'CraftIDE User'),
+        author: mkTr('ui.market.anonymous', 'Anonymous'),
         nodes: vbNodes.map(n => ({ id: n.id, blockId: n.blockId, x: n.x, y: n.y, params: { ...n.params } })),
         connections: (typeof vbConnections !== 'undefined' ? vbConnections : []).map(c => ({ from: c.from, to: c.to })),
     };
 
     try {
         await ipcRenderer.invoke('marketplace:publish', blueprint);
-        if (typeof showNotification === 'function') showNotification('🚀 ' + (typeof tr === 'function' ? tr('msg.blueprintPublished', 'Blueprint published!') : 'Published!'), 'success');
+        if (typeof showNotification === 'function') showNotification(mkTr('msg.blueprintPublished', 'Blueprint published!'), 'success');
         // Input'ları temizle
         const ni = document.getElementById('mk-publish-name'); if (ni) ni.value = '';
         const di = document.getElementById('mk-publish-desc'); if (di) di.value = '';
         await mkLoadAndRender();
     } catch (e) {
-        if (typeof showNotification === 'function') showNotification('❌ ' + (typeof tr === 'function' ? tr('msg.publishError', 'Publish error: {error}', { error: e.message }) : e.message), 'error');
+        if (typeof showNotification === 'function') showNotification(mkTr('msg.publishError', 'Publish error: {error}', { error: e.message }), 'error');
     }
 }
 
 function mkImport(bp) {
     if (typeof vbLoadBlueprintObj !== 'function' && typeof vbNodes === 'undefined') {
-        if (typeof showNotification === 'function') showNotification('❌ ' + (typeof tr === 'function' ? tr('msg.visualBuilderNotLoaded', 'Visual Builder is not loaded!') : 'VB not loaded'), 'error');
+        if (typeof showNotification === 'function') showNotification(mkTr('msg.visualBuilderNotLoaded', 'Visual Builder is not loaded!'), 'error');
         return;
     }
 
@@ -167,8 +186,8 @@ function mkImport(bp) {
     if (hint) hint.style.display = 'none';
 
     // VB tab'ına geç
-    if (typeof openFile === 'function') openFile('visual-builder://tab', 'Görsel Builder');
-    if (typeof showNotification === 'function') showNotification('📂 ' + (typeof tr === 'function' ? tr('msg.blueprintLoaded', 'Blueprint loaded: {name}', { name: bp.name }) : bp.name), 'success');
+    if (typeof openFile === 'function') openFile('visual-builder://tab', typeof getVirtualTabName === 'function' ? getVirtualTabName('visual-builder://tab') : 'Visual Builder');
+    if (typeof showNotification === 'function') showNotification(mkTr('msg.blueprintLoaded', 'Blueprint loaded: {name}', { name: bp.name }), 'success');
 }
 
 window.initMarketplace = initMarketplace;

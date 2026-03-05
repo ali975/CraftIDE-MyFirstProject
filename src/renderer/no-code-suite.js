@@ -101,8 +101,16 @@
         return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), fallback);
     }
     function notify(msg, type = 'info') { window.CraftIDEAppState?.showNotification ? window.CraftIDEAppState.showNotification(msg, type) : console.log(msg); }
+    function notifyT(key, fallback, type = 'info', params) { notify(t(key, fallback, params), type); }
     function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
     function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+    function formatMessage(entry, fallbackKey, fallbackText) {
+        if (entry && typeof entry === 'object' && entry.messageKey) {
+            return t(entry.messageKey, entry.message || fallbackText || fallbackKey, entry.messageParams || {});
+        }
+        if (typeof entry?.message === 'string') return entry.message;
+        return t(fallbackKey, fallbackText);
+    }
 
     function currentGraph() {
         return window.CraftIDEVB?.exportGraph?.() || { version: '2', mode: getMode(), nodes: [], connections: [] };
@@ -124,7 +132,7 @@
     }
 
     function applyGraph(graph) {
-        if (!window.CraftIDEVB?.importGraph) { notify('Visual Builder API unavailable.', 'error'); return; }
+        if (!window.CraftIDEVB?.importGraph) { notifyT('ui.nc.notify.visualBuilderUnavailable', 'Visual Builder API unavailable.', 'error'); return; }
         const normalized = graph && typeof graph === 'object' ? JSON.parse(JSON.stringify(graph)) : {};
         normalized.version = normalized.version || '2';
         normalized.mode = normalizeMode(normalized.mode || getMode());
@@ -172,19 +180,19 @@
         const edges = graph.connections || [];
         const byId = new Set(nodes.map((n) => n.id));
 
-        if (!nodes.length) errors.push({ message: 'No blocks on canvas.' });
-        if (!nodes.some((n) => /^(Player|Block|Entity|Inventory|Server|GUI|Fabric|Forge|Sk)/.test(String(n.blockId || '')))) errors.push({ message: 'Add at least one event block.' });
+        if (!nodes.length) errors.push({ messageKey: 'ui.nc.validation.noBlocks', messageParams: {} });
+        if (!nodes.some((n) => /^(Player|Block|Entity|Inventory|Server|GUI|Fabric|Forge|Sk)/.test(String(n.blockId || '')))) errors.push({ messageKey: 'ui.nc.validation.addEvent', messageParams: {} });
 
         for (const e of edges) {
-            if (!byId.has(e.from) || !byId.has(e.to)) errors.push({ message: `Broken connection ${e.from} -> ${e.to}` });
-            if (e.from === e.to) errors.push({ message: `Self connection on node ${e.from}` });
+            if (!byId.has(e.from) || !byId.has(e.to)) errors.push({ messageKey: 'ui.nc.validation.brokenConnection', messageParams: { from: e.from, to: e.to } });
+            if (e.from === e.to) errors.push({ messageKey: 'ui.nc.validation.selfConnection', messageParams: { node: e.from } });
         }
         for (const n of nodes) {
-            if (n.blockId === 'PlayerCommand' && !String(n.params?.command || '').startsWith('/')) warnings.push({ message: 'PlayerCommand should start with /' });
-            if (n.blockId === 'SkCommand' && !String(n.params?.komut || '').startsWith('/')) warnings.push({ message: 'SkCommand should start with /' });
+            if (n.blockId === 'PlayerCommand' && !String(n.params?.command || '').startsWith('/')) warnings.push({ messageKey: 'ui.nc.validation.commandSlash', messageParams: {} });
+            if (n.blockId === 'SkCommand' && !String(n.params?.komut || '').startsWith('/')) warnings.push({ messageKey: 'ui.nc.validation.skriptCommandSlash', messageParams: {} });
             if (/Teleport$/.test(String(n.blockId || ''))) {
                 const xyz = [Number(n.params?.x), Number(n.params?.y), Number(n.params?.z)];
-                if (xyz.some((v) => !Number.isFinite(v))) errors.push({ message: `${n.blockId} requires numeric x/y/z` });
+                if (xyz.some((v) => !Number.isFinite(v))) errors.push({ messageKey: 'ui.nc.validation.teleportCoords', messageParams: { block: n.blockId } });
             }
         }
         return { errors, warnings };
@@ -202,9 +210,9 @@
 
         const body = document.getElementById('nc-validator-body');
         if (!body) return result;
-        const lines = [`<div class="nc-row"><strong>${esc(t('ui.nc.validate', 'Validate'))}:</strong> ${result.errors.length} error(s), ${result.warnings.length} warning(s)</div>`];
-        for (const e of result.errors.slice(0, 4)) lines.push(`<div class="nc-row err">E: ${esc(e.message)}</div>`);
-        for (const w of result.warnings.slice(0, 6)) lines.push(`<div class="nc-row warn">W: ${esc(w.message)}</div>`);
+        const lines = [`<div class="nc-row"><strong>${esc(t('ui.nc.validate', 'Validate'))}:</strong> ${esc(t('ui.nc.validateSummary', '{errors} error(s), {warnings} warning(s)', { errors: result.errors.length, warnings: result.warnings.length }))}</div>`];
+        for (const e of result.errors.slice(0, 4)) lines.push(`<div class="nc-row err">E: ${esc(formatMessage(e, 'ui.nc.validation.error', 'Validation error'))}</div>`);
+        for (const w of result.warnings.slice(0, 6)) lines.push(`<div class="nc-row warn">W: ${esc(formatMessage(w, 'ui.nc.validation.warning', 'Validation warning'))}</div>`);
         if (!result.errors.length && !result.warnings.length) lines.push(`<div class="nc-row ok">${esc(t('ui.nc.validationReady', 'Validation panel initialized.'))}</div>`);
         body.innerHTML = lines.join('');
         return result;
@@ -216,7 +224,7 @@
         const out = document.getElementById('nc-intent-plan');
         const text = String(input?.value || '').trim();
         const mode = normalizeMode(modeEl?.value || getMode());
-        if (!text) { notify('Write what you want to build first.', 'error'); return; }
+        if (!text) { notifyT('ui.nc.notify.describeFirst', 'Write what you want to build first.', 'error'); return; }
 
         let graph = null;
         try {
@@ -226,10 +234,10 @@
         if (!graph) graph = localGraphFromPrompt(text, mode);
 
         STATE.intentGraph = graph;
-        if (out) out.innerHTML = `<div class="nc-card"><strong>Generated graph</strong><div class="nc-sub">${graph.nodes.length} node(s), ${graph.connections.length} connection(s)</div></div>`;
+        if (out) out.innerHTML = `<div class="nc-card"><strong>${esc(t('ui.nc.generatedGraph', 'Generated graph'))}</strong><div class="nc-sub">${esc(t('ui.nc.generatedGraphSummary', '{nodes} node(s), {connections} connection(s)', { nodes: graph.nodes.length, connections: graph.connections.length }))}</div></div>`;
     }
 
-    async function applyIntent() { if (!STATE.intentGraph) { notify('Analyze first.', 'error'); return; } applyGraph(STATE.intentGraph); closeModal('nc-intent-modal'); await validateGraph(true); }
+    async function applyIntent() { if (!STATE.intentGraph) { notifyT('ui.nc.notify.analyzeFirst', 'Analyze first.', 'error'); return; } applyGraph(STATE.intentGraph); closeModal('nc-intent-modal'); await validateGraph(true); }
 
     function suggestionsForGraph(graph) {
         const suggestions = [];
@@ -259,16 +267,16 @@
             const chain = descendants(cmd.id).map((id) => byId.get(id)).filter(Boolean);
             const ids = chain.map((n) => n.blockId);
             if (cmd.blockId === 'PlayerCommand' && !ids.includes('CommandEquals')) {
-                suggestions.push({ level: 'warn', text: 'Command flow: Add CommandEquals to avoid matching every command.' });
+                suggestions.push({ level: 'warn', text: t('ui.nc.suggestion.commandFlow', 'Command flow: Add CommandEquals to avoid matching every command.') });
             }
             if (!ids.some((x) => x === 'HasPermission' || x === 'SkHasPerm' || x === 'IsOp' || x === 'SkIsOp')) {
-                suggestions.push({ level: 'warn', text: 'Command security: Add permission/op check before command actions.' });
+                suggestions.push({ level: 'warn', text: t('ui.nc.suggestion.commandSecurity', 'Command security: Add permission/op check before command actions.') });
             }
         }
 
         const teleports = nodes.filter((n) => /Teleport$/.test(String(n.blockId || '')));
         if (teleports.length && !nodes.some((n) => /SendMsg|SendMessage|Broadcast/.test(String(n.blockId || '')))) {
-            suggestions.push({ level: 'info', text: 'UX: Consider adding a message after teleport so users get feedback.' });
+            suggestions.push({ level: 'info', text: t('ui.nc.suggestion.teleportFeedback', 'UX: Consider adding a message after teleport so users get feedback.') });
         }
 
         const giveItems = nodes.filter((n) => /GiveItem|SkGiveItem|FabricGiveItem/.test(String(n.blockId || '')));
@@ -276,12 +284,12 @@
             const raw = item.params?.adet || item.params?.amount || item.params?.count || '1';
             const amount = Number(raw);
             if (Number.isFinite(amount) && amount > 16) {
-                suggestions.push({ level: 'warn', text: `Balance: ${item.blockId} gives ${amount} items; consider lower values.` });
+                suggestions.push({ level: 'warn', text: t('ui.nc.suggestion.balance', 'Balance: {block} gives {amount} items; consider lower values.', { block: item.blockId, amount }) });
             }
         }
 
         if (nodes.some((n) => /RepeatTask|SkScheduleRepeat/.test(String(n.blockId || ''))) && !nodes.some((n) => /CancelTask|Delay|SkWait/.test(String(n.blockId || '')))) {
-            suggestions.push({ level: 'info', text: 'Performance: repeating tasks should have delay/cancel controls.' });
+            suggestions.push({ level: 'info', text: t('ui.nc.suggestion.performance', 'Performance: repeating tasks should have delay/cancel controls.') });
         }
 
         return suggestions.slice(0, 8);
@@ -331,25 +339,25 @@
     async function runGuaranteedBuild() {
         if (STATE.buildRunning) { STATE.cancelBuild = true; return; }
         const projectPath = window.CraftIDEAppState?.getCurrentProjectPath?.();
-        if (!projectPath) { notify('Open a project first.', 'error'); return; }
+        if (!projectPath) { notifyT('msg.openProjectFirst', 'Open a project first!', 'error'); return; }
         const mode = getMode();
         const sourcePath = await resolveMainSource(projectPath, mode);
-        if (!sourcePath) { notify('Source file not found.', 'error'); return; }
+        if (!sourcePath) { notifyT('ui.nc.notify.sourceNotFound', 'Source file not found.', 'error'); return; }
 
         STATE.buildRunning = true; STATE.cancelBuild = false; STATE.attempt = 0; renderBuildButton();
-        logBuild('Guaranteed build started.', 'info');
+        logBuild(t('ui.nc.build.started', 'Guaranteed build started.'), 'info');
 
         let source = window.CraftIDEVB?.generateCode?.({ returnOnly: true }) || '';
-        if (!source || /Henuz|Henüz/.test(source)) { notify('Add nodes first.', 'error'); STATE.buildRunning = false; renderBuildButton(); return; }
+        if (!source || /Henuz|Hen?z/.test(source)) { notifyT('ui.nc.notify.addNodesFirst', 'Add nodes first.', 'error'); STATE.buildRunning = false; renderBuildButton(); return; }
 
         try {
             while (!STATE.cancelBuild) {
                 STATE.attempt += 1;
                 await ipcRenderer.invoke('fs:writeFile', sourcePath, source);
                 const result = await ipcRenderer.invoke('build:guaranteed', { projectPath, platform: mode, attempt: STATE.attempt });
-                if (result?.success) { logBuild(`Attempt ${STATE.attempt}: success`, 'ok'); notify(`Build passed after ${STATE.attempt} attempts.`, 'success'); break; }
+                if (result?.success) { logBuild(t('ui.nc.build.attemptSuccess', 'Attempt {attempt}: success', { attempt: STATE.attempt }), 'ok'); notifyT('ui.nc.notify.buildPassedAfterAttempts', 'Build passed after {attempt} attempts.', 'success', { attempt: STATE.attempt }); break; }
                 const err = [result?.error || '', ...(result?.compileErrors || [])].join('\n').trim() || 'Unknown error';
-                logBuild(`Attempt ${STATE.attempt}: failed, fixing...`, 'warn');
+                logBuild(t('ui.nc.build.attemptFailedFixing', 'Attempt {attempt}: failed, fixing...', { attempt: STATE.attempt }), 'warn');
                 let fixed = null;
                 if (window.llmProvider?.generate) {
                     const answer = await window.llmProvider.generate(`Mode: ${mode}\nCompiler errors:\n${err}\n\nCurrent source:\n${source}\n\nReturn only one full fixed source in fenced code block.`, 'Fix Minecraft source code and return only code.');
@@ -359,7 +367,7 @@
                 await sleep(1200);
             }
         } finally {
-            if (STATE.cancelBuild) logBuild('Guaranteed build canceled by user.', 'warn');
+            if (STATE.cancelBuild) logBuild(t('ui.nc.build.canceled', 'Guaranteed build canceled by user.'), 'warn');
             STATE.buildRunning = false; STATE.cancelBuild = false; renderBuildButton();
         }
     }
@@ -378,7 +386,7 @@
     function renderBuildButton() {
         const btn = document.getElementById('btn-nc-guaranteed');
         if (!btn) return;
-        if (STATE.buildRunning) { btn.textContent = 'Cancel Build'; btn.classList.add('danger'); }
+        if (STATE.buildRunning) { btn.textContent = t('ui.nc.build.cancel', 'Cancel Build'); btn.classList.add('danger'); }
         else { btn.textContent = t('ui.nc.guaranteed', 'Guaranteed Build'); btn.classList.remove('danger'); }
     }
 
@@ -396,9 +404,9 @@
     async function runScenarios() {
         const out = document.getElementById('nc-scenario-output');
         const scenarios = parseScenarios();
-        if (!scenarios.length) { out.innerHTML = '<div class="nc-row warn">No valid scenarios.</div>'; return; }
+        if (!scenarios.length) { out.innerHTML = `<div class="nc-row warn">${esc(t('ui.nc.scenario.none', 'No valid scenarios.'))}</div>`; return; }
         const status = await ipcRenderer.invoke('server:status').catch(() => null);
-        if (!status || status.status !== 'running') { out.innerHTML = '<div class="nc-row err">Server is not running.</div>'; return; }
+        if (!status || status.status !== 'running') { out.innerHTML = `<div class="nc-row err">${esc(t('ui.nc.scenario.serverNotRunning', 'Server is not running.'))}</div>`; return; }
         await ipcRenderer.invoke('scenario:run', { scenarios }).catch(() => null);
 
         let passed = 0;
@@ -406,29 +414,29 @@
         for (const s of scenarios) {
             const t0 = Date.now();
             const sent = await ipcRenderer.invoke('server:command', s.command).catch(() => false);
-            if (!sent) { rows.push(`<div class="nc-row err">${esc(s.name)}: command failed</div>`); continue; }
+            if (!sent) { rows.push(`<div class="nc-row err">${esc(s.name)}: ${esc(t('ui.nc.scenario.commandFailed', 'command failed'))}</div>`); continue; }
             let ok = false;
             const until = Date.now() + s.timeoutMs;
             while (Date.now() < until) { if (matches(s.expect, logsSince(t0))) { ok = true; break; } await sleep(250); }
-            if (ok) { passed += 1; rows.push(`<div class="nc-row ok">${esc(s.name)}: passed</div>`); }
-            else rows.push(`<div class="nc-row err">${esc(s.name)}: failed</div>`);
+            if (ok) { passed += 1; rows.push(`<div class="nc-row ok">${esc(s.name)}: ${esc(t('ui.nc.scenario.passed', 'passed'))}</div>`); }
+            else rows.push(`<div class="nc-row err">${esc(s.name)}: ${esc(t('ui.nc.scenario.failed', 'failed'))}</div>`);
         }
-        rows.unshift(`<div class="nc-row"><strong>Scenario result:</strong> ${passed}/${scenarios.length} passed</div>`);
+        rows.unshift(`<div class="nc-row"><strong>${esc(t('ui.nc.scenario.result', 'Scenario result'))}:</strong> ${passed}/${scenarios.length} ${esc(t('ui.nc.scenario.passed', 'passed'))}</div>`);
         out.innerHTML = rows.join('');
     }
 
     async function runRelease() {
         const out = document.getElementById('nc-release-output');
         const projectPath = window.CraftIDEAppState?.getCurrentProjectPath?.();
-        if (!projectPath) { notify('Open a project first.', 'error'); return; }
-        out.innerHTML = '<div class="nc-row">Packaging release...</div>';
+        if (!projectPath) { notifyT('msg.openProjectFirst', 'Open a project first!', 'error'); return; }
+        out.innerHTML = `<div class="nc-row">${esc(t('ui.nc.release.packaging', 'Packaging release...'))}</div>`;
         const result = await ipcRenderer.invoke('release:oneClick', {
             projectPath,
             targetType: document.getElementById('nc-release-target')?.value || 'jar',
             includeDocs: !!document.getElementById('nc-release-docs')?.checked,
         }).catch((e) => ({ success: false, error: e?.message || 'IPC error' }));
-        if (!result?.success) { out.innerHTML = `<div class="nc-row err">Release failed: ${esc(result?.error || 'Unknown')}</div>`; return; }
-        const lines = ['<div class="nc-row ok">Release package created.</div>'];
+        if (!result?.success) { out.innerHTML = `<div class="nc-row err">${esc(t('ui.nc.release.failed', 'Release failed: {error}', { error: result?.error || t('ui.nc.errorUnknown', 'Unknown') }))}</div>`; return; }
+        const lines = [`<div class="nc-row ok">${esc(t('ui.nc.release.created', 'Release package created.'))}</div>`];
         for (const f of (result.outputFiles || [])) lines.push(`<div class="nc-row">${esc(f)}</div>`);
         for (const c of (result.checksum || [])) lines.push(`<div class="nc-row">${esc(c.file)} :: ${esc(c.sha256)}</div>`);
         if (result.warning) lines.push(`<div class="nc-row warn">${esc(result.warning)}</div>`);
@@ -452,15 +460,15 @@
         const doGenerate = !!document.getElementById('nc-one-step-gencode')?.checked;
         const doBuild = !!document.getElementById('nc-one-step-build')?.checked;
         const out = document.getElementById('nc-one-step-output');
-        if (!prompt) { notify('Write what you want to build first.', 'error'); return; }
+        if (!prompt) { notifyT('ui.nc.notify.describeFirst', 'Write what you want to build first.', 'error'); return; }
         if (out) out.innerHTML = '';
 
         STATE.oneStepRunning = true;
         const runBtn = document.getElementById('nc-one-step-run');
-        if (runBtn) runBtn.textContent = 'Running...';
+        if (runBtn) runBtn.textContent = t('ui.nc.run.running', 'Running...');
 
         try {
-            oneStepLog(`Architect: parsing request for ${mode}...`, 'info');
+            oneStepLog(t('ui.nc.run.architectParsing', 'Architect: parsing request for {mode}...', { mode }), 'info');
             await ensureVisualBuilderOpen(mode);
 
             let graph = null;
@@ -470,40 +478,40 @@
             } catch {}
             if (!graph) {
                 graph = localGraphFromPrompt(prompt, mode);
-                oneStepLog('Architect: local fallback graph generated.', 'warn');
+                oneStepLog(t('ui.nc.run.localFallback', 'Architect: local fallback graph generated.'), 'warn');
             } else {
-                oneStepLog(`Architect: ${graph.nodes.length} nodes designed.`, 'ok');
+                oneStepLog(t('ui.nc.run.nodesDesigned', 'Architect: {count} nodes designed.', { count: graph.nodes.length }), 'ok');
             }
 
-            oneStepLog('Coder: applying graph to Visual Builder...', 'info');
+            oneStepLog(t('ui.nc.run.applyGraph', 'Coder: applying graph to Visual Builder...'), 'info');
             applyGraph(graph);
 
-            oneStepLog('Validator: checking graph quality...', 'info');
+            oneStepLog(t('ui.nc.run.checkingGraph', 'Validator: checking graph quality...'), 'info');
             const result = await validateGraph(true);
             renderSuggestions(true);
-            if (result?.errors?.length) oneStepLog(`Validator: ${result.errors.length} error(s), review required.`, 'warn');
-            else oneStepLog('Validator: graph passed.', 'ok');
+            if (result?.errors?.length) oneStepLog(t('ui.nc.run.validationErrors', 'Validator: {count} error(s), review required.', { count: result.errors.length }), 'warn');
+            else oneStepLog(t('ui.nc.run.graphPassed', 'Validator: graph passed.'), 'ok');
 
             if (doGenerate) {
-                oneStepLog('Coder: generating source code...', 'info');
+                oneStepLog(t('ui.nc.run.generateSource', 'Coder: generating source code...'), 'info');
                 window.CraftIDEVB?.generateCode?.();
-                oneStepLog('Coder: source generated in editor tab.', 'ok');
+                oneStepLog(t('ui.nc.run.sourceGenerated', 'Coder: source generated in editor tab.'), 'ok');
             }
 
             if (doBuild) {
-                oneStepLog('Validator: running guaranteed build...', 'info');
+                oneStepLog(t('ui.nc.run.guaranteedStart', 'Validator: running guaranteed build...'), 'info');
                 await runGuaranteedBuild();
-                oneStepLog('Validator: guaranteed build flow finished.', 'ok');
+                oneStepLog(t('ui.nc.run.guaranteedDone', 'Validator: guaranteed build flow finished.'), 'ok');
             }
 
-            oneStepLog('Flow completed.', 'ok');
-            notify('One-step flow completed.', 'success');
+            oneStepLog(t('ui.nc.run.completed', 'Flow completed.'), 'ok');
+            notifyT('ui.nc.notify.flowCompleted', 'One-step flow completed.', 'success');
         } catch (e) {
-            oneStepLog(`Flow failed: ${e?.message || 'Unknown error'}`, 'err');
-            notify(`One-step flow failed: ${e?.message || 'Unknown error'}`, 'error');
+            oneStepLog(t('ui.nc.run.failed', 'Flow failed: {error}', { error: e?.message || t('ui.nc.errorUnknown', 'Unknown error') }), 'err');
+            notifyT('ui.nc.notify.flowFailed', 'One-step flow failed: {error}', 'error', { error: e?.message || t('ui.nc.errorUnknown', 'Unknown error') });
         } finally {
             STATE.oneStepRunning = false;
-            if (runBtn) runBtn.textContent = 'Run One-Step Flow';
+            if (runBtn) runBtn.textContent = t('ui.nc.runFlow', 'Run One-Step Flow');
         }
     }
 
@@ -556,17 +564,43 @@
         setText('#nc-scenario-modal .nc-m-title', 'ui.nc.modal.scenarioTitle', 'Scenario Runner');
         setText('#nc-release-modal .nc-m-title', 'ui.nc.modal.releaseTitle', 'One-Click Release');
         document.querySelectorAll('[data-close]').forEach((btn) => setText(btn, 'ui.nc.close', 'Close'));
-        setText('#nc-one-step-run', 'ui.nc.run', 'Run');
+        setText('#nc-one-step-run', 'ui.nc.runFlow', 'Run One-Step Flow');
         setText('#nc-intent-analyze', 'ui.nc.analyze', 'Analyze');
         setText('#nc-intent-apply', 'ui.nc.apply', 'Apply');
         setText('#nc-scenario-run', 'ui.nc.run', 'Run');
         setText('#nc-release-run', 'ui.nc.run', 'Run');
+        setText('#nc-one-step-mode-label', 'ui.nc.label.targetMode', 'Target mode');
+        setText('#nc-one-step-options-label', 'ui.nc.label.options', 'Options');
+        setText('#nc-one-step-gencode-label', 'ui.nc.option.generateCodeTab', 'Generate code tab');
+        setText('#nc-one-step-build-label', 'ui.nc.option.runGuaranteedBuild', 'Run guaranteed build');
+        setText('#nc-intent-mode-label', 'ui.nc.label.targetMode', 'Target mode');
+        setText('#nc-intent-example-label', 'ui.nc.label.quickExample', 'Quick example');
+        setText('#nc-scenario-format', 'ui.nc.label.scenarioFormat', 'Format: Name|command|expected text|timeoutMs');
+        setText('#nc-release-target-label', 'ui.nc.label.targetType', 'Target type');
+        setText('#nc-release-docs-label', 'ui.nc.label.includeDocs', 'Include docs');
+        setText('#nc-release-docs-text', 'ui.nc.option.includeDocs', 'Create release notes/checksums');
+        setText('#nc-release-run', 'ui.nc.release.create', 'Create Release');
         const oneStepInput = document.getElementById('nc-one-step-input');
         if (oneStepInput) oneStepInput.placeholder = t('ui.nc.placeholder.oneStep', 'Describe the full plugin you want in natural language...');
         const intentInput = document.getElementById('nc-intent-input');
         if (intentInput) intentInput.placeholder = t('ui.nc.placeholder.intent', 'Describe feature in natural language...');
         const intentExample = document.getElementById('nc-intent-example');
         if (intentExample) intentExample.placeholder = t('ui.nc.placeholder.example', 'e.g. /spawn command with teleport');
+        const setOption = (selector, value, key, fallback) => {
+            const option = document.querySelector(`${selector} option[value="${value}"]`);
+            if (option) option.textContent = t(key, fallback);
+        };
+        setOption('#nc-one-step-mode', 'plugin', 'ui.server.type.paper', 'Paper (Plugin)');
+        setOption('#nc-one-step-mode', 'fabric', 'ui.server.type.fabric', 'Fabric (Mod)');
+        setOption('#nc-one-step-mode', 'forge', 'ui.server.type.forge', 'Forge (Mod)');
+        setOption('#nc-one-step-mode', 'skript', 'mode.skript', 'Skript Mode');
+        setOption('#nc-intent-mode', 'plugin', 'ui.server.type.paper', 'Paper (Plugin)');
+        setOption('#nc-intent-mode', 'fabric', 'ui.server.type.fabric', 'Fabric (Mod)');
+        setOption('#nc-intent-mode', 'forge', 'ui.server.type.forge', 'Forge (Mod)');
+        setOption('#nc-intent-mode', 'skript', 'mode.skript', 'Skript Mode');
+        setOption('#nc-release-target', 'jar', 'ui.nc.release.type.jar', 'Jar');
+        setOption('#nc-release-target', 'sk', 'ui.nc.release.type.sk', 'Skript');
+        setOption('#nc-release-target', 'zip', 'ui.nc.release.type.zip', 'Zip Bundle');
         renderBuildButton();
     }
 
@@ -607,11 +641,11 @@
         }
 
         document.body.insertAdjacentHTML('beforeend', `
-            <div class="nc-modal-overlay" id="nc-one-step-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">One-Step Natural Language -> Plugin</div><button class="nc-btn" data-close="nc-one-step-modal">Close</button></div><div class="nc-m-body"><div class="nc-grid"><div><label>Target mode</label><select id="nc-one-step-mode" class="nc-sel"><option value="plugin">Paper/Plugin</option><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="skript">Skript</option></select></div><div><label>Options</label><div style="display:flex;flex-direction:column;gap:6px;padding-top:6px;"><label><input type="checkbox" id="nc-one-step-gencode" checked> Generate code tab</label><label><input type="checkbox" id="nc-one-step-build"> Run guaranteed build</label></div></div></div><textarea id="nc-one-step-input" class="nc-txt" placeholder="Describe the full plugin you want in natural language..."></textarea><div id="nc-one-step-output" class="nc-build"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-one-step-run">Run One-Step Flow</button></div></div></div>
-            <div class="nc-modal-overlay" id="nc-intent-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">Intent Wizard</div><button class="nc-btn" data-close="nc-intent-modal">Close</button></div><div class="nc-m-body"><div class="nc-grid"><div><label>Target mode</label><select id="nc-intent-mode" class="nc-sel"><option value="plugin">Paper/Plugin</option><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="skript">Skript</option></select></div><div><label>Quick example</label><input id="nc-intent-example" class="nc-inp" placeholder="e.g. /spawn command with teleport"></div></div><textarea id="nc-intent-input" class="nc-txt" placeholder="Describe feature in natural language..."></textarea><div id="nc-intent-plan" class="nc-cards"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-intent-analyze">Analyze</button><button class="nc-btn" id="nc-intent-apply">Apply</button></div></div></div>
+            <div class="nc-modal-overlay" id="nc-one-step-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">One-Step Natural Language -> Plugin</div><button class="nc-btn" data-close="nc-one-step-modal">Close</button></div><div class="nc-m-body"><div class="nc-grid"><div><label id="nc-one-step-mode-label">Target mode</label><select id="nc-one-step-mode" class="nc-sel"><option value="plugin">Paper/Plugin</option><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="skript">Skript</option></select></div><div><label id="nc-one-step-options-label">Options</label><div style="display:flex;flex-direction:column;gap:6px;padding-top:6px;"><label><input type="checkbox" id="nc-one-step-gencode" checked> <span id="nc-one-step-gencode-label">Generate code tab</span></label><label><input type="checkbox" id="nc-one-step-build"> <span id="nc-one-step-build-label">Run guaranteed build</span></label></div></div></div><textarea id="nc-one-step-input" class="nc-txt" placeholder="Describe the full plugin you want in natural language..."></textarea><div id="nc-one-step-output" class="nc-build"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-one-step-run">Run One-Step Flow</button></div></div></div>
+            <div class="nc-modal-overlay" id="nc-intent-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">Intent Wizard</div><button class="nc-btn" data-close="nc-intent-modal">Close</button></div><div class="nc-m-body"><div class="nc-grid"><div><label id="nc-intent-mode-label">Target mode</label><select id="nc-intent-mode" class="nc-sel"><option value="plugin">Paper/Plugin</option><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="skript">Skript</option></select></div><div><label id="nc-intent-example-label">Quick example</label><input id="nc-intent-example" class="nc-inp" placeholder="e.g. /spawn command with teleport"></div></div><textarea id="nc-intent-input" class="nc-txt" placeholder="Describe feature in natural language..."></textarea><div id="nc-intent-plan" class="nc-cards"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-intent-analyze">Analyze</button><button class="nc-btn" id="nc-intent-apply">Apply</button></div></div></div>
             <div class="nc-modal-overlay" id="nc-pack-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">Behavior Packs</div><button class="nc-btn" data-close="nc-pack-modal">Close</button></div><div class="nc-m-body"><div id="nc-pack-list" class="nc-cards"></div></div></div></div>
-            <div class="nc-modal-overlay" id="nc-scenario-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">Scenario Runner</div><button class="nc-btn" data-close="nc-scenario-modal">Close</button></div><div class="nc-m-body"><div class="nc-sub">Format: Name|command|expected text|timeoutMs</div><textarea id="nc-scenario-input" class="nc-txt">Spawn check|say [TEST] spawn ok|spawn ok|7000\nJoin check|say [TEST] welcome ok|welcome ok|7000</textarea><div id="nc-scenario-output"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-scenario-run">Run Scenarios</button></div></div></div>
-            <div class="nc-modal-overlay" id="nc-release-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">One-Click Release</div><button class="nc-btn" data-close="nc-release-modal">Close</button></div><div class="nc-m-body"><div class="nc-grid"><div><label>Target type</label><select id="nc-release-target" class="nc-sel"><option value="jar">Jar</option><option value="sk">Skript</option><option value="zip">Zip Bundle</option></select></div><div><label>Include docs</label><div style="display:flex;align-items:center;gap:8px;height:34px;"><input type="checkbox" id="nc-release-docs" checked><span class="nc-sub">Create release notes/checksums</span></div></div></div><div id="nc-release-output"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-release-run">Create Release</button></div></div></div>
+            <div class="nc-modal-overlay" id="nc-scenario-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">Scenario Runner</div><button class="nc-btn" data-close="nc-scenario-modal">Close</button></div><div class="nc-m-body"><div class="nc-sub" id="nc-scenario-format">Format: Name|command|expected text|timeoutMs</div><textarea id="nc-scenario-input" class="nc-txt">Spawn check|say [TEST] spawn ok|spawn ok|7000\nJoin check|say [TEST] welcome ok|welcome ok|7000</textarea><div id="nc-scenario-output"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-scenario-run">Run Scenarios</button></div></div></div>
+            <div class="nc-modal-overlay" id="nc-release-modal"><div class="nc-modal"><div class="nc-m-head"><div class="nc-m-title">One-Click Release</div><button class="nc-btn" data-close="nc-release-modal">Close</button></div><div class="nc-m-body"><div class="nc-grid"><div><label id="nc-release-target-label">Target type</label><select id="nc-release-target" class="nc-sel"><option value="jar">Jar</option><option value="sk">Skript</option><option value="zip">Zip Bundle</option></select></div><div><label id="nc-release-docs-label">Include docs</label><div style="display:flex;align-items:center;gap:8px;height:34px;"><input type="checkbox" id="nc-release-docs" checked><span id="nc-release-docs-text" class="nc-sub">Create release notes/checksums</span></div></div></div><div id="nc-release-output"></div></div><div class="nc-m-foot"><button class="nc-btn" id="nc-release-run">Create Release</button></div></div></div>
         `);
 
         document.getElementById('btn-nc-one-step')?.addEventListener('click', () => openOneStepModal());

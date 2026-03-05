@@ -1,4 +1,4 @@
-import { ipcMain, dialog, MessageBoxOptions, app } from 'electron';
+import { ipcMain, dialog, MessageBoxOptions, OpenDialogOptions, SaveDialogOptions, app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -6,6 +6,14 @@ import * as crypto from 'crypto';
 import * as https from 'https';
 import { exec } from 'child_process';
 import { ProjectScaffolder } from './scaffolder';
+import {
+    checkForAppUpdates,
+    getUpdaterCapability,
+    getUpdaterState,
+    type LocalizedParams,
+    type UpdaterCapability,
+    type UpdaterState,
+} from './updater';
 
 type BuildRunResult = {
     success: boolean;
@@ -32,6 +40,19 @@ type ValidationEntry = {
     message: string;
 };
 
+type RendererOpenDialogRequest = {
+    title?: string;
+    defaultPath?: string;
+    filters?: Array<{ name: string; extensions: string[] }>;
+    properties?: OpenDialogOptions['properties'];
+};
+
+type RendererSaveDialogRequest = {
+    title?: string;
+    defaultPath?: string;
+    filters?: Array<{ name: string; extensions: string[] }>;
+};
+
 type GitHubReleaseAsset = {
     name: string;
     browser_download_url: string;
@@ -56,14 +77,53 @@ type BuildVerificationResult = {
     localAsarSha256: string | null;
     status: 'development' | 'verified' | 'unverified' | 'unknown' | 'error';
     reason: string;
+    reasonKey: string;
+    reasonFallback: string;
+    reasonParams: LocalizedParams;
     officialTag?: string;
     officialReleaseUrl?: string;
     checksumsAsset?: string;
 };
 
+type OfficialAssetKind = 'setup' | 'portable' | 'checksums' | 'blockmap' | 'latest-yml' | 'notes' | 'other';
+
+type OfficialReleaseAssetInfo = {
+    name: string;
+    url: string;
+    size: number;
+    kind: OfficialAssetKind;
+};
+
+type UpdateAssetPreference = 'auto' | 'setup' | 'portable';
+
+type OfficialUpdateStatus = {
+    channelLocked: boolean;
+    owner: string;
+    repo: string;
+    currentVersion: string;
+    latestTag: string | null;
+    latestVersion: string | null;
+    updateAvailable: boolean;
+    publishedAt: string | null;
+    releaseUrl: string | null;
+    assets: OfficialReleaseAssetInfo[];
+    preferredAssetKind: 'setup' | 'portable';
+    updaterCapability: UpdaterCapability;
+    updaterState: UpdaterState;
+    checkedAt: string;
+    releaseCheckSucceeded: boolean;
+    releaseErrorKey: string | null;
+    releaseErrorFallback: string | null;
+    releaseErrorParams: LocalizedParams;
+};
+
 const OFFICIAL_OWNER = 'ali975';
 const OFFICIAL_REPO = 'CraftIDE-MyFirstProject';
 const OFFICIAL_GITHUB_API = `https://api.github.com/repos/${OFFICIAL_OWNER}/${OFFICIAL_REPO}`;
+
+function localized(key: string, fallback: string, params: LocalizedParams = {}): { key: string; fallback: string; params: LocalizedParams } {
+    return { key, fallback, params };
+}
 
 function compareVersions(aRaw: string, bRaw: string): number {
     const a = String(aRaw || '').replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
@@ -145,6 +205,43 @@ async function httpGet(url: string, accept: string): Promise<{ status: number; b
     });
 }
 
+function classifyOfficialAsset(nameRaw: string): OfficialAssetKind {
+    const name = String(nameRaw || '');
+    if (/setup-.*\.exe$/i.test(name)) return 'setup';
+    if (/^craftide-.*\.exe$/i.test(name)) return 'portable';
+    if (/sha256sums/i.test(name) && /\.txt$/i.test(name)) return 'checksums';
+    if (/latest\.yml$/i.test(name)) return 'latest-yml';
+    if (/\.blockmap$/i.test(name)) return 'blockmap';
+    if (/release.?notes/i.test(name) || /\.md$/i.test(name) || /\.txt$/i.test(name)) return 'notes';
+    return 'other';
+}
+
+function resolvePreferredAssetKind(preferenceRaw: string, capability: UpdaterCapability): 'setup' | 'portable' {
+    const preference = String(preferenceRaw || 'auto').toLowerCase();
+    if (preference === 'setup' || preference === 'portable') return preference;
+    return capability.isPortable ? 'portable' : 'setup';
+}
+
+function createVerificationResult(
+    base: BuildVerificationResult,
+    patch: Partial<BuildVerificationResult>,
+    reasonInfo: { key: string; fallback: string; params?: LocalizedParams },
+): BuildVerificationResult {
+    const params = reasonInfo.params || {};
+    let reasonText = reasonInfo.fallback;
+    for (const [name, value] of Object.entries(params)) {
+        reasonText = reasonText.replaceAll(`{${name}}`, String(value));
+    }
+    return {
+        ...base,
+        ...patch,
+        reason: reasonText,
+        reasonKey: reasonInfo.key,
+        reasonFallback: reasonInfo.fallback,
+        reasonParams: params,
+    };
+}
+
 async function verifyOfficialBuild(): Promise<BuildVerificationResult> {
     const appVersion = app.getVersion();
     const packaged = app.isPackaged;
@@ -158,70 +255,71 @@ async function verifyOfficialBuild(): Promise<BuildVerificationResult> {
         localAsarSha256: null,
         status: 'unknown',
         reason: 'Verification not executed.',
+        reasonKey: 'ui.official.verifyNotRun',
+        reasonFallback: 'Verification not executed.',
+        reasonParams: {},
     };
 
     if (!packaged) {
-        return {
+        return createVerificationResult(base, {
             ...base,
             status: 'development',
-            reason: 'Running in development mode.',
-        };
+        }, localized('ui.official.verifyDevelopment', 'Running in development mode.'));
     }
 
     if (isPortablePackagedBuild()) {
-        return {
+        return createVerificationResult(base, {
             ...base,
             status: 'unknown',
-            reason: 'Portable builds are not eligible for integrity verification. Use the installer build.',
-        };
+        }, localized('ui.official.verifyPortableBlocked', 'Portable builds are not eligible for integrity verification. Use the installer build.'));
     }
 
     const localAsarPath = getLocalAsarPath();
     if (!localAsarPath) {
-        return {
+        return createVerificationResult(base, {
             ...base,
             status: 'unknown',
-            reason: 'Local app.asar is not available for this build.',
-        };
+        }, localized('ui.official.verifyLocalAsarMissing', 'Local app.asar is not available for this build.'));
     }
     let localAsarSha256: string;
     try {
         localAsarSha256 = hashFileSha256(localAsarPath);
     } catch (error) {
-        return {
+        return createVerificationResult(base, {
             ...base,
             localAsarPath,
             status: 'unknown',
-            reason: `Local app.asar could not be read: ${(error as Error).message || error}`,
-        };
+        }, localized(
+            'ui.official.verifyLocalAsarReadError',
+            'Local app.asar could not be read: {error}',
+            { error: (error as Error).message || String(error) },
+        ));
     }
     const release = await fetchGitHubReleaseByTag(appVersion);
     if (!release) {
-        return {
+        return createVerificationResult(base, {
             ...base,
             localAsarPath,
             localAsarSha256,
             status: 'unknown',
-            reason: 'No official GitHub release found for this version.',
-        };
+        }, localized('ui.official.verifyReleaseMissing', 'No official GitHub release found for this version.'));
     }
 
     const checksumsAsset = release.assets.find((a) => /sha256sums/i.test(a.name) && /\.txt$/i.test(a.name));
     if (!checksumsAsset) {
-        return {
+        return createVerificationResult(base, {
             ...base,
             localAsarPath,
             localAsarSha256,
             officialTag: release.tag_name,
             officialReleaseUrl: release.html_url,
             status: 'unknown',
-            reason: 'Release checksum asset missing.',
-        };
+        }, localized('ui.official.verifyChecksumsMissing', 'Release checksum asset missing.'));
     }
 
     const checksumResponse = await httpGet(checksumsAsset.browser_download_url, 'text/plain');
     if (checksumResponse.status < 200 || checksumResponse.status >= 300) {
-        return {
+        return createVerificationResult(base, {
             ...base,
             localAsarPath,
             localAsarSha256,
@@ -229,15 +327,18 @@ async function verifyOfficialBuild(): Promise<BuildVerificationResult> {
             officialReleaseUrl: release.html_url,
             checksumsAsset: checksumsAsset.name,
             status: 'unknown',
-            reason: `Checksum file fetch failed (${checksumResponse.status}).`,
-        };
+        }, localized(
+            'ui.official.verifyChecksumsFetchError',
+            'Checksum file fetch failed ({status}).',
+            { status: checksumResponse.status },
+        ));
     }
 
     const checksumText = checksumResponse.body;
     const checksums = parseSha256Sums(checksumText);
     const expectedAsar = checksums.get('app.asar');
     if (!expectedAsar) {
-        return {
+        return createVerificationResult(base, {
             ...base,
             localAsarPath,
             localAsarSha256,
@@ -245,12 +346,11 @@ async function verifyOfficialBuild(): Promise<BuildVerificationResult> {
             officialReleaseUrl: release.html_url,
             checksumsAsset: checksumsAsset.name,
             status: 'unknown',
-            reason: 'app.asar hash not found in checksum file.',
-        };
+        }, localized('ui.official.verifyChecksumsAsarMissing', 'app.asar hash not found in checksum file.'));
     }
 
     const verified = expectedAsar === localAsarSha256;
-    return {
+    return createVerificationResult(base, {
         ...base,
         localAsarPath,
         localAsarSha256,
@@ -258,10 +358,81 @@ async function verifyOfficialBuild(): Promise<BuildVerificationResult> {
         officialReleaseUrl: release.html_url,
         checksumsAsset: checksumsAsset.name,
         status: verified ? 'verified' : 'unverified',
-        reason: verified
-            ? 'Local app.asar hash matches official release checksums.'
-            : 'Local app.asar hash does not match official release checksums.',
+    }, verified
+        ? localized('ui.official.verifyMatched', 'Local app.asar hash matches official release checksums.')
+        : localized('ui.official.verifyMismatch', 'Local app.asar hash does not match official release checksums.'));
+}
+
+async function getOfficialUpdateStatus(
+    preferenceRaw: string = 'auto',
+    opts: { triggerInAppCheck?: boolean } = {},
+): Promise<OfficialUpdateStatus> {
+    const currentVersion = app.getVersion();
+    const updaterCapability = getUpdaterCapability();
+    let updaterState = getUpdaterState();
+
+    if (opts.triggerInAppCheck && updaterCapability.supportsInApp) {
+        try {
+            updaterState = await checkForAppUpdates(true);
+        } catch {
+            updaterState = getUpdaterState();
+        }
+    }
+
+    const preferredAssetKind = resolvePreferredAssetKind(preferenceRaw, updaterCapability);
+    const base: OfficialUpdateStatus = {
+        channelLocked: true,
+        owner: OFFICIAL_OWNER,
+        repo: OFFICIAL_REPO,
+        currentVersion,
+        latestTag: null,
+        latestVersion: null,
+        updateAvailable: false,
+        publishedAt: null,
+        releaseUrl: null,
+        assets: [],
+        preferredAssetKind,
+        updaterCapability,
+        updaterState,
+        checkedAt: new Date().toISOString(),
+        releaseCheckSucceeded: false,
+        releaseErrorKey: null,
+        releaseErrorFallback: null,
+        releaseErrorParams: {},
     };
+
+    try {
+        const latest = await fetchLatestOfficialRelease();
+        const latestVersion = String(latest.tag_name || '').replace(/^v/i, '') || null;
+        const assets = (latest.assets || []).map((asset) => ({
+            name: asset.name,
+            url: asset.browser_download_url,
+            size: asset.size,
+            kind: classifyOfficialAsset(asset.name),
+        }));
+
+        return {
+            ...base,
+            latestTag: latest.tag_name || null,
+            latestVersion,
+            updateAvailable: latestVersion ? compareVersions(latestVersion, currentVersion) > 0 : false,
+            publishedAt: latest.published_at || null,
+            releaseUrl: latest.html_url || null,
+            assets,
+            checkedAt: new Date().toISOString(),
+            releaseCheckSucceeded: true,
+        };
+    } catch (error) {
+        return {
+            ...base,
+            checkedAt: new Date().toISOString(),
+            releaseErrorKey: 'ui.official.releaseCheckError',
+            releaseErrorFallback: 'Official release check failed: {error}',
+            releaseErrorParams: {
+                error: (error as Error).message || String(error),
+            },
+        };
+    }
 }
 
 function normalizeMode(rawMode: string): 'plugin' | 'fabric' | 'forge' | 'skript' {
@@ -511,6 +682,14 @@ async function zipFiles(files: string[], destinationZip: string): Promise<{ succ
  */
 export function registerIpcHandlers(): void {
     const scaffolder = new ProjectScaffolder();
+    const defaultOpenFileFilters = [
+        { name: 'All Files', extensions: ['*'] },
+        { name: 'Java', extensions: ['java'] },
+        { name: 'Skript', extensions: ['sk'] },
+        { name: 'YAML', extensions: ['yml', 'yaml'] },
+        { name: 'JSON', extensions: ['json'] },
+        { name: 'XML', extensions: ['xml'] },
+    ];
 
     ipcMain.handle('fs:readDir', async (_, dirPath: string) => {
         try {
@@ -615,35 +794,38 @@ export function registerIpcHandlers(): void {
         return true;
     });
 
-    ipcMain.handle('dialog:openFolder', async () => {
+    ipcMain.handle('dialog:openFolder', async (_, request?: RendererOpenDialogRequest) => {
         const result = await dialog.showOpenDialog({
-            properties: ['openDirectory'],
-            title: 'Select Project Folder',
+            properties: request?.properties?.length ? request.properties : ['openDirectory'],
+            title: request?.title || 'Select Project Folder',
+            defaultPath: request?.defaultPath,
         });
         return !result.canceled && result.filePaths.length > 0 ? result.filePaths[0] : null;
     });
 
-    ipcMain.handle('dialog:openFile', async () => {
-        const result = await dialog.showOpenDialog({
-            properties: ['openFile'],
-            title: 'Open File',
-            filters: [
-                { name: 'All Files', extensions: ['*'] },
-                { name: 'Java', extensions: ['java'] },
-                { name: 'Skript', extensions: ['sk'] },
-                { name: 'YAML', extensions: ['yml', 'yaml'] },
-                { name: 'JSON', extensions: ['json'] },
-                { name: 'XML', extensions: ['xml'] },
-            ],
-        });
+    ipcMain.handle('dialog:openFile', async (_, request?: RendererOpenDialogRequest) => {
+        const options: OpenDialogOptions = {
+            properties: request?.properties?.length ? request.properties : ['openFile'],
+            title: request?.title || 'Open File',
+            defaultPath: request?.defaultPath,
+            filters: request?.filters?.length ? request.filters : defaultOpenFileFilters,
+        };
+        const result = await dialog.showOpenDialog(options);
         return !result.canceled && result.filePaths.length > 0 ? result.filePaths[0] : null;
     });
 
-    ipcMain.handle('dialog:saveFile', async (_, defaultPath?: string) => {
-        const result = await dialog.showSaveDialog({
-            title: 'Save As',
-            defaultPath,
-        });
+    ipcMain.handle('dialog:saveFile', async (_, request?: string | RendererSaveDialogRequest) => {
+        const options: SaveDialogOptions = typeof request === 'string'
+            ? {
+                title: 'Save As',
+                defaultPath: request,
+            }
+            : {
+                title: request?.title || 'Save As',
+                defaultPath: request?.defaultPath,
+                filters: request?.filters,
+            };
+        const result = await dialog.showSaveDialog(options);
         return result.canceled ? null : result.filePath;
     });
 
@@ -881,31 +1063,20 @@ export function registerIpcHandlers(): void {
                 localAsarSha256: null,
                 status: 'error',
                 reason: (err as Error).message || 'Verification failed.',
+                reasonKey: 'ui.official.verifyFailed',
+                reasonFallback: 'Verification failed: {error}',
+                reasonParams: {
+                    error: (err as Error).message || String(err),
+                },
             } as BuildVerificationResult;
         }
     });
-    ipcMain.handle('official:checkUpdates', async () => {
-        const currentVersion = app.getVersion();
-        const latest = await fetchLatestOfficialRelease();
-        const latestVersion = String(latest.tag_name || '').replace(/^v/i, '');
-        const updateAvailable = compareVersions(latestVersion, currentVersion) > 0;
-        return {
-            channelLocked: true,
-            owner: OFFICIAL_OWNER,
-            repo: OFFICIAL_REPO,
-            currentVersion,
-            latestTag: latest.tag_name,
-            latestVersion,
-            updateAvailable,
-            publishedAt: latest.published_at,
-            releaseUrl: latest.html_url,
-            assets: (latest.assets || []).map((a) => ({
-                name: a.name,
-                url: a.browser_download_url,
-                size: a.size,
-            })),
-        };
-    });
+    ipcMain.handle('official:checkUpdates', async (_, preference?: UpdateAssetPreference) => (
+        await getOfficialUpdateStatus(preference, { triggerInAppCheck: true })
+    ));
+    ipcMain.handle('official:getUpdateStatus', async (_, preference?: UpdateAssetPreference) => (
+        await getOfficialUpdateStatus(preference, { triggerInAppCheck: false })
+    ));
 
     ipcMain.handle('marketplace:getList', async () => {
         const dir = path.join(os.homedir(), '.craftide');

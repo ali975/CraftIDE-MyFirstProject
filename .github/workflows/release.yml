@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag to publish (defaults to package.json version)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate publish token
+        shell: pwsh
+        run: |
+          if (-not $env:GH_TOKEN) {
+            throw "GH_TOKEN secret is required for release publishing."
+          }
+
+      - name: Resolve release tag
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          $defaultTag = "v$($pkg.version)"
+          $dispatchTag = "${{ inputs.release_tag }}"
+          $refTag = "${{ github.ref_name }}"
+
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and $dispatchTag) {
+            $tag = $dispatchTag
+          } elseif ($refTag -and $refTag -ne "main" -and $refTag -ne "master") {
+            $tag = $refTag
+          } else {
+            $tag = $defaultTag
+          }
+
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure GitHub release exists
+        shell: pwsh
+        run: |
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:RELEASE_TAG --title "CraftIDE $env:RELEASE_TAG" --notes-file RELEASE_NOTES.md --repo $env:GITHUB_REPOSITORY
+          }
+
+      - name: Build main process
+        run: npm run build:main
+
+      - name: Run tests
+        run: npm test
+
+      - name: Publish release artifacts
+        run: npm run dist:publish
+
+      - name: Verify release payload
+        run: node scripts/release-prep.js --skip-build --skip-dist
+
+      - name: Apply release notes
+        shell: pwsh
+        run: |
+          gh release edit $env:RELEASE_TAG --notes-file release/RELEASE_NOTES.generated.md --repo $env:GITHUB_REPOSITORY

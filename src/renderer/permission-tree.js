@@ -7,6 +7,12 @@ let ptTree = null;        // Kök izin nodu
 let ptSelected = null;   // Seçili node
 let ptInitialized = false;
 
+function ptTr(key, fallback, params) {
+    if (typeof tr === 'function') return tr(key, fallback, params);
+    if (!params) return fallback || key;
+    return Object.entries(params).reduce((acc, [paramKey, value]) => acc.replaceAll(`{${paramKey}}`, String(value)), fallback || key);
+}
+
 function initPermissionTree() {
     if (ptInitialized) { ptRenderTree(); return; }
     ptInitialized = true;
@@ -29,7 +35,7 @@ function initPermissionTree() {
         ptSelected = ptTree;
         ptRenderTree();
         ptRenderConfig();
-        if (typeof showNotification === 'function') showNotification('🗑️ İzin silindi', 'info');
+        if (typeof showNotification === 'function') showNotification(ptTr('msg.permissionDeleted', 'Permission deleted'), 'info');
     });
 
     document.getElementById('btn-pt-generate-yml')?.addEventListener('click', ptGenerateYml);
@@ -37,6 +43,10 @@ function initPermissionTree() {
 
     ptRenderTree();
     ptRenderConfig();
+    document.addEventListener('lang:changed', () => {
+        ptRenderTree();
+        ptRenderConfig();
+    });
 }
 
 function _ptDelete(parent, target) {
@@ -77,7 +87,7 @@ function _ptBuildNode(node, isRoot) {
 
     const defaultBadge = document.createElement('span');
     const defColors = { op: '#e67e22', true: '#2ecc71', false: '#e74c3c', 'not op': '#3498db' };
-    defaultBadge.textContent = node.default || 'op';
+    defaultBadge.textContent = ptTr(`ui.permission.default.${String(node.default || 'op').replace(/\s+/g, '')}`, node.default || 'op');
     defaultBadge.style.cssText = 'font-size:10px;padding:1px 6px;border-radius:10px;background:' + (defColors[node.default] || '#8b949e') + '30;color:' + (defColors[node.default] || '#8b949e') + ';border:1px solid ' + (defColors[node.default] || '#8b949e') + '40;';
 
     row.append(icon, nameSpan, defaultBadge);
@@ -111,7 +121,7 @@ function ptRenderConfig() {
 
     const title = document.createElement('div');
     title.style.cssText = 'font-size:12px;font-weight:700;color:var(--accent);margin-bottom:12px;';
-    title.textContent = node === ptTree ? 'Kök İzin' : 'İzin';
+    title.textContent = node === ptTree ? ptTr('ui.permission.root', 'Root Permission') : ptTr('ui.permission.node', 'Permission');
     panel.appendChild(title);
 
     const addField = (label, key, placeholder) => {
@@ -127,16 +137,16 @@ function ptRenderConfig() {
         panel.append(lbl, inp);
     };
 
-    addField('İzin Adı', 'name', 'myplugin.command');
-    addField('Açıklama', 'description', 'Bu iznin açıklaması');
+    addField(ptTr('ui.permission.name', 'Permission Name'), 'name', 'myplugin.command');
+    addField(ptTr('ui.permission.desc', 'Description'), 'description', ptTr('ui.permission.descPlaceholder', 'Permission description'));
 
     const defLbl = document.createElement('label');
     defLbl.style.cssText = 'font-size:11px;color:var(--text-secondary);display:block;margin-top:8px;';
-    defLbl.textContent = 'Varsayılan';
+    defLbl.textContent = ptTr('ui.permission.default', 'Default');
     const defSel = document.createElement('select');
     defSel.style.cssText = 'width:100%;padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;box-sizing:border-box;margin-top:3px;';
     ['op','true','false','not op'].forEach(v => {
-        const o = document.createElement('option'); o.value = v; o.textContent = v;
+        const o = document.createElement('option'); o.value = v; o.textContent = ptTr(`ui.permission.default.${String(v).replace(/\s+/g, '')}`, v);
         if (node.default === v) o.selected = true;
         defSel.appendChild(o);
     });
@@ -179,7 +189,7 @@ function ptGenerateYml() {
         if (existing) existing.remove();
         addTab(virtualPath, 'plugin_permissions.yml');
         activateTab(virtualPath);
-        if (typeof showNotification === 'function') showNotification('⚡ plugin.yml izinleri üretildi!', 'success');
+        if (typeof showNotification === 'function') showNotification(ptTr('msg.permissionsGenerated', 'plugin.yml permissions generated!'), 'success');
     }
 }
 
@@ -199,7 +209,7 @@ function ptGenerateLuckPerms() {
         if (existing) existing.remove();
         addTab(virtualPath, 'luckperms_commands.txt');
         activateTab(virtualPath);
-        if (typeof showNotification === 'function') showNotification('⚡ LuckPerms komutları üretildi!', 'success');
+        if (typeof showNotification === 'function') showNotification(ptTr('msg.luckpermsGenerated', 'LuckPerms commands generated!'), 'success');
     }
 }
 

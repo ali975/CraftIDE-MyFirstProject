@@ -33,13 +33,24 @@ window.CraftIDEAppState = {
     appendServerLine: (...args) => appendSmConsoleLine(...args),
 };
 
+function interpolateText(template, params) {
+    if (!params) return template;
+    return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), String(template || ''));
+}
+
 function tr(key, fallback, params) {
     if (window.Lang && typeof window.Lang.t === 'function') {
-        return window.Lang.t(key, params || {});
+        const translated = window.Lang.t(key, params || {});
+        if (translated !== key || !fallback) {
+            return translated;
+        }
     }
     if (!fallback) return key;
-    if (!params) return fallback;
-    return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), fallback);
+    return interpolateText(fallback, params);
+}
+
+function showTrNotification(key, fallback, type = 'info', params) {
+    showNotification(tr(key, fallback, params), type);
 }
 
 function syncRendererStore(patch) {
@@ -1065,6 +1076,7 @@ function getLanguageForFile(filePath) {
 // ═══════════════════════════════════════════════════════════
 
 function showNewProjectModal() {
+    updateProjectPlatformFields(getActiveProjectPlatform());
     document.getElementById('modal-new-project').style.display = 'flex';
 }
 
@@ -1079,39 +1091,46 @@ document.getElementById('modal-new-project').addEventListener('click', (e) => {
     if (e.target.id === 'modal-new-project') hideNewProjectModal();
 });
 
+function getActiveProjectPlatform() {
+    return document.querySelector('.platform-card.active')?.dataset.platform || 'paper';
+}
+
+function updateProjectPlatformFields(platformRaw) {
+    const platform = platformRaw || getActiveProjectPlatform();
+    const javaOptions = document.getElementById('java-options');
+    const depsGroup = document.getElementById('deps-group');
+    const labelName = document.getElementById('label-project-name');
+    const inputName = document.getElementById('input-project-name');
+
+    if (platform === 'skript') {
+        if (javaOptions) javaOptions.style.display = 'none';
+        if (depsGroup) depsGroup.style.display = 'none';
+        if (labelName) labelName.textContent = tr('modal.label.skriptName', 'Skript Name');
+        if (inputName) inputName.placeholder = tr('modal.placeholder.skriptName', 'MyAwesomeSkript');
+    } else if (platform === 'fabric' || platform === 'forge') {
+        if (javaOptions) javaOptions.style.display = 'block';
+        if (depsGroup) depsGroup.style.display = 'block';
+        if (labelName) labelName.textContent = tr('modal.label.modName', 'Mod Name');
+        if (inputName) inputName.placeholder = tr('modal.placeholder.modName', 'MyAwesomeMod');
+    } else {
+        if (javaOptions) javaOptions.style.display = 'block';
+        if (depsGroup) depsGroup.style.display = 'block';
+        if (labelName) labelName.textContent = tr('modal.label.pluginName', 'Plugin Name');
+        if (inputName) inputName.placeholder = tr('modal.placeholder.pluginName', 'MyAwesomePlugin');
+    }
+
+    const projectVersionSelect = document.getElementById('input-mc-version');
+    if (projectVersionSelect) {
+        refreshServerVersions(serverTypeFromPlatform(platform), projectVersionSelect, projectVersionSelect.value || '');
+    }
+}
+
 // Platform selection
 document.querySelectorAll('.platform-card').forEach(card => {
     card.addEventListener('click', () => {
         document.querySelectorAll('.platform-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
-
-        const platform = card.dataset.platform;
-        const javaOptions = document.getElementById('java-options');
-        const depsGroup = document.getElementById('deps-group');
-        const labelName = document.getElementById('label-project-name');
-        const inputName = document.getElementById('input-project-name');
-
-        if (platform === 'skript') {
-            javaOptions.style.display = 'none';
-            depsGroup.style.display = 'none';
-            if (labelName) labelName.textContent = tr('modal.label.skriptName', 'Skript Name');
-            if (inputName) inputName.placeholder = 'MyAwesomeSkript';
-        } else if (platform === 'fabric' || platform === 'forge') {
-            javaOptions.style.display = 'block';
-            depsGroup.style.display = 'block';
-            if (labelName) labelName.textContent = tr('modal.label.modName', 'Mod Name');
-            if (inputName) inputName.placeholder = 'MyAwesomeMod';
-        } else {
-            javaOptions.style.display = 'block';
-            depsGroup.style.display = 'block';
-            if (labelName) labelName.textContent = tr('modal.label.pluginName', 'Plugin Name');
-            if (inputName) inputName.placeholder = 'MyAwesomePlugin';
-        }
-
-        const projectVersionSelect = document.getElementById('input-mc-version');
-        if (projectVersionSelect) {
-            refreshServerVersions(serverTypeFromPlatform(platform), projectVersionSelect, projectVersionSelect.value || '');
-        }
+        updateProjectPlatformFields(card.dataset.platform);
     });
 });
 
@@ -1389,13 +1408,13 @@ function sendAIMessage(message) {
             messages.scrollTop = messages.scrollHeight;
         }).catch((err) => {
             aiContent.innerHTML =
-                '<p>\u274C AI hatası: ' + escapeHtml(err.message) + '</p>' +
-                '<p class="ai-hint">Ayarlar panelinden AI sağlayıcınızı kontrol edin. Ollama için: ollama serve komutunu çalıştırın.</p>';
+                '<p>' + escapeHtml(tr('ai.errorLabel', 'AI error:')) + ' ' + escapeHtml(err.message) + '</p>' +
+                '<p class="ai-hint">' + escapeHtml(tr('ai.errorHint', 'Check your AI provider settings. For Ollama, run the ollama serve command.')) + '</p>';
             messages.scrollTop = messages.scrollHeight;
         });
     } else {
         aiContent.innerHTML =
-            '<p>\u{1F527} AI sistemi yüklenmedi. Sayfayı yenileyin.</p>';
+            '<p>' + escapeHtml(tr('ai.systemMissing', 'AI system is not loaded. Refresh the page.')) + '</p>';
     }
 }
 
@@ -1431,14 +1450,14 @@ ipcRenderer.on('open-settings', () => {
 });
 ipcRenderer.on('build-plugin', async () => {
     if (currentProjectPath) {
-        appendTerminalLine('\u23F3 Plugin derleniyor...', 'info');
+        appendTerminalLine(tr('msg.buildingPlugin', 'Building plugin...'), 'info');
         const result = await ipcRenderer.invoke('build:run', currentProjectPath);
         if (result.success) {
-            appendTerminalLine('\u2705 Build başarılı!', 'success');
-            showNotification('\u2705 Build başarılı!', 'success');
+            appendTerminalLine(tr('msg.buildSuccess', 'Build successful!'), 'success');
+            showTrNotification('msg.buildSuccess', 'Build successful!', 'success');
         } else {
-            appendTerminalLine('\u274C Build hatası: ' + result.error, 'error');
-            showNotification('\u274C Build hatası!', 'error');
+            appendTerminalLine(tr('msg.buildError', 'Build error: {error}', { error: result.error || tr('msg.errorFallback', 'Error') }), 'error');
+            showTrNotification('msg.buildFailed', 'Build failed.', 'error');
         }
     }
 });
@@ -1449,16 +1468,17 @@ ipcRenderer.on('build-plugin', async () => {
 
 document.getElementById('btn-build-plugin').addEventListener('click', async () => {
     if (!currentProjectPath) {
-        showNotification('\u274C Önce bir proje açın!', 'error');
+        showTrNotification('msg.openProjectFirst', 'Open a project first!', 'error');
         return;
     }
-    appendTerminalLine('\u23F3 Plugin derleniyor...', 'info');
+    appendTerminalLine(tr('msg.buildingPlugin', 'Building plugin...'), 'info');
     const result = await ipcRenderer.invoke('build:run', currentProjectPath);
     if (result.success) {
-        appendTerminalLine('\u2705 Build başarılı!', 'success');
-        showNotification('\u2705 Build başarılı!', 'success');
+        appendTerminalLine(tr('msg.buildSuccess', 'Build successful!'), 'success');
+        showTrNotification('msg.buildSuccess', 'Build successful!', 'success');
     } else {
-        appendTerminalLine('\u274C Build hatası: ' + result.error, 'error');
+        appendTerminalLine(tr('msg.buildError', 'Build error: {error}', { error: result.error || tr('msg.errorFallback', 'Error') }), 'error');
+        showTrNotification('msg.buildFailed', 'Build failed.', 'error');
     }
 });
 
@@ -1478,7 +1498,7 @@ document.getElementById('sm-type-select')?.addEventListener('change', async (eve
 document.getElementById('btn-sm-start')?.addEventListener('click', async () => {
     const status = await ipcRenderer.invoke('server:status');
     if (status && status.status === 'running') {
-        showNotification('Sunucu zaten çalışıyor.', 'info');
+        showTrNotification('msg.serverAlreadyRunning', 'Server is already running.', 'info');
         return;
     }
 
@@ -1487,13 +1507,15 @@ document.getElementById('btn-sm-start')?.addEventListener('click', async () => {
     const version = versionSelect?.value || '1.21.11';
     const payload = serverVersionPayloadByType[type] || await refreshServerVersions(type, versionSelect, version);
     if (payload && Array.isArray(payload.versions) && payload.versions.length && !payload.versions.includes(version)) {
-        showNotification('Selected Minecraft version is not supported for this server type.', 'error');
+        showTrNotification('msg.serverUnsupportedVersion', 'Selected Minecraft version is not supported for {type}.', 'error', { type: getServerTypeLabel(type) });
         return;
     }
 
-    showNotification('🚀 Test sunucusu başlatılıyor (' + type + ' ' + version + ')...', 'info');
+    showTrNotification('msg.serverStarting', 'Starting test server ({type} {version})...', 'info', {
+        type: getServerTypeLabel(type),
+        version,
+    });
 
-    // Make sure we are on the server manager tab
     if (currentFilePath !== 'server-manager://tab') {
         openFile('server-manager://tab', getVirtualTabName('server-manager://tab'));
     }
@@ -1501,117 +1523,113 @@ document.getElementById('btn-sm-start')?.addEventListener('click', async () => {
     const result = await ipcRenderer.invoke('server:start', {
         mcVersion: version,
         serverType: type,
-        serverDir: '', // default
+        serverDir: '',
     });
 
     if (!result.success) {
-        showNotification('❌ ' + result.error, 'error');
-        appendSmConsoleLine('❌ Sunucu başlatma hatası: ' + result.error, 'error');
+        const fallbackError = result.error || tr('msg.errorFallback', 'Error');
+        showTrNotification('msg.serverStartError', 'Server start error: {error}', 'error', { error: fallbackError });
+        appendSmConsoleLine(tr('msg.serverStartError', 'Server start error: {error}', { error: fallbackError }), 'error');
     }
 });
 
 document.getElementById('btn-sm-stop')?.addEventListener('click', async () => {
     const status = await ipcRenderer.invoke('server:status');
     if (status && status.status === 'running') {
-        showNotification('⏹️ Sunucu durduruluyor...', 'info');
-        appendSmConsoleLine('⏹️ Durdurma komutu gönderildi...', 'info');
+        showTrNotification('msg.serverStopping', 'Stopping server...', 'info');
+        appendSmConsoleLine(tr('msg.serverStopCommandSent', 'Stop command sent...'), 'info');
         await ipcRenderer.invoke('server:stop');
     } else {
-        showNotification('Sunucu şu an çalışmıyor.', 'info');
+        showTrNotification('msg.serverNotRunning', 'Server is not running right now.', 'info');
     }
 });
 
 document.getElementById('btn-sm-deploy')?.addEventListener('click', async () => {
     if (!currentProjectPath) {
-        showNotification('❌ Önce bir proje açın!', 'error');
+        showTrNotification('msg.openProjectFirst', 'Open a project first!', 'error');
         return;
     }
 
-    appendSmConsoleLine('🚀 Proje sunucuya yükleniyor...', 'info');
-    showNotification('Projeyi derleyip sunucuya aktarıyoruz...', 'info');
+    appendSmConsoleLine(tr('msg.serverDeployingProject', 'Deploying project to server...'), 'info');
+    showTrNotification('msg.serverBuildAndDeploy', 'Building project and deploying to server...', 'info');
 
-    // 1. Build project
     const buildResult = await ipcRenderer.invoke('build:run', currentProjectPath);
     if (!buildResult.success) {
-        appendSmConsoleLine('❌ Build error: ' + buildResult.error, 'error');
-        showNotification('❌ Build başarısız oldu.', 'error');
+        appendSmConsoleLine(tr('msg.buildError', 'Build error: {error}', {
+            error: buildResult.error || tr('msg.errorFallback', 'Error'),
+        }), 'error');
+        showTrNotification('msg.buildFailed', 'Build failed.', 'error');
         return;
     }
 
-    // 2. We assume the build places a JAR or Skript file in target/. We can just send a generic IPC command 
-    // to ask main process to deploy from currentProjectPath to serverDir
-
-    // Find built files
     let targetFileToDeploy = null;
     try {
         const entries = await ipcRenderer.invoke('fs:readDir', currentProjectPath);
         const hasPom = entries.some(e => e.name === 'pom.xml');
         const hasBuildGradle = entries.some(e => e.name === 'build.gradle');
 
-        if (hasPom || hasBuildGradle) { // It's a java plugin/mod
+        if (hasPom || hasBuildGradle) {
             const targetDirPath = nodePath.join(currentProjectPath, hasPom ? 'target' : 'build/libs');
             const targetEntries = await ipcRenderer.invoke('fs:readDir', targetDirPath);
             if (targetEntries && targetEntries.length > 0) {
-                // Find first .jar that doesn't end with -original.jar or -sources.jar
                 const jars = targetEntries.filter(e => e.name.endsWith('.jar') && !e.name.includes('-original') && !e.name.includes('-sources'));
                 if (jars.length > 0) {
                     targetFileToDeploy = jars[0].path;
                 }
             }
         } else {
-            // Skript projeleri: *.sk dosyalarını bul
             const skripts = entries.filter(e => e.name.endsWith('.sk'));
             if (skripts.length > 0) {
-                targetFileToDeploy = skripts[0].path; // just deploy the first one for now
+                targetFileToDeploy = skripts[0].path;
             }
         }
     } catch (e) {
-        console.error("Error finding target files", e);
+        console.error('Error finding target files', e);
     }
 
     if (!targetFileToDeploy) {
-        appendSmConsoleLine('❌ ' + tr('msg.buildFileNotFound', 'Build artifact not found! Make sure your target (.jar or .sk) file was generated.'), 'error');
-        showNotification('Bulunamadı!', 'error');
+        appendSmConsoleLine(tr('msg.buildFileNotFound', 'Build artifact not found! Make sure your target (.jar or .sk) file was generated.'), 'error');
+        showTrNotification('msg.buildArtifactNotFoundShort', 'Build artifact not found.', 'error');
         return;
     }
 
     const deployResult = await ipcRenderer.invoke('server:deploy', targetFileToDeploy);
     if (deployResult && deployResult.success) {
-        appendSmConsoleLine('✅ Eklenti başarıyla sunucuya kopyalandı! (' + nodePath.basename(targetFileToDeploy) + ')', 'success');
-        showNotification('✅ Başarıyla yüklendi!', 'success');
+        const targetName = nodePath.basename(targetFileToDeploy);
+        appendSmConsoleLine(tr('msg.serverPluginCopied', 'Plugin copied to server: {name}', { name: targetName }), 'success');
+        showTrNotification('msg.serverDeployed', 'Successfully deployed!', 'success');
 
-        // Sunucu konsoluna reload komutu at if server is running
         const status = await ipcRenderer.invoke('server:status');
         if (status && status.status === 'running') {
             await ipcRenderer.invoke('server:command', 'reload confirm');
-            appendSmConsoleLine('CraftIDE > Sunucu yeniden yükleniyor (reload)...', 'dim');
+            appendSmConsoleLine(tr('msg.serverReloadingConsole', 'CraftIDE > Reloading server (reload)...'), 'dim');
         }
     } else {
-        appendSmConsoleLine('⚠️ Yükleme sırasında bir şeyler ters gitti: ' + (deployResult?.error || 'Bilinmeyen hata'), 'error');
+        appendSmConsoleLine(tr('msg.deployUnexpected', 'Something went wrong during deployment: {error}', {
+            error: deployResult?.error || tr('msg.errorFallback', 'Error'),
+        }), 'error');
     }
 });
 
 // ─── VB "Derle & Test Et" — tek tıkla kod üret → derle → sunucuya yükle ───
 async function deployToServer() {
     if (!currentProjectPath) {
-        showNotification('❌ Önce bir proje açın!', 'error');
+        showTrNotification('msg.openProjectFirst', 'Open a project first!', 'error');
         return;
     }
 
-    // Adım 1: VB'den kodu al
     let code = '';
     if (typeof vbGenerateCode === 'function') {
         code = vbGenerateCode({ returnOnly: true });
     }
 
-    if (!code || code.trim() === '' || code.startsWith('// Henüz') || code.startsWith('# Henüz')) {
-        showNotification('⚠️ Önce Visual Builder\'a blok ekleyin!', 'error');
+    if (!code || code.trim() === '' || code.startsWith('// Hen??z') || code.startsWith('# Hen??z')) {
+        showTrNotification('msg.noBlocksInVB', 'Add blocks in Visual Builder first!', 'error');
         return;
     }
 
-    showNotification('📝 Kod proje dosyasına yazılıyor...', 'info');
+    showTrNotification('msg.vbWriteProjectFile', 'Writing code to project file...', 'info');
 
-    // Adım 2: Proje tipini belirle ve kodu kaydet
     try {
         const entries = await ipcRenderer.invoke('fs:readDir', currentProjectPath);
         const hasPom = entries.some(e => e.name === 'pom.xml');
@@ -1624,29 +1642,24 @@ async function deployToServer() {
                 ? skFiles[0].path
                 : nodePath.join(currentProjectPath, 'generated.sk');
             await ipcRenderer.invoke('fs:writeFile', skPath, code);
-            // Skript için derleme yok, doğrudan deploy
-            showNotification('📜 Skript dosyası kaydedildi!', 'success');
+            showTrNotification('msg.skriptFileSaved', 'Skript file saved!', 'success');
             const deployResult = await ipcRenderer.invoke('server:deploy', skPath);
             if (deployResult && deployResult.success) {
-                showNotification('✅ Skript sunucuya yüklendi!', 'success');
+                showTrNotification('msg.skriptDeployed', 'Skript deployed to server!', 'success');
                 const status = await ipcRenderer.invoke('server:status');
                 if (status && status.status === 'running') {
                     await ipcRenderer.invoke('server:command', 'reload confirm');
                 }
             } else {
-                showNotification('❌ Yükleme hatası: ' + (deployResult?.error || '?'), 'error');
+                showTrNotification('msg.deployError', 'Deploy error: {error}', 'error', { error: deployResult?.error || '?' });
             }
             return;
         }
 
-        // Java projesi: src/main/java/... altındaki ilk .java dosyasına yaz
-        // Proje adı olarak currentProjectPath'in son klasörünü al
         const projectName = nodePath.basename(currentProjectPath);
-        // Basit arama: target klasörü yoksa ana .java dosyayı bul
         const srcMainJava = nodePath.join(currentProjectPath, 'src', 'main', 'java');
         const srcExists = await ipcRenderer.invoke('fs:exists', srcMainJava);
         if (srcExists) {
-            // Mevcut .java dosyalarından Main.java'yı bul
             const findMainJava = async (dir) => {
                 const items = await ipcRenderer.invoke('fs:readDir', dir);
                 if (!items) return null;
@@ -1658,7 +1671,6 @@ async function deployToServer() {
                         return item.path;
                     }
                 }
-                // Herhangi bir .java dosyasını döndür
                 for (const item of items) {
                     if (!item.isDirectory && item.name.endsWith('.java')) return item.path;
                 }
@@ -1667,24 +1679,24 @@ async function deployToServer() {
             const javaPath = await findMainJava(srcMainJava);
             if (javaPath) {
                 await ipcRenderer.invoke('fs:writeFile', javaPath, code);
-                showNotification('☕ Java dosyası güncellendi: ' + nodePath.basename(javaPath), 'info');
+                showTrNotification('msg.javaFileUpdated', 'Java file updated: {name}', 'info', { name: nodePath.basename(javaPath) });
             }
         }
     } catch (e) {
-        console.error('deployToServer - kod yazma hatası:', e);
+        console.error('deployToServer - kod yazma hatas??:', e);
     }
 
-    // Adım 3: Derle
-    showNotification(tr('msg.building', 'Building...'), 'info');
+    showTrNotification('msg.building', 'Building...', 'info');
     const buildResult = await ipcRenderer.invoke('build:run', currentProjectPath);
     if (!buildResult.success) {
-        showNotification(tr('msg.buildError', 'Build error: {error}', { error: buildResult.error || 'unknown' }), 'error');
-        appendSmConsoleLine && appendSmConsoleLine('❌ Build hatası: ' + buildResult.error, 'error');
+        showTrNotification('msg.buildError', 'Build error: {error}', 'error', { error: buildResult.error || 'unknown' });
+        if (appendSmConsoleLine) {
+            appendSmConsoleLine(tr('msg.buildError', 'Build error: {error}', { error: buildResult.error || tr('msg.errorFallback', 'Error') }), 'error');
+        }
         return;
     }
-    showNotification(tr('msg.buildSuccess', 'Build successful!'), 'success');
+    showTrNotification('msg.buildSuccess', 'Build successful!', 'success');
 
-    // Adım 4: JAR'ı bul
     let targetFile = null;
     try {
         const entries = await ipcRenderer.invoke('fs:readDir', currentProjectPath);
@@ -1696,26 +1708,26 @@ async function deployToServer() {
                 e.name.endsWith('.jar') && !e.name.includes('-original') && !e.name.includes('-sources'));
             if (jars.length > 0) targetFile = jars[0].path;
         }
-    } catch (e) { console.error('deployToServer - jar arama hatası:', e); }
+    } catch (e) { console.error('deployToServer - jar arama hatas??:', e); }
 
     if (!targetFile) {
-        showNotification('❌ JAR bulunamadı!', 'error');
+        showTrNotification('msg.jarNotFound', 'JAR not found!', 'error');
         return;
     }
 
-    // Adım 5: Sunucuya kopyala
     const deployResult = await ipcRenderer.invoke('server:deploy', targetFile);
     if (deployResult && deployResult.success) {
-        showNotification('🚀 ' + nodePath.basename(targetFile) + ' sunucuya yüklendi!', 'success');
-        appendSmConsoleLine && appendSmConsoleLine('✅ VB Deploy: ' + nodePath.basename(targetFile) + ' yüklendi!', 'success');
+        const targetName = nodePath.basename(targetFile);
+        showTrNotification('msg.vbArtifactDeployed', 'Deployed to server: {name}', 'success', { name: targetName });
+        appendSmConsoleLine && appendSmConsoleLine(tr('msg.vbArtifactDeployed', 'Deployed to server: {name}', { name: targetName }), 'success');
         const status = await ipcRenderer.invoke('server:status');
         if (status && status.status === 'running') {
             await ipcRenderer.invoke('server:command', 'reload confirm');
-            appendSmConsoleLine && appendSmConsoleLine('CraftIDE > reload confirm gönderildi', 'dim');
-            showNotification('🔄 Sunucu yenileniyor...', 'info');
+            appendSmConsoleLine && appendSmConsoleLine(tr('msg.vbReloadSent', 'CraftIDE > Sent reload confirm'), 'dim');
+            showTrNotification('msg.serverReloading', 'Reloading server...', 'info');
         }
     } else {
-        showNotification('❌ Yükleme hatası: ' + (deployResult?.error || '?'), 'error');
+        showTrNotification('msg.deployError', 'Deploy error: {error}', 'error', { error: deployResult?.error || '?' });
     }
 }
 
@@ -1787,12 +1799,12 @@ ipcRenderer.on('server:status', (_, status) => {
     const smStopBtn = document.getElementById('btn-sm-stop');
 
     if (status === 'running') {
-        if (legacyBtnLabel) legacyBtnLabel.textContent = 'Sunucuyu Yönet';
+        if (legacyBtnLabel) legacyBtnLabel.textContent = tr('ui.server.manage', 'Manage Server');
         if (smStartBtn) smStartBtn.disabled = true;
         if (smStopBtn) smStopBtn.disabled = false;
-        showNotification('✅ Test sunucusu çalışıyor!', 'success');
+        showTrNotification('msg.testServerRunning', 'Test server is running!', 'success');
     } else {
-        if (legacyBtnLabel) legacyBtnLabel.textContent = 'Yerel Test Sunucusu';
+        if (legacyBtnLabel) legacyBtnLabel.textContent = tr('ui.server.localTest', 'Local Test Server');
         if (smStartBtn) smStartBtn.disabled = false;
         if (smStopBtn) smStopBtn.disabled = true;
     }
@@ -1836,7 +1848,7 @@ function appendOutputLine(text, className) {
 }
 
 document.getElementById('btn-api-ref').addEventListener('click', () => {
-    showNotification('📚 Java dosyası açın — hover ile API bilgisi görüntüleyin!', 'info');
+    showTrNotification('notify.apiRefHint', 'Open a Java file - view API details on hover!', 'info');
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -2097,7 +2109,7 @@ initShortcutSystem();
 const SETTINGS_KEYS = [
     'setting-ai-provider', 'setting-ai-model', 'setting-ai-endpoint', 'setting-ai-key',
     'setting-font-size', 'setting-font-family', 'setting-tab-size', 'setting-minimap', 'setting-wordwrap',
-    'setting-platform', 'setting-language'
+    'setting-platform', 'setting-language', 'setting-update-asset-preference'
 ];
 
 function loadSettings() {
@@ -2112,7 +2124,7 @@ function loadSettings() {
             el.addEventListener('change', () => {
                 localStorage.setItem(key, el.value);
                 applySettings();
-                showNotification('Ayarlar kaydedildi.', 'success');
+                showNotification(tr('ui.settings.saved', 'Settings saved.'), 'success');
             });
             // Update on input for text fields as well
             if (el.type === 'text' || el.type === 'number' || el.type === 'password') {
@@ -2169,8 +2181,10 @@ async function syncTitlebarVersion() {
     }
 }
 
-let latestUpdaterState = null;
+let latestOfficialVerificationResult = null;
+let latestOfficialUpdateStatus = null;
 let lastUpdaterStatusNotified = '';
+let officialUpdateLoading = false;
 
 function formatByteSize(bytes) {
     const value = Number(bytes || 0);
@@ -2185,84 +2199,265 @@ function formatByteSize(bytes) {
     return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-function localizeRuntimeMessage(message, fallbackKey, fallbackText, params) {
-    const rawText = message || tr(fallbackKey, fallbackText, params);
-    if (window.Lang && typeof window.Lang.localizeMessage === 'function') {
-        return window.Lang.localizeMessage(rawText);
-    }
-    return rawText;
+function localizeDescriptor(descriptor, fallbackKey, fallbackText, fallbackParams) {
+    if (!descriptor) return tr(fallbackKey, fallbackText, fallbackParams);
+    return tr(
+        descriptor.key || fallbackKey,
+        descriptor.fallback || fallbackText,
+        { ...(fallbackParams || {}), ...(descriptor.params || {}) },
+    );
 }
 
-function renderUpdaterState(state) {
-    latestUpdaterState = state || null;
+function getOfficialAssetPreference() {
+    const rawValue = document.getElementById('setting-update-asset-preference')?.value || localStorage.getItem('setting-update-asset-preference') || 'auto';
+    return ['auto', 'setup', 'portable'].includes(rawValue) ? rawValue : 'auto';
+}
 
-    const statusEl = document.getElementById('official-auto-update-status');
-    const updatesEl = document.getElementById('official-update-result');
-    const checkBtn = document.getElementById('btn-official-check-updates');
-    const downloadBtn = document.getElementById('btn-official-download-update');
-    const installBtn = document.getElementById('btn-official-install-update');
+function getOfficialAssetKindLabel(kind) {
+    if (kind === 'portable') return tr('ui.official.assetKind.portable', 'Portable');
+    if (kind === 'setup') return tr('ui.official.assetKind.setup', 'Setup');
+    return tr('ui.official.assetKind.other', 'Asset');
+}
 
-    if (checkBtn) checkBtn.disabled = !state?.canCheck;
-    if (downloadBtn) downloadBtn.disabled = !state?.canDownload;
-    if (installBtn) installBtn.disabled = !state?.canInstall;
+function getOfficialDownloadableAssets(status) {
+    return Array.isArray(status?.assets)
+        ? status.assets.filter((asset) => asset?.kind === 'setup' || asset?.kind === 'portable')
+        : [];
+}
 
-    if (!statusEl || !updatesEl) return;
-    if (!state) {
-        statusEl.textContent = tr('ui.official.updaterUnavailable', 'Updater state is unavailable.');
-        updatesEl.textContent = '';
+function getSelectedOfficialAsset(status) {
+    const assets = getOfficialDownloadableAssets(status);
+    if (!assets.length) return null;
+    const preferredKind = status?.preferredAssetKind === 'portable' ? 'portable' : 'setup';
+    const priority = preferredKind === 'portable' ? ['portable', 'setup'] : ['setup', 'portable'];
+    for (const kind of priority) {
+        const match = assets.find((asset) => asset.kind === kind);
+        if (match) return match;
+    }
+    return assets[0] || null;
+}
+
+function formatOfficialReleaseDate(dateValue) {
+    if (!dateValue) return '';
+    try {
+        return new Intl.DateTimeFormat(undefined, {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        }).format(new Date(dateValue));
+    } catch {
+        return String(dateValue);
+    }
+}
+
+function getOfficialUpdateStatusLine(status) {
+    if (!status) {
+        return tr('ui.official.updaterLoading', 'Loading official release status...');
+    }
+
+    const updaterState = status.updaterState || null;
+    const capability = status.updaterCapability || updaterState?.capability || null;
+    const latestVersion = status.latestVersion || updaterState?.latestVersion || null;
+    const progressSuffix = updaterState?.status === 'downloading'
+        ? ` (${updaterState.progress ?? 0}% - ${formatByteSize(updaterState.transferred)} / ${formatByteSize(updaterState.total)})`
+        : '';
+
+    if (capability?.supportsInApp && updaterState) {
+        const message = localizeDescriptor({
+            key: updaterState.messageKey,
+            fallback: updaterState.messageFallback,
+            params: updaterState.messageParams,
+        }, 'ui.official.updaterReady', 'Ready to check for updates from GitHub releases.');
+        const latestSuffix = latestVersion
+            ? ` ${tr('ui.official.latestLabel', 'Latest: v{version}', { version: latestVersion })}`
+            : '';
+        return `${message}${latestSuffix}${progressSuffix}`.trim();
+    }
+
+    if (officialUpdateLoading) {
+        return tr('ui.official.checkingRelease', 'Checking latest official release...');
+    }
+
+    if (status.releaseErrorKey || status.releaseErrorFallback) {
+        return localizeDescriptor({
+            key: status.releaseErrorKey,
+            fallback: status.releaseErrorFallback,
+            params: status.releaseErrorParams,
+        }, 'ui.official.releaseCheckError', 'Official release check failed: {error}');
+    }
+
+    if (status.updateAvailable && latestVersion) {
+        return tr('ui.official.manualUpdateAvailableStatus', 'Official release v{version} is available. Manual download is ready.', {
+            version: latestVersion,
+        });
+    }
+
+    if (status.releaseCheckSucceeded && latestVersion) {
+        return tr('ui.official.manualLatestStatus', 'Official release v{version} checked. Manual update mode is active.', {
+            version: latestVersion,
+        });
+    }
+
+    return localizeDescriptor(capability && {
+        key: capability.reasonKey,
+        fallback: capability.reasonFallback,
+        params: capability.reasonParams,
+    }, 'ui.official.updaterUnavailable', 'Updater state is unavailable.');
+}
+
+function getOfficialUpdateDetails(status, selectedAsset) {
+    if (!status) {
+        return tr('ui.official.updaterLoading', 'Loading official release status...');
+    }
+
+    const updaterState = status.updaterState || null;
+    const capability = status.updaterCapability || updaterState?.capability || null;
+    const publishedAt = formatOfficialReleaseDate(status.publishedAt);
+
+    if (status.releaseErrorKey || status.releaseErrorFallback) {
+        return localizeDescriptor({
+            key: status.releaseErrorKey,
+            fallback: status.releaseErrorFallback,
+            params: status.releaseErrorParams,
+        }, 'ui.official.releaseCheckError', 'Official release check failed: {error}');
+    }
+
+    if (!status.releaseCheckSucceeded) {
+        return tr('ui.official.checkingRelease', 'Checking latest official release...');
+    }
+
+    if (status.updateAvailable) {
+        if (updaterState?.status === 'downloaded') {
+            return tr('ui.official.updateDownloaded', 'Update downloaded: {current} -> {latest}. Click "Install update" to restart and apply it.', {
+                current: status.currentVersion || '?',
+                latest: status.latestVersion || updaterState.latestVersion || '?',
+            });
+        }
+        if (updaterState?.status === 'downloading') {
+            return tr('ui.official.updateDownloading', 'Downloading official update {version} in the background.', {
+                version: status.latestVersion || updaterState.latestVersion || '?',
+            });
+        }
+        if (capability?.supportsInApp) {
+            return tr('ui.official.updateAvailable', 'Update available: {current} -> {latest}. Use "Download update" to fetch it in-app.', {
+                current: status.currentVersion || '?',
+                latest: status.latestVersion || '?',
+            });
+        }
+        if (selectedAsset) {
+            return tr('ui.official.updateManualAvailable', 'Update available: {current} -> {latest}. Download "{asset}" from the official release page.', {
+                current: status.currentVersion || '?',
+                latest: status.latestVersion || '?',
+                asset: selectedAsset.name,
+            });
+        }
+        return tr('ui.official.assetNone', 'No downloadable setup or portable asset was found in the official release.');
+    }
+
+    let detail = tr('ui.official.updateNotAvailable', 'You are on the latest official version ({current}).', {
+        current: status.currentVersion || status.latestVersion || '?',
+    });
+
+    if (publishedAt) {
+        detail += ` ${tr('ui.official.releasePublishedAt', 'Published: {date}', { date: publishedAt })}`;
+    }
+
+    if (capability && !capability.supportsInApp) {
+        detail += ` ${localizeDescriptor({
+            key: capability.reasonKey,
+            fallback: capability.reasonFallback,
+            params: capability.reasonParams,
+        }, 'ui.official.updaterUnavailable', 'Updater state is unavailable.')}`;
+    }
+
+    return detail.trim();
+}
+
+function renderOfficialAssetSelection(status, selectedAsset) {
+    const assetEl = document.getElementById('official-selected-asset');
+    if (!assetEl) return;
+
+    if (!status || (!status.releaseCheckSucceeded && !status.releaseErrorKey)) {
+        assetEl.textContent = tr('ui.official.assetPending', 'Recommended asset will appear after the official release check.');
         return;
     }
 
-    const message = localizeRuntimeMessage(state.message, 'ui.official.updaterIdle', 'Updater is idle.');
-    const releaseSuffix = state.latestVersion
-        ? ` ${tr('ui.official.latestLabel', 'Latest: v{version}', { version: state.latestVersion })}`
-        : '';
-    const progressSuffix = state.status === 'downloading'
-        ? ` (${state.progress ?? 0}% - ${formatByteSize(state.transferred)} / ${formatByteSize(state.total)})`
-        : '';
-    statusEl.textContent = `${message}${releaseSuffix}${progressSuffix}`;
-
-    if (state.status === 'available') {
-        updatesEl.textContent = tr('ui.official.updateAvailable', 'Update available: {current} -> {latest}. Use "Download update" to fetch it in-app.', {
-            current: state.currentVersion || '?',
-            latest: state.latestVersion || '?',
-        });
-    } else if (state.status === 'downloaded') {
-        updatesEl.textContent = tr('ui.official.updateDownloaded', 'Update downloaded: {current} -> {latest}. Click "Install update" to restart and apply it.', {
-            current: state.currentVersion || '?',
-            latest: state.latestVersion || '?',
-        });
-    } else if (state.status === 'not-available') {
-        updatesEl.textContent = tr('ui.official.updateNotAvailable', 'You are on the latest official version ({current}).', {
-            current: state.currentVersion || '?',
-        });
-    } else if (state.status === 'disabled') {
-        updatesEl.textContent = tr('ui.official.updateDisabled', 'In-app auto update is unavailable for this build. {message}', {
-            message: localizeRuntimeMessage(state.message, 'ui.official.updaterUnavailable', 'Updater state is unavailable.'),
-        }).trim();
-    } else if (state.status === 'error') {
-        updatesEl.textContent = tr('ui.official.updateError', 'Auto update error: {message}', {
-            message: localizeRuntimeMessage(state.message, 'ui.official.unknownUpdaterError', 'Unknown updater error.'),
-        });
-    } else if (state.status === 'downloading') {
-        updatesEl.textContent = tr('ui.official.updateDownloading', 'Downloading official update {version} in the background.', {
-            version: state.latestVersion || '?',
-        });
-    } else if (state.status === 'checking') {
-        updatesEl.textContent = tr('ui.official.checkingRelease', 'Checking latest official release...');
-    } else {
-        updatesEl.textContent = '';
+    if (!selectedAsset) {
+        assetEl.textContent = tr('ui.official.assetNone', 'No downloadable setup or portable asset was found in the official release.');
+        return;
     }
 
-    const notifyKey = `${state.status}:${state.latestVersion || ''}`;
+    const updaterState = status.updaterState || null;
+    const capability = status.updaterCapability || updaterState?.capability || null;
+    const key = capability?.supportsInApp ? 'ui.official.assetSelectedInApp' : 'ui.official.assetSelectedManual';
+    const fallback = capability?.supportsInApp
+        ? 'Selected asset for this build: {name} ({size}, {kind}).'
+        : 'Manual download target: {name} ({size}, {kind}).';
+    assetEl.textContent = tr(key, fallback, {
+        name: selectedAsset.name,
+        size: formatByteSize(selectedAsset.size),
+        kind: getOfficialAssetKindLabel(selectedAsset.kind),
+    });
+}
+
+function renderOfficialUpdateState(status) {
+    latestOfficialUpdateStatus = status || null;
+
+    const statusEl = document.getElementById('official-auto-update-status');
+    const updatesEl = document.getElementById('official-update-result');
+    const lockEl = document.getElementById('official-channel-lock');
+    const checkBtn = document.getElementById('btn-official-check-updates');
+    const downloadBtn = document.getElementById('btn-official-download-update');
+    const installBtn = document.getElementById('btn-official-install-update');
+    const openBtn = document.getElementById('btn-open-official-release');
+    const selectedAsset = getSelectedOfficialAsset(status);
+    const updaterState = status?.updaterState || null;
+    const capability = status?.updaterCapability || updaterState?.capability || null;
+    const manualDownloadAvailable = Boolean(status?.releaseCheckSucceeded && status?.updateAvailable && selectedAsset && !capability?.supportsInApp);
+    const inAppDownloadAvailable = Boolean(updaterState?.canDownload);
+
+    if (checkBtn) {
+        checkBtn.disabled = officialUpdateLoading || updaterState?.status === 'checking' || updaterState?.status === 'downloading';
+    }
+    if (downloadBtn) {
+        downloadBtn.disabled = !(inAppDownloadAvailable || manualDownloadAvailable);
+    }
+    if (installBtn) {
+        installBtn.disabled = !updaterState?.canInstall;
+    }
+    if (openBtn) {
+        openBtn.disabled = false;
+    }
+    if (lockEl && status) {
+        lockEl.textContent = tr('ui.official.channelLockedDynamic', 'Channel locked: {owner}/{repo}', {
+            owner: status.owner || 'unknown',
+            repo: status.repo || 'unknown',
+        });
+    }
+
+    if (!statusEl || !updatesEl) return;
+    if (!status) {
+        statusEl.textContent = tr('ui.official.updaterLoading', 'Loading official release status...');
+        updatesEl.textContent = tr('ui.official.assetPending', 'Recommended asset will appear after the official release check.');
+        renderOfficialAssetSelection(status, selectedAsset);
+        return;
+    }
+
+    statusEl.textContent = getOfficialUpdateStatusLine(status);
+    updatesEl.textContent = getOfficialUpdateDetails(status, selectedAsset);
+    renderOfficialAssetSelection(status, selectedAsset);
+
+    const notifyStatus = capability?.supportsInApp
+        ? (updaterState?.status || 'idle')
+        : (status.updateAvailable ? 'manual-available' : 'manual-idle');
+    const notifyKey = `${notifyStatus}:${status.latestVersion || updaterState?.latestVersion || ''}:${status.checkedAt || ''}`;
     if (notifyKey !== lastUpdaterStatusNotified) {
-        if (state.status === 'available') {
+        if (notifyStatus === 'available' || notifyStatus === 'manual-available') {
             showNotification(tr('ui.official.notifyAvailable', 'New version available: v{version}', {
-                version: state.latestVersion || '?',
+                version: status.latestVersion || updaterState?.latestVersion || '?',
             }), 'info');
-        } else if (state.status === 'downloaded') {
+        } else if (notifyStatus === 'downloaded') {
             showNotification(tr('ui.official.notifyDownloaded', 'Update downloaded: v{version}', {
-                version: state.latestVersion || '?',
+                version: status.latestVersion || updaterState?.latestVersion || '?',
             }), 'success');
         }
         lastUpdaterStatusNotified = notifyKey;
@@ -2278,80 +2473,199 @@ function renderOfficialStatus(status, reason) {
     statusEl.classList.remove('pending', 'verified', 'unverified', 'unknown', 'development', 'error');
     statusEl.classList.add(safeStatus);
     statusEl.textContent = tr(`ui.official.status.${safeStatus}`, safeStatus);
-    detailsEl.textContent = localizeRuntimeMessage(reason, 'ui.official.noDetail', 'No detail.');
+    if (typeof reason === 'string') {
+        detailsEl.textContent = reason;
+        return;
+    }
+    detailsEl.textContent = localizeDescriptor(reason, 'ui.official.noDetail', 'No detail.');
+}
+
+function renderOfficialVerificationResult(result) {
+    latestOfficialVerificationResult = result || null;
+
+    const lockEl = document.getElementById('official-channel-lock');
+    const detailsEl = document.getElementById('official-verify-details');
+    if (!result) {
+        renderOfficialStatus('unknown', { key: 'ui.official.noDetail', fallback: 'No detail.', params: {} });
+        return;
+    }
+
+    const reasonParts = [
+        localizeDescriptor({
+            key: result.reasonKey,
+            fallback: result.reasonFallback || result.reason,
+            params: result.reasonParams,
+        }, 'ui.official.noReason', 'No reason provided.'),
+    ];
+    if (result.officialTag) {
+        reasonParts.push(tr('ui.official.officialTag', 'Official tag: {tag}', { tag: result.officialTag }));
+    }
+    if (result.checksumsAsset) {
+        reasonParts.push(tr('ui.official.checksumsAsset', 'Checksums asset: {name}', { name: result.checksumsAsset }));
+    }
+    if (result.localAsarSha256) {
+        reasonParts.push(tr('ui.official.localAsar', 'Local app.asar SHA256: {hash}', {
+            hash: `${String(result.localAsarSha256).slice(0, 12)}...`,
+        }));
+    }
+
+    renderOfficialStatus(result.status || 'unknown', reasonParts.join(' '));
+
+    if (lockEl) {
+        lockEl.textContent = tr('ui.official.channelLockedDynamic', 'Channel locked: {owner}/{repo}', {
+            owner: result.owner || 'unknown',
+            repo: result.repo || 'unknown',
+        });
+    }
+
+    if (detailsEl && result.officialReleaseUrl) {
+        detailsEl.innerHTML = `${escapeHtml(reasonParts.join(' '))} <a href="${result.officialReleaseUrl}" target="_blank" rel="noopener">${escapeHtml(tr('ui.official.releaseLink', 'Official release'))}</a>`;
+    }
+}
+
+function mergeUpdaterStateIntoOfficialStatus(state) {
+    if (!state) return;
+
+    if (!latestOfficialUpdateStatus) {
+        latestOfficialUpdateStatus = {
+            channelLocked: true,
+            owner: 'ali975',
+            repo: 'CraftIDE-MyFirstProject',
+            currentVersion: state.currentVersion || 'unknown',
+            latestTag: state.latestVersion ? `v${state.latestVersion}` : null,
+            latestVersion: state.latestVersion || null,
+            updateAvailable: Boolean(state.updateAvailable),
+            publishedAt: null,
+            releaseUrl: null,
+            assets: [],
+            preferredAssetKind: getOfficialAssetPreference() === 'portable' ? 'portable' : 'setup',
+            updaterCapability: state.capability || null,
+            updaterState: state,
+            checkedAt: new Date().toISOString(),
+            releaseCheckSucceeded: false,
+            releaseErrorKey: null,
+            releaseErrorFallback: null,
+            releaseErrorParams: {},
+        };
+        renderOfficialUpdateState(latestOfficialUpdateStatus);
+        return;
+    }
+
+    latestOfficialUpdateStatus = {
+        ...latestOfficialUpdateStatus,
+        currentVersion: latestOfficialUpdateStatus.currentVersion || state.currentVersion || 'unknown',
+        latestVersion: latestOfficialUpdateStatus.latestVersion || state.latestVersion || null,
+        latestTag: latestOfficialUpdateStatus.latestTag || (state.latestVersion ? `v${state.latestVersion}` : null),
+        updateAvailable: Boolean(latestOfficialUpdateStatus.updateAvailable || state.updateAvailable),
+        updaterCapability: state.capability || latestOfficialUpdateStatus.updaterCapability,
+        updaterState: state,
+    };
+    renderOfficialUpdateState(latestOfficialUpdateStatus);
+}
+
+async function loadOfficialUpdateStatus(options = {}) {
+    const triggerCheck = options.triggerCheck === true;
+    const silent = options.silent === true;
+    const channel = triggerCheck ? 'official:checkUpdates' : 'official:getUpdateStatus';
+
+    officialUpdateLoading = true;
+    renderOfficialUpdateState(latestOfficialUpdateStatus);
+
+    try {
+        const status = await ipcRenderer.invoke(channel, getOfficialAssetPreference());
+        officialUpdateLoading = false;
+        renderOfficialUpdateState(status);
+    } catch (err) {
+        officialUpdateLoading = false;
+        const error = err?.message || err || 'unknown';
+        const fallback = latestOfficialUpdateStatus
+            ? {
+                ...latestOfficialUpdateStatus,
+                checkedAt: new Date().toISOString(),
+                releaseCheckSucceeded: false,
+                releaseErrorKey: 'ui.official.releaseCheckError',
+                releaseErrorFallback: 'Official release check failed: {error}',
+                releaseErrorParams: { error },
+            }
+            : null;
+        renderOfficialUpdateState(fallback);
+        if (!silent) {
+            showNotification(tr('ui.official.releaseCheckError', 'Official release check failed: {error}', { error }), 'error');
+        }
+    }
 }
 
 async function verifyOfficialBuildUi() {
-    const lockEl = document.getElementById('official-channel-lock');
-    const detailsEl = document.getElementById('official-verify-details');
     const updatesEl = document.getElementById('official-update-result');
     if (updatesEl) updatesEl.textContent = '';
 
-    renderOfficialStatus('pending', tr('ui.official.verifyChecking', 'Checking local build integrity against official release checksums...'));
+    renderOfficialStatus('pending', {
+        key: 'ui.official.verifyChecking',
+        fallback: 'Checking local build integrity against official release checksums...',
+        params: {},
+    });
     try {
         const result = await ipcRenderer.invoke('official:verifyBuild');
-        const reasonParts = [localizeRuntimeMessage(result.reason, 'ui.official.noReason', 'No reason provided.')];
-        if (result.officialTag) reasonParts.push(tr('ui.official.officialTag', 'Official tag: {tag}', { tag: result.officialTag }));
-        if (result.checksumsAsset) reasonParts.push(tr('ui.official.checksumsAsset', 'Checksums asset: {name}', { name: result.checksumsAsset }));
-        if (result.localAsarSha256) reasonParts.push(tr('ui.official.localAsar', 'Local app.asar SHA256: {hash}', { hash: `${result.localAsarSha256.slice(0, 12)}...` }));
-        renderOfficialStatus(result.status || 'unknown', reasonParts.join(' '));
-        if (lockEl) {
-            lockEl.textContent = tr('ui.official.channelLockedDynamic', 'Channel locked: {owner}/{repo}', {
-                owner: result.owner || 'unknown',
-                repo: result.repo || 'unknown',
-            });
-        }
-        if (detailsEl && result.officialReleaseUrl) {
-            detailsEl.innerHTML = `${escapeHtml(reasonParts.join(' '))} <a href="${result.officialReleaseUrl}" target="_blank" rel="noopener">${escapeHtml(tr('ui.official.releaseLink', 'Official release'))}</a>`;
-        }
+        renderOfficialVerificationResult(result);
     } catch (err) {
-        renderOfficialStatus('error', tr('ui.official.verifyFailed', 'Verification failed: {error}', {
-            error: err.message || err,
-        }));
+        renderOfficialVerificationResult({
+            status: 'error',
+            reasonKey: 'ui.official.verifyFailed',
+            reasonFallback: 'Verification failed: {error}',
+            reasonParams: { error: err?.message || err || 'unknown' },
+            owner: 'ali975',
+            repo: 'CraftIDE-MyFirstProject',
+        });
     }
 }
 
 async function checkOfficialUpdatesUi() {
-    renderUpdaterState({
-        ...(latestUpdaterState || {}),
-        status: 'checking',
-        message: tr('ui.official.checkingRelease', 'Checking latest official release...'),
-        canCheck: false,
-        canDownload: false,
-        canInstall: false,
-    });
-    try {
-        const state = await ipcRenderer.invoke('updater:check');
-        renderUpdaterState(state);
-    } catch (err) {
-        renderUpdaterState({
-            ...(latestUpdaterState || {}),
-            status: 'error',
-            message: tr('ui.official.checkFailed', 'Official update check failed: {error}', {
-                error: err.message || err,
-            }),
-            canCheck: true,
-            canDownload: false,
-            canInstall: false,
-        });
-    }
+    await loadOfficialUpdateStatus({ triggerCheck: true });
 }
 
 async function downloadOfficialUpdateUi() {
+    const status = latestOfficialUpdateStatus;
+    const updaterState = status?.updaterState || null;
+    const capability = status?.updaterCapability || updaterState?.capability || null;
+    const selectedAsset = getSelectedOfficialAsset(status);
+
+    if (!status?.updateAvailable) {
+        showNotification(tr('ui.official.noDownloadReady', 'Check for updates first and wait for an available release.'), 'warn');
+        return;
+    }
+
+    if (!capability?.supportsInApp) {
+        if (selectedAsset?.url) {
+            window.open(selectedAsset.url, '_blank');
+            showNotification(tr('ui.official.manualDownloadOpening', 'Opening official download: {name}', {
+                name: selectedAsset.name,
+            }), 'info');
+            return;
+        }
+        if (status?.releaseUrl) {
+            window.open(status.releaseUrl, '_blank');
+            showNotification(tr('ui.official.manualReleaseOpening', 'Opening the official release page.'), 'info');
+            return;
+        }
+        showNotification(tr('ui.official.assetNone', 'No downloadable setup or portable asset was found in the official release.'), 'warn');
+        return;
+    }
+
     try {
         const state = await ipcRenderer.invoke('updater:download');
-        renderUpdaterState(state);
+        mergeUpdaterStateIntoOfficialStatus(state);
     } catch (err) {
-        renderUpdaterState({
-            ...(latestUpdaterState || {}),
-            status: 'error',
-            message: tr('ui.official.downloadFailed', 'Update download failed: {error}', {
-                error: err.message || err,
-            }),
-            canCheck: true,
-            canDownload: false,
-            canInstall: false,
-        });
+        const error = err?.message || err || 'unknown';
+        if (latestOfficialUpdateStatus?.updaterState) {
+            mergeUpdaterStateIntoOfficialStatus({
+                ...latestOfficialUpdateStatus.updaterState,
+                status: 'error',
+                messageKey: 'ui.official.downloadFailed',
+                messageFallback: 'Update download failed: {error}',
+                messageParams: { error },
+            });
+        }
+        showNotification(tr('ui.official.downloadFailed', 'Update download failed: {error}', { error }), 'error');
     }
 }
 
@@ -2376,6 +2690,7 @@ function initOfficialIntegrityPanel() {
     const downloadBtn = document.getElementById('btn-official-download-update');
     const installBtn = document.getElementById('btn-official-install-update');
     const openBtn = document.getElementById('btn-open-official-release');
+    const assetPreferenceSelect = document.getElementById('setting-update-asset-preference');
 
     if (!verifyBtn || verifyBtn.dataset.bound === '1') return;
     verifyBtn.dataset.bound = '1';
@@ -2385,33 +2700,19 @@ function initOfficialIntegrityPanel() {
     downloadBtn?.addEventListener('click', () => downloadOfficialUpdateUi());
     installBtn?.addEventListener('click', () => installOfficialUpdateUi());
     openBtn?.addEventListener('click', () => {
-        window.open('https://github.com/ali975/CraftIDE-MyFirstProject/releases/latest', '_blank');
+        const releaseUrl = latestOfficialUpdateStatus?.releaseUrl || 'https://github.com/ali975/CraftIDE-MyFirstProject/releases/latest';
+        window.open(releaseUrl, '_blank');
+    });
+    assetPreferenceSelect?.addEventListener('change', () => {
+        loadOfficialUpdateStatus({ triggerCheck: false, silent: true });
     });
 
     verifyOfficialBuildUi();
-    ipcRenderer.invoke('updater:getState').then(renderUpdaterState).catch(() => {
-        renderUpdaterState({
-            status: 'error',
-            currentVersion: 'unknown',
-            latestVersion: null,
-            progress: null,
-            transferred: 0,
-            total: 0,
-            message: tr('ui.official.updaterStateLoadError', 'Unable to load updater state.'),
-            releaseName: null,
-            releaseDate: null,
-            updateAvailable: false,
-            canCheck: false,
-            canDownload: false,
-            canInstall: false,
-            isPortable: false,
-            isPackaged: false,
-        });
-    });
+    loadOfficialUpdateStatus({ triggerCheck: false, silent: true });
 }
 
 ipcRenderer.on('updater:state', (_, state) => {
-    renderUpdaterState(state);
+    mergeUpdaterStateIntoOfficialStatus(state);
 });
 
 document.addEventListener('lang:changed', () => {
@@ -2420,6 +2721,13 @@ document.addEventListener('lang:changed', () => {
         const title = document.getElementById('titlebar-filename');
         if (title) title.textContent = tr('ui.titlebar.welcome', 'Welcome');
     }
+    if (latestOfficialVerificationResult) {
+        renderOfficialVerificationResult(latestOfficialVerificationResult);
+    }
+    if (latestOfficialUpdateStatus) {
+        renderOfficialUpdateState(latestOfficialUpdateStatus);
+    }
+    updateProjectPlatformFields(getActiveProjectPlatform());
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -2511,7 +2819,7 @@ function initOnboarding() {
             grid.appendChild(card);
         });
         if (tplList.length === 0) {
-            grid.innerHTML = '<p style="color:var(--text-secondary);grid-column:span 2;">Bu mod için hazır şablon yok. Boş başlayın.</p>';
+            grid.innerHTML = '<p style="color:var(--text-secondary);grid-column:span 2;">' + escapeHtml(tr('ui.onboard.noTemplate', 'No ready template exists for this mode. Start blank.')) + '</p>';
         }
     }
 
@@ -2824,6 +3132,25 @@ function serverTypeFromPlatform(platform) {
     return 'paper';
 }
 
+function getServerTypeLabel(type) {
+    const normalizedType = normalizeServerType(type);
+    const map = {
+        paper: 'ui.server.type.paper',
+        spigot: 'ui.server.type.spigot',
+        fabric: 'ui.server.type.fabric',
+        forge: 'ui.server.type.forge',
+        vanilla: 'ui.server.type.vanilla',
+    };
+    const fallbackMap = {
+        paper: 'Paper (Plugin)',
+        spigot: 'Spigot (Plugin)',
+        fabric: 'Fabric (Mod)',
+        forge: 'Forge (Mod)',
+        vanilla: 'Vanilla',
+    };
+    return tr(map[normalizedType], fallbackMap[normalizedType] || normalizedType);
+}
+
 function renderVersionSelect(selectEl, versions, selectedValue) {
     const items = Array.isArray(versions) ? versions.filter(Boolean) : [];
     if (!selectEl) return;
@@ -2928,8 +3255,8 @@ function showConfigEditor(filePath, content, type) {
         rawBtn._cfgRawMode = false;
         rawBtn.onclick = () => {
             rawBtn._cfgRawMode = !rawBtn._cfgRawMode;
-            if (rawBtn._cfgRawMode) {
-                // Monaco ile göster
+if (rawBtn._cfgRawMode) {
+                // Monaco ile g??ster
                 container.style.display = 'none';
                 document.getElementById('editor-container').style.display = 'block';
                 if (window.monacoEditor && window.monaco) {
@@ -2938,24 +3265,24 @@ function showConfigEditor(filePath, content, type) {
                     window.monacoEditor.setModel(model);
                     if (oldModel && oldModel !== model) oldModel.dispose();
                 }
-                rawBtn.textContent = 'Form Görünümü';
+                rawBtn.textContent = tr('ui.config.formView', 'Form View');
             } else {
                 document.getElementById('editor-container').style.display = 'none';
                 container.style.display = 'flex';
-                rawBtn.textContent = 'Ham YAML';
+                rawBtn.textContent = tr('ui.config.rawYaml', 'Raw YAML');
             }
         };
     }
 
     // Kaydet butonu
     const saveBtn = document.getElementById('btn-config-save');
-    if (saveBtn) {
+if (saveBtn) {
         saveBtn.onclick = async () => {
             const yaml = _serializeConfigForm(body, type);
             await ipcRenderer.invoke('fs:writeFile', _configEditorCurrentPath, yaml);
             const fd = openFiles.get(_configEditorCurrentPath);
             if (fd) fd.content = yaml;
-            showNotification('💾 Config kaydedildi!', 'success');
+            showTrNotification('msg.configSaved', 'Config saved!', 'success');
         };
     }
 }
@@ -2975,13 +3302,13 @@ function _renderPluginYmlEditor(body, content) {
         body.appendChild(h);
     };
 
-    section('Temel Bilgiler');
+section(tr('ui.config.section.basic', 'Basic Information'));
     for (const [k, inputType] of Object.entries(known)) {
         _addFormField(body, k, parsed[k] || '', inputType);
     }
 
     // commands
-    section('Komutlar (commands)');
+    section(tr('ui.config.section.commands', 'Commands'));
     const cmdArea = document.createElement('div');
     cmdArea.id = 'cfg-commands-area';
     cmdArea.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
@@ -2989,15 +3316,15 @@ function _renderPluginYmlEditor(body, content) {
     const addCmdRow = (name, desc) => {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;gap:6px;align-items:center;';
-        const ni = document.createElement('input'); ni.placeholder = 'komut adı'; ni.value = name || ''; ni.className = 'cfg-cmd-name'; ni.style.cssText = 'flex:0 0 120px;padding:4px 6px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;font-size:12px;';
-        const di = document.createElement('input'); di.placeholder = 'açıklama'; di.value = (typeof desc === 'object' ? desc.description : desc) || ''; di.className = 'cfg-cmd-desc'; di.style.cssText = 'flex:1;padding:4px 6px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;font-size:12px;';
-        const rm = document.createElement('button'); rm.textContent = '✕'; rm.style.cssText = 'background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;'; rm.onclick = () => row.remove();
+        const ni = document.createElement('input'); ni.placeholder = tr('ui.config.placeholder.commandName', 'command name'); ni.value = name || ''; ni.className = 'cfg-cmd-name'; ni.style.cssText = 'flex:0 0 120px;padding:4px 6px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;font-size:12px;';
+        const di = document.createElement('input'); di.placeholder = tr('ui.config.placeholder.commandDescription', 'description'); di.value = (typeof desc === 'object' ? desc.description : desc) || ''; di.className = 'cfg-cmd-desc'; di.style.cssText = 'flex:1;padding:4px 6px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;font-size:12px;';
+        const rm = document.createElement('button'); rm.textContent = 'x'; rm.style.cssText = 'background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;'; rm.onclick = () => row.remove();
         row.append(ni, di, rm);
         cmdArea.appendChild(row);
     };
     cmdList.forEach(([n, d]) => addCmdRow(n, d));
     const addCmdBtn = document.createElement('button');
-    addCmdBtn.textContent = '+ Komut Ekle';
+    addCmdBtn.textContent = tr('ui.command.addCommand', '+ Add Command');
     addCmdBtn.style.cssText = 'align-self:flex-start;padding:4px 10px;background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-secondary);border-radius:4px;cursor:pointer;font-size:12px;';
     addCmdBtn.onclick = () => addCmdRow('', '');
     body.appendChild(cmdArea);
@@ -3041,7 +3368,7 @@ function _renderGenericYmlEditor(body, content) {
 
             const resetBtn = document.createElement('button');
             resetBtn.textContent = '↺';
-            resetBtn.title = 'Reset to default';
+            resetBtn.title = tr('ui.config.resetDefault', 'Reset to default');
             resetBtn.style.cssText = 'padding:3px 6px;background:transparent;border:1px solid var(--border-color);border-radius:4px;color:var(--text-muted);cursor:pointer;';
             resetBtn.onclick = () => _setConfigInputValue(inp, val);
             row.append(lbl, inp, resetBtn);
@@ -3287,9 +3614,9 @@ function _analyzeStackTrace(lines) {
             }, 200);
         }
     };
-    item.querySelector('.cfg-fix-btn').onclick = async () => {
+item.querySelector('.cfg-fix-btn').onclick = async () => {
         if (!window.NoCodeSuite?.oneClickFixCurrent) {
-            showNotification('One-click fix is not available.', 'warn');
+            showTrNotification('msg.oneClickFixUnavailable', 'One-click fix is not available.', 'warn');
             return;
         }
         document.querySelector('.activity-btn[data-action="visual-builder"]')?.click();

@@ -24,7 +24,7 @@
             <div class="titlebar-logo">
                 <img class="titlebar-icon" src="../../logo.png" alt="CraftIDE icon">
                 <span class="titlebar-text">CraftIDE</span>
-                <span class="titlebar-version" id="titlebar-version">v0.2.6</span>
+                <span class="titlebar-version" id="titlebar-version">v...</span>
             </div>
             <div class="titlebar-filename" id="titlebar-filename" data-i18n="ui.titlebar.welcome">Welcome</div>
         </div>
@@ -240,7 +240,7 @@
                         <!-- Header -->
                         <div class="welcome-header">
                             <h1 class="welcome-title">CraftIDE</h1>
-                            <p class="welcome-subtitle">Minecraft Development Studio</p>
+                            <p class="welcome-subtitle" data-i18n="ui.welcome.subtitle">Minecraft Development Studio</p>
                         </div>
 
                         <!-- Two Column Layout -->
@@ -872,6 +872,17 @@
                                         <button class="btn-secondary" id="btn-official-install-update" data-i18n="ui.official.installBtn">Install update</button>
                                         <button class="btn-secondary" id="btn-open-official-release" data-i18n="ui.official.openReleaseBtn">Open official release</button>
                                     </div>
+                                    <div class="official-asset-row">
+                                        <label for="setting-update-asset-preference" class="official-asset-label" data-i18n="ui.official.assetPreference">Preferred update asset</label>
+                                        <select id="setting-update-asset-preference" class="official-asset-select">
+                                            <option value="auto">Auto</option>
+                                            <option value="setup">Setup</option>
+                                            <option value="portable">Portable</option>
+                                        </select>
+                                    </div>
+                                    <div id="official-selected-asset" class="official-check-details" data-i18n="ui.official.assetPending">
+                                        Recommended asset will appear after the official release check.
+                                    </div>
                                     <div id="official-auto-update-status" class="official-check-details" data-i18n="ui.official.updaterPreparing">
                                         In-app updater is preparing...
                                     </div>
@@ -913,15 +924,15 @@
 
                         <select id="sm-type-select"
                             style="padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary);">
-                            <option value="paper">Paper (Plugin)</option>
-                            <option value="spigot">Spigot (Plugin)</option>
-                            <option value="fabric">Fabric (Mod)</option>
-                            <option value="forge">Forge (Mod)</option>
-                            <option value="vanilla">Vanilla</option>
+                            <option value="paper" data-i18n="ui.server.type.paper">Paper (Plugin)</option>
+                            <option value="spigot" data-i18n="ui.server.type.spigot">Spigot (Plugin)</option>
+                            <option value="fabric" data-i18n="ui.server.type.fabric">Fabric (Mod)</option>
+                            <option value="forge" data-i18n="ui.server.type.forge">Forge (Mod)</option>
+                            <option value="vanilla" data-i18n="ui.server.type.vanilla">Vanilla</option>
                         </select>
                         <select id="sm-version-select"
                             style="padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary);">
-                            <option value="1.21.4">Loading versions...</option>
+                            <option value="1.21.4" data-i18n="ui.server.loadingVersions">Loading versions...</option>
                         </select>
                     </div>
                     <div class="sm-console-wrapper"
@@ -944,12 +955,12 @@
 
             <!-- Bottom Panel (Terminal / Output) -->
             <div class="bottom-panel" id="bottom-panel">
-                <div class="bottom-panel-header">
-                    <div class="bottom-tabs">
-                        <button class="bottom-tab active" data-btab="terminal">Terminal</button>
+                    <div class="bottom-panel-header">
+                        <div class="bottom-tabs">
+                        <button class="bottom-tab active" data-btab="terminal" data-i18n="ui.bottom.terminal">Terminal</button>
                         <button class="bottom-tab" data-btab="output" data-i18n="ui.bottom.output">Output</button>
                         <button class="bottom-tab" data-btab="problems" data-i18n="ui.bottom.problems">Problems</button>
-                    </div>
+                        </div>
                     <div class="bottom-actions">
                         <button class="bottom-action" id="btn-toggle-panel" title="Toggle Panel"
                             data-i18n-title="ui.bottom.toggle">
@@ -1026,50 +1037,50 @@
                     <div class="platform-grid" id="platform-grid">
                         <button class="platform-card active" data-platform="paper">
                             <span class="platform-icon">📦</span>
-                            <span class="platform-name">Paper</span>
+                            <span class="platform-name" data-i18n="ui.modal.platform.paper">Paper</span>
                             <span class="platform-tag" data-i18n="ui.modal.recommended">Recommended</span>
                         </button>
                         <button class="platform-card" data-platform="spigot">
                             <span class="platform-icon">🔧</span>
-                            <span class="platform-name">Spigot</span>
+                            <span class="platform-name" data-i18n="ui.modal.platform.spigot">Spigot</span>
                         </button>
                         <button class="platform-card" data-platform="fabric">
                             <span class="platform-icon">🧵</span>
-                            <span class="platform-name">Fabric</span>
+                            <span class="platform-name" data-i18n="ui.modal.platform.fabric">Fabric</span>
                         </button>
                         <button class="platform-card" data-platform="forge">
                             <span class="platform-icon">🔨</span>
-                            <span class="platform-name">Forge</span>
+                            <span class="platform-name" data-i18n="ui.modal.platform.forge">Forge</span>
                         </button>
                         <button class="platform-card" data-platform="skript">
                             <span class="platform-icon">📜</span>
-                            <span class="platform-name">Skript</span>
+                            <span class="platform-name" data-i18n="ui.modal.platform.skript">Skript</span>
                         </button>
                         <button class="platform-card" data-platform="velocity">
                             <span class="platform-icon">🌐</span>
-                            <span class="platform-name">Velocity</span>
+                            <span class="platform-name" data-i18n="ui.modal.platform.velocity">Velocity</span>
                         </button>
                         <button class="platform-card" data-platform="bungeecord">
                             <span class="platform-icon">🔗</span>
-                            <span class="platform-name">BungeeCord</span>
+                            <span class="platform-name" data-i18n="ui.modal.platform.bungeecord">BungeeCord</span>
                         </button>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label id="label-project-name" data-i18n="modal.projectNameLabel">Plugin Name</label>
-                        <input type="text" id="input-project-name" placeholder="MyAwesomePlugin" value="">
+                        <input type="text" id="input-project-name" placeholder="MyAwesomePlugin" value="" data-i18n-placeholder="modal.placeholder.pluginName">
                     </div>
                     <div class="form-group">
                         <label data-i18n="modal.mcVersion">MC Version</label>
                         <select id="input-mc-version">
-                            <option value="1.21.4" selected>Loading versions...</option>
+                            <option value="1.21.4" selected data-i18n="ui.server.loadingVersions">Loading versions...</option>
                         </select>
                     </div>
                 </div>
                 <div class="form-group" id="java-options">
                     <label data-i18n="modal.packageName">Package Name</label>
-                    <input type="text" id="input-package-name" placeholder="com.example.myplugin"
+                    <input type="text" id="input-package-name" placeholder="com.example.myplugin" data-i18n-placeholder="modal.placeholder.packageName"
                         value="com.example.myplugin">
                 </div>
                 <div class="form-group" id="deps-group">
@@ -1224,14 +1235,18 @@
                 <h2 data-i18n="ui.onboard.step1.title">⛏️ Welcome to CraftIDE!</h2>
                 <p data-i18n="ui.onboard.step1.desc">What kind of Minecraft content do you want to create?</p>
                 <div class="onboard-platform-grid">
-                    <button class="onboard-platform-btn" data-mode="plugin">📦 Plugin<br><small>Paper /
-                            Spigot</small></button>
-                    <button class="onboard-platform-btn" data-mode="fabric">🧵 Fabric Mod<br><small>Fabric
-                            API</small></button>
-                    <button class="onboard-platform-btn" data-mode="forge">🔨 Forge Mod<br><small>Forge
-                            API</small></button>
-                    <button class="onboard-platform-btn" data-mode="skript">📜 Skript<br><small>Skript
-                            Addon</small></button>
+                    <button class="onboard-platform-btn" data-mode="plugin">
+                        <span>📦 </span><span data-i18n="ui.onboard.mode.plugin.title">Plugin</span><br><small data-i18n="ui.onboard.mode.plugin.desc">Paper / Spigot</small>
+                    </button>
+                    <button class="onboard-platform-btn" data-mode="fabric">
+                        <span>🧵 </span><span data-i18n="ui.onboard.mode.fabric.title">Fabric Mod</span><br><small data-i18n="ui.onboard.mode.fabric.desc">Fabric API</small>
+                    </button>
+                    <button class="onboard-platform-btn" data-mode="forge">
+                        <span>🔨 </span><span data-i18n="ui.onboard.mode.forge.title">Forge Mod</span><br><small data-i18n="ui.onboard.mode.forge.desc">Forge API</small>
+                    </button>
+                    <button class="onboard-platform-btn" data-mode="skript">
+                        <span>📜 </span><span data-i18n="ui.onboard.mode.skript.title">Skript</span><br><small data-i18n="ui.onboard.mode.skript.desc">Skript Addon</small>
+                    </button>
                 </div>
                 <div class="onboard-nav">
                     <button class="onboard-btn-next" id="ob-next-0" data-i18n="ui.onboard.next">Next →</button>
@@ -1246,19 +1261,19 @@
                 <div class="onboard-ai-form">
                     <label data-i18n="ui.onboard.provider">AI Provider</label>
                     <select id="ob-ai-provider">
-                        <option value="ollama">Ollama (Local — Recommended)</option>
-                        <option value="lmstudio">LM Studio (Local)</option>
-                        <option value="openai">OpenAI</option>
-                        <option value="anthropic">Anthropic Claude</option>
-                        <option value="google">Google Gemini</option>
+                        <option value="ollama" data-i18n="ui.onboard.provider.ollama">Ollama (Local — Recommended)</option>
+                        <option value="lmstudio" data-i18n="ui.onboard.provider.lmstudio">LM Studio (Local)</option>
+                        <option value="openai" data-i18n="ui.onboard.provider.openai">OpenAI</option>
+                        <option value="anthropic" data-i18n="ui.onboard.provider.anthropic">Anthropic Claude</option>
+                        <option value="google" data-i18n="ui.onboard.provider.google">Google Gemini</option>
                     </select>
                     <label data-i18n="ui.onboard.model">Model Name</label>
-                    <input type="text" id="ob-ai-model" value="codellama:13b" placeholder="codellama:13b">
+                    <input type="text" id="ob-ai-model" value="codellama:13b" placeholder="codellama:13b" data-i18n-placeholder="ui.onboard.placeholder.model">
                     <label data-i18n="ui.onboard.endpoint">Endpoint URL</label>
-                    <input type="text" id="ob-ai-endpoint" value="http://localhost:11434"
+                    <input type="text" id="ob-ai-endpoint" value="http://localhost:11434" data-i18n-placeholder="ui.onboard.placeholder.endpoint"
                         placeholder="http://localhost:11434">
                     <label data-i18n="ui.onboard.apikey">API Key (optional)</label>
-                    <input type="password" id="ob-ai-key" placeholder="sk-...">
+                    <input type="password" id="ob-ai-key" placeholder="sk-..." data-i18n-placeholder="ui.onboard.placeholder.apikey">
                 </div>
                 <div class="onboard-nav">
                     <button class="onboard-btn-back" id="ob-back-1" data-i18n="ui.onboard.back">← Back</button>

@@ -42,7 +42,7 @@ const ALL_BLOCK_DEFS = {
         KickPlayer: { type: 'action', label: window.Lang ? window.Lang.t('vb.KickPlayer') : 'Kick Player', params: [{ n: 'sebep', t: 'text', d: 'Kurallara aykÄ±rÄ± davranÄ±ÅŸ' }] },
         SetGameMode: { type: 'action', label: 'Set Gamemode', params: [{ n: 'mod', t: 'select', opts: ['CREATIVE', 'SURVIVAL', 'ADVENTURE', 'SPECTATOR'], d: 'CREATIVE' }] },
         SetHealth: { type: 'action', label: 'Set Health', params: [{ n: 'can', t: 'number', d: '20' }] },
-        SendTitle: { type: 'action', label: 'Show Title', params: [{ n: 'baÅŸlÄ±k', t: 'text', d: 'HoÅŸ Geldin!' }, { n: 'alt', t: 'text', d: 'Sunucuya baÄŸlandÄ±n' }] },
+        SendTitle: { type: 'action', label: 'Show Title', params: [{ n: 'baslik', t: 'text', d: 'Hos Geldin!' }, { n: 'alt', t: 'text', d: 'Sunucuya baglandin' }] },
         RunCommand: { type: 'action', label: window.Lang ? window.Lang.t('vb.RunCommand') : 'Run Command', params: [{ n: 'komut', t: 'text', d: 'op {player}' }] },
 
         // Kontrol
@@ -150,8 +150,8 @@ const ALL_BLOCK_DEFS = {
         SkHasPerm: { type: 'condition', label: 'player has permission', params: [{ n: 'perm', t: 'text', d: 'skript.use' }] },
         SkIsOp: { type: 'condition', label: 'player is op', params: [] },
         SkHasItem: { type: 'condition', label: 'player has item', params: [{ n: 'item', t: 'text', d: 'diamond' }] },
-        SkHealthCheck: { type: 'condition', label: 'health of player >=', params: [{ n: 'deÄŸer', t: 'number', d: '10' }] },
-        SkWorldCheck: { type: 'condition', label: 'world is', params: [{ n: 'dÃ¼nya', t: 'text', d: 'world' }] },
+        SkHealthCheck: { type: 'condition', label: 'health of player >=', params: [{ n: 'deger', t: 'number', d: '10' }] },
+        SkWorldCheck: { type: 'condition', label: 'world is', params: [{ n: 'dunya', t: 'text', d: 'world' }] },
 
         SkSendMsg: { type: 'action', label: 'send message', params: [{ n: 'mesaj', t: 'text', d: 'Merhaba {player}!' }] },
         SkBroadcast: { type: 'action', label: 'broadcast', params: [{ n: 'mesaj', t: 'text', d: 'Duyuru: ...' }] },
@@ -165,7 +165,7 @@ const ALL_BLOCK_DEFS = {
 
         SkIf: { type: 'control', label: 'if', params: [] },
         SkLoop: { type: 'control', label: 'loop', params: [{ n: 'kez', t: 'number', d: '10' }] },
-        SkWait: { type: 'control', label: 'wait', params: [{ n: 'sÃ¼re', t: 'text', d: '1 second' }] },
+        SkWait: { type: 'control', label: 'wait', params: [{ n: 'sure', t: 'text', d: '1 second' }] },
         SkLoopPlayers: { type: 'control', label: 'loop all players', params: [] },
 
         // GUI
@@ -201,7 +201,7 @@ const VB_TEMPLATES = [
         nodes: [
             { blockId: 'PlayerJoin', x: 80, y: 120 },
             { blockId: 'SendMessage', x: 320, y: 120, params: { mesaj: '&aHoÅŸ geldin! &e{player}' } },
-            { blockId: 'SendTitle', x: 320, y: 240, params: { baÅŸlÄ±k: '&6CraftServer', alt: '&eHoÅŸ Geldin!' } },
+            { blockId: 'SendTitle', x: 320, y: 240, params: { baslik: '&6CraftServer', alt: '&eHos Geldin!' } },
         ],
         connections: [
             { from: 0, to: 1 },
@@ -518,6 +518,35 @@ let vbCurrentMode = 'plugin';
 let vbViewOffset = { x: 0, y: 0 };
 let vbPanning = false;
 let vbPanStart = { x: 0, y: 0 };
+let vbContextMenu = null;
+let vbMenuLastContextPos = { x: 0, y: 0 };
+let vbContextFilter = 'all';
+let vbContextSearch = '';
+
+const VB_CONTEXT_STORAGE_KEYS = {
+    favorites: 'craftide-vb-favorites',
+    recent: 'craftide-vb-recent',
+};
+
+const VB_PARAM_OPTION_SETS = {
+    material: ['STONE', 'DIRT', 'GRASS_BLOCK', 'DIAMOND', 'EMERALD', 'GOLD_INGOT', 'IRON_INGOT', 'BREAD', 'CHEST', 'BOOK', 'STICK'],
+    item: ['minecraft:stone', 'minecraft:diamond', 'minecraft:emerald', 'minecraft:bread', 'minecraft:chest', 'minecraft:book'],
+    sound: ['ENTITY_EXPERIENCE_ORB_PICKUP', 'ENTITY_PLAYER_LEVELUP', 'BLOCK_NOTE_BLOCK_PLING', 'ENTITY_VILLAGER_YES', 'minecraft:entity.experience_orb.pickup'],
+    world: ['world', 'world_nether', 'world_the_end'],
+};
+
+function loadVbBlockStore(storageKey) {
+    try {
+        const raw = localStorage.getItem(storageKey);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+let vbFavoriteBlocksByMode = loadVbBlockStore(VB_CONTEXT_STORAGE_KEYS.favorites);
+let vbRecentBlocksByMode = loadVbBlockStore(VB_CONTEXT_STORAGE_KEYS.recent);
 
 const VB_PARAM_LABEL_KEYS = {
     command: 'ui.vb.param.command',
@@ -562,17 +591,41 @@ const VB_PARAM_LABEL_KEYS = {
     aralik: 'ui.vb.param.interval',
     title: 'ui.vb.param.title',
     baslik: 'ui.vb.param.title',
+    dunya: 'ui.vb.param.world',
     subtitle: 'ui.vb.param.subtitle',
     alt: 'ui.vb.param.subtitle',
+    sure: 'ui.vb.param.delay',
 };
 
 function vbTr(key, fallback, params) {
     if (window.Lang && typeof window.Lang.t === 'function') {
-        return window.Lang.t(key, params || {});
+        const translated = window.Lang.t(key, params || {});
+        if (translated !== key || !fallback) {
+            return translated;
+        }
     }
     if (!fallback) return key;
     if (!params) return fallback;
     return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), fallback);
+}
+
+function vbNotify(key, fallback, type = 'info', params) {
+    if (typeof showNotification !== 'function') return;
+    showNotification(vbTr(key, fallback, params), type);
+}
+
+function getBlockLabel(blockId, fallback) {
+    return vbTr(`ui.vb.block.${blockId}`, fallback || blockId);
+}
+
+function getTemplateName(tpl) {
+    const fallback = tpl?.name || tpl?.id || 'Template';
+    return vbTr(`ui.vb.template.${tpl?.id}.name`, fallback);
+}
+
+function getTemplateDescription(tpl) {
+    const fallback = tpl?.desc || '';
+    return vbTr(`ui.vb.template.${tpl?.id}.desc`, fallback);
 }
 
 function normalizeParamKey(name) {
@@ -610,11 +663,19 @@ function refreshNodesLanguage() {
     vbNodes.forEach((node) => {
         const def = defs[node.blockId];
         if (!def) return;
-        node.label = def.label;
+        node.label = getBlockLabel(node.blockId, def.label);
         const el = document.getElementById('vb-node-' + node.id);
         if (!el) return;
         const title = el.querySelector('.vb-node-header > span');
         if (title) title.textContent = node.label;
+        const infoBtn = el.querySelector('.vb-node-header span[title]');
+        if (infoBtn) infoBtn.title = vbTr('ui.vb.askAi', 'Ask AI Assistant');
+        const deleteBtn = el.querySelector('.vb-node-header span:last-child');
+        if (deleteBtn) deleteBtn.title = vbTr('ui.vb.deleteBlock', 'Delete Block');
+        const inputPort = el.querySelector('.vb-node-port.in');
+        if (inputPort) inputPort.title = vbTr('ui.vb.inputPort', 'Input port');
+        const outputPort = el.querySelector('.vb-node-port.out');
+        if (outputPort) outputPort.title = vbTr('ui.vb.outputPort', 'Output port');
         el.querySelectorAll('.vb-param-label').forEach((labelEl) => {
             const name = labelEl.dataset.paramName || '';
             labelEl.textContent = getParamLabel(name);
@@ -628,6 +689,138 @@ function refreshNodesLanguage() {
 
 function getCurrentBlockDefs() {
     return ALL_BLOCK_DEFS[vbCurrentMode] || ALL_BLOCK_DEFS.plugin;
+}
+
+function saveVbBlockStore(storageKey, value) {
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(value));
+    } catch {
+        // ignore storage errors in renderer
+    }
+}
+
+function getVbModeBlockList(store, mode = vbCurrentMode) {
+    return Array.isArray(store?.[mode]) ? store[mode].filter(Boolean) : [];
+}
+
+function setVbModeBlockList(storageKey, store, list, mode = vbCurrentMode) {
+    store[mode] = Array.from(new Set(Array.isArray(list) ? list : [])).slice(0, 12);
+    saveVbBlockStore(storageKey, store);
+}
+
+function isFavoriteVbBlock(blockId) {
+    return getVbModeBlockList(vbFavoriteBlocksByMode).includes(blockId);
+}
+
+function toggleFavoriteVbBlock(blockId) {
+    const current = getVbModeBlockList(vbFavoriteBlocksByMode);
+    const next = current.includes(blockId)
+        ? current.filter((entry) => entry !== blockId)
+        : [blockId, ...current];
+    setVbModeBlockList(VB_CONTEXT_STORAGE_KEYS.favorites, vbFavoriteBlocksByMode, next);
+    rebuildContextMenu();
+}
+
+function registerRecentVbBlock(blockId) {
+    if (!blockId) return;
+    const current = getVbModeBlockList(vbRecentBlocksByMode).filter((entry) => entry !== blockId);
+    current.unshift(blockId);
+    setVbModeBlockList(VB_CONTEXT_STORAGE_KEYS.recent, vbRecentBlocksByMode, current.slice(0, 8));
+}
+
+function ensureVbDatalist(id, options) {
+    if (!Array.isArray(options) || options.length === 0) return null;
+    let datalist = document.getElementById(id);
+    if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = id;
+        document.body.appendChild(datalist);
+    }
+    datalist.innerHTML = '';
+    options.forEach((option) => {
+        const entry = document.createElement('option');
+        entry.value = option;
+        datalist.appendChild(entry);
+    });
+    return datalist.id;
+}
+
+function resolveVbParamMeta(param) {
+    const normalizedName = normalizeParamKey(param?.n || '');
+    const declaredType = String(param?.t || 'text').toLowerCase();
+
+    if (declaredType === 'select' || declaredType === 'enum') {
+        return { type: 'enum', options: Array.isArray(param?.opts) ? param.opts : [] };
+    }
+    if (declaredType === 'number') {
+        return { type: 'number' };
+    }
+    if (declaredType === 'boolean') {
+        return { type: 'boolean', options: ['true', 'false'] };
+    }
+    if (['material', 'item', 'sound', 'world', 'coords', 'text'].includes(declaredType)) {
+        return {
+            type: declaredType,
+            options: VB_PARAM_OPTION_SETS[declaredType] || [],
+        };
+    }
+
+    if (normalizedName === 'material' || normalizedName === 'block') {
+        return { type: 'material', options: VB_PARAM_OPTION_SETS.material };
+    }
+    if (normalizedName === 'item') {
+        return { type: 'item', options: VB_PARAM_OPTION_SETS.item };
+    }
+    if (normalizedName === 'sound' || normalizedName === 'ses') {
+        return { type: 'sound', options: VB_PARAM_OPTION_SETS.sound };
+    }
+    if (normalizedName === 'world' || normalizedName === 'dunya') {
+        return { type: 'world', options: VB_PARAM_OPTION_SETS.world };
+    }
+    if (normalizedName === 'coords' || normalizedName === 'location') {
+        return { type: 'coords' };
+    }
+
+    return { type: 'text' };
+}
+
+function createVbParamControl(node, param) {
+    const meta = resolveVbParamMeta(param);
+    const currentValue = node.params[param.n] ?? '';
+
+    if (meta.type === 'enum' || meta.type === 'boolean') {
+        const select = document.createElement('select');
+        select.dataset.paramName = param.n;
+        (meta.options || []).forEach((optionValue) => {
+            const option = document.createElement('option');
+            option.value = optionValue;
+            option.textContent = optionValue;
+            option.selected = String(currentValue) === String(optionValue);
+            select.appendChild(option);
+        });
+        select.addEventListener('change', () => {
+            node.params[param.n] = select.value;
+        });
+        return select;
+    }
+
+    const input = document.createElement('input');
+    input.type = meta.type === 'number' ? 'number' : 'text';
+    input.value = currentValue;
+    input.placeholder = getParamLabel(param.n);
+    input.dataset.paramName = param.n;
+    input.dataset.paramType = meta.type;
+    if (meta.type === 'coords') {
+        input.placeholder = vbTr('ui.vb.param.coordsPlaceholder', 'x,y,z');
+    }
+    if (Array.isArray(meta.options) && meta.options.length > 0) {
+        const listId = ensureVbDatalist(`vb-datalist-${meta.type}`, meta.options);
+        if (listId) input.setAttribute('list', listId);
+    }
+    input.addEventListener('input', () => {
+        node.params[param.n] = input.value;
+    });
+    return input;
 }
 
 function initVisualBuilder() {
@@ -680,7 +873,7 @@ function initVisualBuilder() {
         if (connIdx >= 0) {
             vbConnections.splice(connIdx, 1);
             drawConnections();
-            if (typeof showNotification === 'function') showNotification(window.Lang ? window.Lang.t('msg.blockDeleted') : 'Connection deleted', 'success');
+            vbNotify('msg.connectionDeleted', 'Connection deleted', 'success');
         } else {
             showVbContextMenu(e.clientX, e.clientY);
         }
@@ -711,6 +904,7 @@ function initVisualBuilder() {
         document.addEventListener('lang:changed', () => {
             refreshNodesLanguage();
             buildTemplateGrid();
+            rebuildContextMenu();
         });
     }
 
@@ -737,13 +931,14 @@ function buildTemplateGrid() {
         card.appendChild(canvas);
         const nameEl = document.createElement('div');
         nameEl.className = 'vb-tpl-name';
-        nameEl.textContent = tpl.name;
+        nameEl.textContent = getTemplateName(tpl);
         const descEl = document.createElement('div');
         descEl.className = 'vb-tpl-desc';
-        descEl.textContent = tpl.desc;
+        descEl.textContent = getTemplateDescription(tpl);
         const modeEl = document.createElement('div');
         modeEl.className = 'vb-tpl-mode';
-        modeEl.textContent = tpl.category ? `${tpl.mode} Â· ${tpl.category}` : tpl.mode;
+        const modeText = getModeLabel(tpl.mode);
+        modeEl.textContent = tpl.category ? `${modeText} · ${tpl.category}` : modeText;
         card.appendChild(nameEl);
         card.appendChild(descEl);
         card.appendChild(modeEl);
@@ -893,7 +1088,7 @@ function loadTemplate(tpl) {
     drawConnections();
     const hint = document.getElementById('vb-empty-hint');
     if (hint) hint.style.display = 'none';
-    if (typeof showNotification === 'function') showNotification(window.Lang ? window.Lang.t('msg.blueprintLoaded', { name: tpl.name }) : 'Template loaded!', 'success');
+    vbNotify('msg.blueprintLoaded', 'Blueprint loaded: {name}', 'success', { name: getTemplateName(tpl) });
 }
 
 function refreshNodeInputs(node) {
@@ -938,12 +1133,13 @@ function createNode(blockId, x, y) {
     if (!def) return null;
 
     const id = vbNextId++;
-    const node = { id, blockId, type: def.type, label: def.label, x, y, params: {} };
+    const node = { id, blockId, type: def.type, label: getBlockLabel(blockId, def.label), x, y, params: {} };
 
     for (const p of (def.params || [])) {
         node.params[p.n] = p.d || '';
     }
     vbNodes.push(node);
+    registerRecentVbBlock(blockId);
     renderNode(node);
     selectNode(id);
 
@@ -990,13 +1186,17 @@ function renderNode(node) {
 
     const infoBtn = document.createElement('span');
     infoBtn.textContent = 'ğŸ’¡';
-    infoBtn.title = 'Ask AI Assistant';
+    infoBtn.title = vbTr('ui.vb.askAi', 'Ask AI Assistant');
     infoBtn.style.cssText = 'cursor:pointer;opacity:0.8;font-size:12px;margin-left:auto;padding:0 2px;line-height:1;';
     infoBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (window.aiManager) {
             document.querySelector('.activity-btn[data-panel="ai"]')?.click();
-            window.aiManager.chatInput.value = `LÃ¼tfen "${node.label}" bloÄŸunun ne iÅŸe yaradÄ±ÄŸÄ±nÄ±, nasÄ±l kullanÄ±ldÄ±ÄŸÄ±nÄ± ve dikkat etmem gerekenleri anlat.`;
+            window.aiManager.chatInput.value = vbTr(
+                'ui.vb.aiExplainPrompt',
+                'Explain what the "{block}" block does, how to use it, and what I should watch out for.',
+                { block: node.label },
+            );
             window.aiManager.handleChatInput();
         }
     });
@@ -1004,7 +1204,7 @@ function renderNode(node) {
 
     const delBtn = document.createElement('span');
     delBtn.textContent = 'âœ•';
-    delBtn.title = 'Delete Block';
+    delBtn.title = vbTr('ui.vb.deleteBlock', 'Delete Block');
     delBtn.style.cssText = 'cursor:pointer;opacity:0.7;font-size:12px;margin-left:8px;padding:0 2px;line-height:1;';
     delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteNode(node.id); });
     header.appendChild(delBtn);
@@ -1022,26 +1222,7 @@ function renderNode(node) {
             lbl.textContent = getParamLabel(p.n);
             body.appendChild(lbl);
 
-            if (p.t === 'select' && p.opts) {
-                const sel = document.createElement('select');
-                sel.dataset.paramName = p.n;
-                for (const opt of p.opts) {
-                    const o = document.createElement('option');
-                    o.value = opt; o.textContent = opt;
-                    if (node.params[p.n] === opt) o.selected = true;
-                    sel.appendChild(o);
-                }
-                sel.addEventListener('change', () => { node.params[p.n] = sel.value; });
-                body.appendChild(sel);
-            } else {
-                const inp = document.createElement('input');
-                inp.type = p.t === 'number' ? 'number' : 'text';
-                inp.value = node.params[p.n] || '';
-                inp.placeholder = getParamLabel(p.n);
-                inp.dataset.paramName = p.n;
-                inp.addEventListener('input', () => { node.params[p.n] = inp.value; });
-                body.appendChild(inp);
-            }
+            body.appendChild(createVbParamControl(node, p));
         }
         el.appendChild(body);
     }
@@ -1052,7 +1233,7 @@ function renderNode(node) {
         inPort.className = 'vb-node-port in';
         inPort.dataset.nodeId = node.id;
         inPort.dataset.portType = 'in';
-        inPort.title = 'Input â€” drag output port of another block to connect';
+        inPort.title = vbTr('ui.vb.inputPort', 'Input port');
         el.appendChild(inPort);
     }
 
@@ -1060,7 +1241,7 @@ function renderNode(node) {
     outPort.className = 'vb-node-port out';
     outPort.dataset.nodeId = node.id;
     outPort.dataset.portType = 'out';
-    outPort.title = 'Output â€” drag to connect';
+    outPort.title = vbTr('ui.vb.outputPort', 'Output port');
     el.appendChild(outPort);
 
     // Drag
@@ -1097,7 +1278,7 @@ function deleteNode(id) {
     if (el) el.remove();
     drawConnections();
     if (vbSelectedNode === id) vbSelectedNode = null;
-    if (typeof showNotification === 'function') showNotification(window.Lang ? window.Lang.t('msg.blockDeleted') : 'ğŸ—‘ï¸ Block deleted', 'success');
+    vbNotify('msg.blockDeleted', 'Block deleted', 'success');
     if (window.aiManager) window.aiManager.triggerBalanceCheck();
 }
 
@@ -1179,9 +1360,10 @@ document.addEventListener('mouseup', (e) => {
                     control: ['action', 'condition'],
                 };
                 if (fromNode && toNode && !validFrom[fromNode.type]?.includes(toNode.type)) {
-                    if (typeof showNotification === 'function') {
-                        showNotification(fromNode.type + ' â†’ ' + toNode.type + ' baÄŸlantÄ±sÄ± geÃ§ersiz!', 'error');
-                    }
+                    vbNotify('msg.invalidConnection', 'Invalid connection: {from} -> {to}', 'error', {
+                        from: fromNode.type,
+                        to: toNode.type,
+                    });
                 } else {
                     const existIdx = vbConnections.findIndex(c => c.to === toId);
                     if (existIdx >= 0) vbConnections.splice(existIdx, 1);
@@ -1294,42 +1476,156 @@ function findConnectionNear(mx, my, threshold = 10) {
 // SaÄŸ TÄ±k MenÃ¼sÃ¼
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-let vbContextMenu = null;
-let vbMenuLastContextPos = { x: 0, y: 0 };
+function escapeVbHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function getVbContextFilterLabel(filter) {
+    const labels = {
+        all: vbTr('ui.vb.context.filter.all', 'All'),
+        recent: vbTr('ui.vb.context.filter.recent', 'Recent'),
+        favorites: vbTr('ui.vb.context.filter.favorites', 'Favorites'),
+        event: vbTr('ui.vb.context.filter.event', 'Events'),
+        condition: vbTr('ui.vb.context.filter.condition', 'Conditions'),
+        action: vbTr('ui.vb.context.filter.action', 'Actions'),
+        control: vbTr('ui.vb.context.filter.control', 'Control'),
+    };
+    return labels[filter] || labels.all;
+}
+
+function getVbCategoryTitle(type) {
+    const titles = {
+        event: vbTr('ui.vb.context.category.event', 'Events'),
+        condition: vbTr('ui.vb.context.category.condition', 'Conditions'),
+        action: vbTr('ui.vb.context.category.action', 'Actions'),
+        control: vbTr('ui.vb.context.category.control', 'Control'),
+    };
+    return titles[type] || type;
+}
+
+function getVbContextBlocks() {
+    const blockDefs = getCurrentBlockDefs();
+    return Object.entries(blockDefs)
+        .map(([id, def]) => ({
+            id,
+            label: def.label,
+            type: def.type,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function filterVbContextBlocks(blocks) {
+    const search = vbContextSearch.trim().toLowerCase();
+    const recent = getVbModeBlockList(vbRecentBlocksByMode);
+    const favorites = getVbModeBlockList(vbFavoriteBlocksByMode);
+
+    let filtered = [...blocks];
+    if (vbContextFilter === 'recent') {
+        filtered = recent.map((id) => filtered.find((block) => block.id === id)).filter(Boolean);
+    } else if (vbContextFilter === 'favorites') {
+        filtered = filtered.filter((block) => favorites.includes(block.id));
+    } else if (['event', 'condition', 'action', 'control'].includes(vbContextFilter)) {
+        filtered = filtered.filter((block) => block.type === vbContextFilter);
+    }
+
+    if (search) {
+        filtered = filtered.filter((block) => block.label.toLowerCase().includes(search) || block.id.toLowerCase().includes(search));
+    }
+
+    return filtered.map((block) => ({
+        ...block,
+        favorite: favorites.includes(block.id),
+        recent: recent.includes(block.id),
+    }));
+}
 
 function rebuildContextMenu() {
     if (!vbContextMenu) return;
-    const BLOCK_DEFS = getCurrentBlockDefs();
-    const categories = {
-        'event': { title: 'ğŸŸ¢ Events', color: '#2ecc71', blocks: [] },
-        'condition': { title: 'ğŸŸ¡ Conditions', color: '#f1c40f', blocks: [] },
-        'action': { title: 'ğŸ”µ Actions', color: '#3498db', blocks: [] },
-        'control': { title: 'ğŸŸ£ Control', color: '#9b59b6', blocks: [] },
+    const allBlocks = getVbContextBlocks();
+    const filteredBlocks = filterVbContextBlocks(allBlocks);
+    const filterOrder = ['all', 'recent', 'favorites', 'event', 'condition', 'action', 'control'];
+    const categoryColors = {
+        event: '#2ecc71',
+        condition: '#f1c40f',
+        action: '#3498db',
+        control: '#9b59b6',
     };
 
-    for (const [id, def] of Object.entries(BLOCK_DEFS)) {
-        if (categories[def.type]) categories[def.type].blocks.push({ id, label: def.label });
-    }
+    let menuContent = `<div class="vb-cm-mode-label">${escapeVbHtml(getModeLabel())}</div>`;
+    menuContent += `<div class="vb-cm-search-wrap"><input id="vb-cm-search" class="vb-cm-search" type="search" placeholder="${escapeVbHtml(vbTr('ui.vb.context.search', 'Search blocks...'))}" value="${escapeVbHtml(vbContextSearch)}" /></div>`;
+    menuContent += '<div class="vb-cm-filters">';
+    filterOrder.forEach((filter) => {
+        const activeClass = vbContextFilter === filter ? ' active' : '';
+        menuContent += `<button type="button" class="vb-cm-filter${activeClass}" data-filter="${filter}">${escapeVbHtml(getVbContextFilterLabel(filter))}</button>`;
+    });
+    menuContent += '</div>';
 
-    let menuContent = `<div class="vb-cm-mode-label">${getModeLabel()}</div>`;
-    for (const catKey in categories) {
-        const cat = categories[catKey];
-        if (cat.blocks.length === 0) continue;
-        menuContent += `<div class="vb-cm-category" style="color:${cat.color}">${cat.title}</div>`;
-        for (const block of cat.blocks) {
-            menuContent += `<div class="vb-cm-item" data-block-id="${block.id}">${block.label}</div>`;
+    if (filteredBlocks.length === 0) {
+        menuContent += `<div class="vb-cm-empty">${escapeVbHtml(vbTr('ui.vb.context.empty', 'No blocks match the current filter.'))}</div>`;
+    } else {
+        const grouped = {};
+        if (vbContextFilter === 'recent' || vbContextFilter === 'favorites') {
+            grouped[vbContextFilter] = filteredBlocks;
+        } else {
+            filteredBlocks.forEach((block) => {
+                if (!grouped[block.type]) grouped[block.type] = [];
+                grouped[block.type].push(block);
+            });
         }
+
+        Object.entries(grouped).forEach(([groupKey, blocks]) => {
+            const title = vbContextFilter === 'recent' || vbContextFilter === 'favorites'
+                ? getVbContextFilterLabel(groupKey)
+                : getVbCategoryTitle(groupKey);
+            const color = categoryColors[groupKey] || 'var(--text-secondary)';
+            menuContent += `<div class="vb-cm-category" style="color:${color}">${escapeVbHtml(title)}</div>`;
+            blocks.forEach((block) => {
+                const starClass = block.favorite ? ' active' : '';
+                menuContent += `
+                    <div class="vb-cm-item" data-block-id="${escapeVbHtml(block.id)}">
+                        <div class="vb-cm-item-main">
+                            <span class="vb-cm-item-title">${escapeVbHtml(block.label)}</span>
+                            <span class="vb-cm-item-meta">${escapeVbHtml(getVbCategoryTitle(block.type))}</span>
+                        </div>
+                        <button type="button" class="vb-cm-favorite${starClass}" data-favorite-block="${escapeVbHtml(block.id)}" title="${escapeVbHtml(vbTr('ui.vb.context.favorite', 'Favorite'))}">★</button>
+                    </div>
+                `;
+            });
+        });
     }
 
     menuContent += `<div class="vb-cm-separator"></div>`;
-    menuContent += `<div class="vb-cm-action" id="cm-btn-templates">ğŸ“‹ Templates</div>`;
-    menuContent += `<div class="vb-cm-action" id="cm-btn-generate">âš¡ Generate Code</div>`;
-    menuContent += `<div class="vb-cm-action danger" id="cm-btn-clear">ğŸ—‘ï¸ Clear</div>`;
+    menuContent += `<div class="vb-cm-action" id="cm-btn-templates">${escapeVbHtml(vbTr('ui.vb.templates', 'Templates'))}</div>`;
+    menuContent += `<div class="vb-cm-action" id="cm-btn-generate">${escapeVbHtml(vbTr('ui.vb.generate', 'Generate Code'))}</div>`;
+    menuContent += `<div class="vb-cm-action danger" id="cm-btn-clear">${escapeVbHtml(vbTr('ui.vb.clear', 'Clear'))}</div>`;
 
     vbContextMenu.innerHTML = menuContent;
 
+    vbContextMenu.querySelector('#vb-cm-search')?.addEventListener('input', (event) => {
+        vbContextSearch = event.target.value || '';
+        rebuildContextMenu();
+    });
+    vbContextMenu.querySelectorAll('.vb-cm-filter').forEach((button) => {
+        button.addEventListener('click', () => {
+            vbContextFilter = button.dataset.filter || 'all';
+            rebuildContextMenu();
+        });
+    });
+    vbContextMenu.querySelectorAll('.vb-cm-favorite').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const blockId = button.dataset.favoriteBlock;
+            if (!blockId) return;
+            toggleFavoriteVbBlock(blockId);
+        });
+    });
     vbContextMenu.querySelectorAll('.vb-cm-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (event) => {
+            if (event.target.closest('.vb-cm-favorite')) return;
             const blockId = item.getAttribute('data-block-id');
             const area = document.getElementById('visual-builder-canvas-wrapper');
             const rect = area.getBoundingClientRect();
@@ -1343,9 +1639,14 @@ function rebuildContextMenu() {
     vbContextMenu.querySelector('#cm-btn-clear')?.addEventListener('click', () => { vbClearCanvas(); hideVbContextMenu(); });
 }
 
-function getModeLabel() {
-    const labels = { plugin: window.Lang ? window.Lang.t('mode.plugin') : 'ğŸ“¦ Plugin Mode', fabric: window.Lang ? window.Lang.t('mode.fabric') : 'ğŸ§µ Fabric Mode', forge: window.Lang ? window.Lang.t('mode.forge') : 'ğŸ”¨ Forge Mode', skript: window.Lang ? window.Lang.t('mode.skript') : 'ğŸ“œ Skript' };
-    return labels[vbCurrentMode] || window.Lang ? window.Lang.t('mode.plugin') : 'ğŸ“¦ Plugin Mode';
+function getModeLabel(mode = vbCurrentMode) {
+    const labels = {
+        plugin: vbTr('mode.plugin', 'Plugin Mode'),
+        fabric: vbTr('mode.fabric', 'Fabric Mode'),
+        forge: vbTr('mode.forge', 'Forge Mode'),
+        skript: vbTr('mode.skript', 'Skript Mode'),
+    };
+    return labels[mode] || labels.plugin;
 }
 
 function setupVbContextMenu() {
@@ -1367,6 +1668,7 @@ function setupVbContextMenu() {
 function showVbContextMenu(x, y) {
     if (!vbContextMenu) return;
     vbMenuLastContextPos = { x, y };
+    rebuildContextMenu();
     vbContextMenu.style.display = 'block';
 
     const rect = vbContextMenu.getBoundingClientRect();
@@ -1377,6 +1679,7 @@ function showVbContextMenu(x, y) {
 
     vbContextMenu.style.left = posX + 'px';
     vbContextMenu.style.top = posY + 'px';
+    vbContextMenu.querySelector('#vb-cm-search')?.focus?.();
 }
 
 function hideVbContextMenu() {
@@ -1411,7 +1714,7 @@ function vbGenerateCode(options) {
         if (existing) existing.remove();
         addTab(virtualPath, fileName);
         activateTab(virtualPath);
-        if (typeof showNotification === 'function') showNotification(window.Lang ? window.Lang.t('msg.codeGenerated') : 'âš¡ Kod Ã¼retildi!', 'success');
+        vbNotify('msg.codeGenerated', 'Code generated', 'success');
     } else if (window.monacoEditor && window.monaco) {
         // Fallback: DoÄŸrudan Monaco'ya yaz
         const lang = vbCurrentMode === 'skript' ? 'plaintext' : 'java';
@@ -1420,9 +1723,9 @@ function vbGenerateCode(options) {
         document.getElementById('welcome-screen').classList.remove('active');
         document.querySelectorAll('.editor-container').forEach(ec => ec.style.display = 'none');
         document.getElementById('editor-container').style.display = 'block';
-        if (typeof showNotification === 'function') showNotification('âš¡ Kod Ã¼retildi!', 'success');
+        vbNotify('msg.codeGenerated', 'Code generated', 'success');
     } else {
-        if (typeof showNotification === 'function') showNotification('Editor yÃ¼klenmedi', 'error');
+        vbNotify('msg.editorNotReady', 'Editor is not ready', 'error');
     }
 }
 
@@ -1495,7 +1798,7 @@ function generatePluginNodeCode(node, indent) {
         case 'KickPlayer': return indent + 'event.getPlayer().kickPlayer("' + (p.sebep || '') + '");\n';
         case 'SetGameMode': return indent + 'event.getPlayer().setGameMode(GameMode.' + (p.mod || 'CREATIVE') + ');\n';
         case 'SetHealth': return indent + 'event.getPlayer().setHealth(' + (p.can || 20) + ');\n';
-        case 'SendTitle': return indent + 'event.getPlayer().sendTitle("' + (p.baÅŸlÄ±k || 'BaÅŸlÄ±k') + '", "' + (p.alt || '') + '", 10, 70, 20);\n';
+        case 'SendTitle': return indent + 'event.getPlayer().sendTitle("' + (p.baslik || 'Baslik') + '", "' + (p.alt || '') + '", 10, 70, 20);\n';
         case 'RunCommand': return indent + 'Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "' + (p.komut || '') + '".replace("{player}", event.getPlayer().getName()));\n';
         case 'IfElse': return indent + '// If-Else bloÄŸu\n';
         case 'Loop': return indent + 'for (int i = 0; i < ' + (p.kez || 10) + '; i++) {\n' + indent + '    // dÃ¶ngÃ¼ gÃ¶vdesi\n' + indent + '}\n';
@@ -1683,8 +1986,8 @@ function generateSkriptNodeCode(node, indent) {
         case 'SkHasPerm': return indent + 'if player has permission "' + (p.perm || 'skript.use') + '":\n';
         case 'SkIsOp': return indent + 'if player is op:\n';
         case 'SkHasItem': return indent + 'if player has ' + (p.item || 'diamond') + ':\n';
-        case 'SkHealthCheck': return indent + 'if health of player >= ' + (p.deÄŸer || 10) + ':\n';
-        case 'SkWorldCheck': return indent + 'if world is "' + (p.dÃ¼nya || 'world') + '":\n';
+        case 'SkHealthCheck': return indent + 'if health of player >= ' + (p.deger || 10) + ':\n';
+        case 'SkWorldCheck': return indent + 'if world is "' + (p.dunya || 'world') + '":\n';
         case 'SkSendMsg': return indent + 'send "' + (p.mesaj || 'Merhaba!') + '" to player\n';
         case 'SkBroadcast': return indent + 'broadcast "' + (p.mesaj || 'Duyuru!') + '"\n';
         case 'SkTeleport': return indent + 'teleport player to location(' + (p.x || 0) + ', ' + (p.y || 64) + ', ' + (p.z || 0) + ', world)\n';
@@ -1696,7 +1999,7 @@ function generateSkriptNodeCode(node, indent) {
         case 'SkSpawn': return indent + 'spawn a ' + (p.entity || 'zombie') + ' at player\n';
         case 'SkIf': return indent + 'if (condition):\n';
         case 'SkLoop': return indent + 'loop ' + (p.kez || 10) + ' times:\n';
-        case 'SkWait': return indent + 'wait ' + (p.sÃ¼re || '1 second') + '\n';
+        case 'SkWait': return indent + 'wait ' + (p.sure || '1 second') + '\n';
         case 'SkLoopPlayers': return indent + 'loop all players:\n';
         // GUI
         case 'SkGUIOpen': return indent + '# on inventory open kontrolÃ¼\n';
@@ -1722,14 +2025,14 @@ function generateSkriptNodeCode(node, indent) {
 
 function vbClearCanvas() {
     if (vbNodes.length === 0) return;
-    if (confirm('TÃ¼m bloklar silinsin mi?')) {
+    if (confirm(vbTr('ui.vb.confirmClear', 'Clear all blocks from the canvas?'))) {
         vbNodes = [];
         vbConnections = [];
         const area = document.getElementById('visual-builder-canvas-wrapper');
         if (area) area.querySelectorAll('.vb-node').forEach(n => n.remove());
         drawConnections();
         vbViewOffset = { x: 0, y: 0 };
-        if (typeof showNotification === 'function') showNotification('ğŸ—‘ï¸ Canvas temizlendi', 'success');
+        vbNotify('msg.canvasCleared', 'Canvas cleared', 'success');
         const hint = document.getElementById('vb-empty-hint');
         if (hint) hint.style.display = '';
     }
@@ -1741,7 +2044,7 @@ function vbClearCanvas() {
 
 async function vbSaveBlueprint() {
     if (vbNodes.length === 0) {
-        if (typeof showNotification === 'function') showNotification('Kaydedilecek blok yok!', 'error');
+        vbNotify('msg.blueprintSaveEmpty', 'There are no blocks to save.', 'error');
         return;
     }
     const blueprint = {
@@ -1751,28 +2054,34 @@ async function vbSaveBlueprint() {
         connections: vbConnections.map(c => ({ from: c.from, to: c.to })),
     };
     const filePath = await ipcRenderer.invoke('dialog:saveFile', {
-        title: 'Blueprint Kaydet',
-        defaultPath: 'blueprint.vbp',
-        filters: [{ name: 'VB Blueprint', extensions: ['vbp'] }, { name: 'TÃ¼m Dosyalar', extensions: ['*'] }],
+        title: vbTr('ui.vb.dialog.saveBlueprint', 'Save Blueprint'),
+        defaultPath: vbTr('ui.vb.dialog.defaultBlueprintName', 'blueprint.vbp'),
+        filters: [
+            { name: vbTr('ui.vb.dialog.filterBlueprint', 'VB Blueprint'), extensions: ['vbp'] },
+            { name: vbTr('ui.vb.dialog.filterAllFiles', 'All Files'), extensions: ['*'] },
+        ],
     });
     if (!filePath) return;
     const ok = await ipcRenderer.invoke('fs:writeFile', filePath, JSON.stringify(blueprint, null, 2));
     if (ok) {
-        if (typeof showNotification === 'function') showNotification('ğŸ’¾ Blueprint kaydedildi!', 'success');
+        vbNotify('msg.blueprintSaved', 'Blueprint saved', 'success');
     } else {
-        if (typeof showNotification === 'function') showNotification('âŒ Kaydetme baÅŸarÄ±sÄ±z!', 'error');
+        vbNotify('msg.fileSaveError', 'Could not save file!', 'error');
     }
 }
 
 async function vbLoadBlueprint() {
     const filePath = await ipcRenderer.invoke('dialog:openFile', {
-        title: 'Blueprint YÃ¼kle',
-        filters: [{ name: 'VB Blueprint', extensions: ['vbp'] }, { name: 'TÃ¼m Dosyalar', extensions: ['*'] }],
+        title: vbTr('ui.vb.dialog.loadBlueprint', 'Load Blueprint'),
+        filters: [
+            { name: vbTr('ui.vb.dialog.filterBlueprint', 'VB Blueprint'), extensions: ['vbp'] },
+            { name: vbTr('ui.vb.dialog.filterAllFiles', 'All Files'), extensions: ['*'] },
+        ],
     });
     if (!filePath) return;
     const content = await ipcRenderer.invoke('fs:readFile', filePath);
     if (!content) {
-        if (typeof showNotification === 'function') showNotification('âŒ Dosya okunamadÄ±!', 'error');
+        vbNotify('msg.fileReadError', 'Could not read file!', 'error');
         return;
     }
     try {
@@ -1834,9 +2143,11 @@ async function vbLoadBlueprint() {
         const hint = document.getElementById('vb-empty-hint');
         if (hint) hint.style.display = vbNodes.length > 0 ? 'none' : '';
 
-        if (typeof showNotification === 'function') showNotification('ğŸ“‚ Blueprint yÃ¼klendi!', 'success');
+        vbNotify('msg.blueprintLoadedShort', 'Blueprint loaded', 'success');
     } catch (e) {
-        if (typeof showNotification === 'function') showNotification('âŒ Blueprint formatÄ± geÃ§ersiz: ' + e.message, 'error');
+        vbNotify('msg.blueprintFormatInvalid', 'Blueprint format is invalid: {error}', 'error', {
+            error: e.message || String(e),
+        });
     }
 }
 
@@ -1850,7 +2161,7 @@ document.getElementById('btn-vb-deploy')?.addEventListener('click', () => {
     if (typeof deployToServer === 'function') {
         deployToServer();
     } else {
-        if (typeof showNotification === 'function') showNotification('deployToServer fonksiyonu bulunamadÄ±!', 'error');
+        vbNotify('msg.deployFunctionMissing', 'Deploy action is not available.', 'error');
     }
 });
 
@@ -1864,9 +2175,11 @@ const vbDebugCheckbox = document.getElementById('vb-debug-mode');
 if (vbDebugCheckbox) {
     vbDebugCheckbox.addEventListener('change', () => {
         vbDebugMode = vbDebugCheckbox.checked;
-        if (typeof showNotification === 'function') {
-            showNotification(vbDebugMode ? 'ğŸ” Debug modu aÃ§Ä±k â€” sunucu eventleri VB\'de vurgulanacak' : 'ğŸ”• Debug modu kapalÄ±', 'info');
-        }
+        vbNotify(
+            vbDebugMode ? 'msg.debugEnabled' : 'msg.debugDisabled',
+            vbDebugMode ? 'Debug mode enabled' : 'Debug mode disabled',
+            'info',
+        );
     });
 }
 
