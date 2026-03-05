@@ -120,6 +120,10 @@ function getLocalAsarPath(): string | null {
     return fs.existsSync(candidate) ? candidate : null;
 }
 
+function isPortablePackagedBuild(): boolean {
+    return app.isPackaged && Boolean(process.env.PORTABLE_EXECUTABLE_DIR);
+}
+
 async function httpGet(url: string, accept: string): Promise<{ status: number; body: string }> {
     return await new Promise((resolve, reject) => {
         const req = https.get(url, {
@@ -164,16 +168,33 @@ async function verifyOfficialBuild(): Promise<BuildVerificationResult> {
         };
     }
 
+    if (isPortablePackagedBuild()) {
+        return {
+            ...base,
+            status: 'unknown',
+            reason: 'Portable builds are not eligible for integrity verification. Use the installer build.',
+        };
+    }
+
     const localAsarPath = getLocalAsarPath();
     if (!localAsarPath) {
         return {
             ...base,
-            status: 'error',
-            reason: 'Local app.asar not found.',
+            status: 'unknown',
+            reason: 'Local app.asar is not available for this build.',
         };
     }
-
-    const localAsarSha256 = hashFileSha256(localAsarPath);
+    let localAsarSha256: string;
+    try {
+        localAsarSha256 = hashFileSha256(localAsarPath);
+    } catch (error) {
+        return {
+            ...base,
+            localAsarPath,
+            status: 'unknown',
+            reason: `Local app.asar could not be read: ${(error as Error).message || error}`,
+        };
+    }
     const release = await fetchGitHubReleaseByTag(appVersion);
     if (!release) {
         return {

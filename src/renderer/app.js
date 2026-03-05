@@ -965,6 +965,7 @@ function activateTab(filePath) {
         project: { openTabs: document.querySelectorAll('.tab').length },
     });
     document.getElementById('titlebar-filename').textContent = filePath.startsWith('virtual://') || filePath.includes('//') ? tabName : nodePath.basename(filePath);
+    setTimeout(() => window.Lang?.applyTranslations?.(), 0);
 }
 
 async function closeTab(filePath) {
@@ -2184,6 +2185,14 @@ function formatByteSize(bytes) {
     return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+function localizeRuntimeMessage(message, fallbackKey, fallbackText, params) {
+    const rawText = message || tr(fallbackKey, fallbackText, params);
+    if (window.Lang && typeof window.Lang.localizeMessage === 'function') {
+        return window.Lang.localizeMessage(rawText);
+    }
+    return rawText;
+}
+
 function renderUpdaterState(state) {
     latestUpdaterState = state || null;
 
@@ -2199,40 +2208,62 @@ function renderUpdaterState(state) {
 
     if (!statusEl || !updatesEl) return;
     if (!state) {
-        statusEl.textContent = 'Updater state is unavailable.';
+        statusEl.textContent = tr('ui.official.updaterUnavailable', 'Updater state is unavailable.');
         updatesEl.textContent = '';
         return;
     }
 
-    const message = state.message || 'Updater is idle.';
-    const releaseSuffix = state.latestVersion ? ` Latest: v${state.latestVersion}` : '';
+    const message = localizeRuntimeMessage(state.message, 'ui.official.updaterIdle', 'Updater is idle.');
+    const releaseSuffix = state.latestVersion
+        ? ` ${tr('ui.official.latestLabel', 'Latest: v{version}', { version: state.latestVersion })}`
+        : '';
     const progressSuffix = state.status === 'downloading'
         ? ` (${state.progress ?? 0}% - ${formatByteSize(state.transferred)} / ${formatByteSize(state.total)})`
         : '';
     statusEl.textContent = `${message}${releaseSuffix}${progressSuffix}`;
 
     if (state.status === 'available') {
-        updatesEl.innerHTML = `Update available: ${escapeHtml(state.currentVersion)} -> ${escapeHtml(state.latestVersion || '?')}. Use "Download update" to fetch it in-app.`;
+        updatesEl.textContent = tr('ui.official.updateAvailable', 'Update available: {current} -> {latest}. Use "Download update" to fetch it in-app.', {
+            current: state.currentVersion || '?',
+            latest: state.latestVersion || '?',
+        });
     } else if (state.status === 'downloaded') {
-        updatesEl.innerHTML = `Update downloaded: ${escapeHtml(state.currentVersion)} -> ${escapeHtml(state.latestVersion || '?')}. Click "Install update" to restart and apply it.`;
+        updatesEl.textContent = tr('ui.official.updateDownloaded', 'Update downloaded: {current} -> {latest}. Click "Install update" to restart and apply it.', {
+            current: state.currentVersion || '?',
+            latest: state.latestVersion || '?',
+        });
     } else if (state.status === 'not-available') {
-        updatesEl.innerHTML = `You are on the latest official version (${escapeHtml(state.currentVersion)}).`;
+        updatesEl.textContent = tr('ui.official.updateNotAvailable', 'You are on the latest official version ({current}).', {
+            current: state.currentVersion || '?',
+        });
     } else if (state.status === 'disabled') {
-        updatesEl.innerHTML = `In-app auto update is unavailable for this build. ${escapeHtml(state.message || '')}`;
+        updatesEl.textContent = tr('ui.official.updateDisabled', 'In-app auto update is unavailable for this build. {message}', {
+            message: localizeRuntimeMessage(state.message, 'ui.official.updaterUnavailable', 'Updater state is unavailable.'),
+        }).trim();
     } else if (state.status === 'error') {
-        updatesEl.innerHTML = `Auto update error: ${escapeHtml(state.message || 'Unknown updater error.')}`;
+        updatesEl.textContent = tr('ui.official.updateError', 'Auto update error: {message}', {
+            message: localizeRuntimeMessage(state.message, 'ui.official.unknownUpdaterError', 'Unknown updater error.'),
+        });
     } else if (state.status === 'downloading') {
-        updatesEl.innerHTML = `Downloading official update ${escapeHtml(state.latestVersion || '')} in the background.`;
+        updatesEl.textContent = tr('ui.official.updateDownloading', 'Downloading official update {version} in the background.', {
+            version: state.latestVersion || '?',
+        });
+    } else if (state.status === 'checking') {
+        updatesEl.textContent = tr('ui.official.checkingRelease', 'Checking latest official release...');
     } else {
-        updatesEl.innerHTML = '';
+        updatesEl.textContent = '';
     }
 
     const notifyKey = `${state.status}:${state.latestVersion || ''}`;
     if (notifyKey !== lastUpdaterStatusNotified) {
         if (state.status === 'available') {
-            showNotification(`Yeni sürüm hazır: v${state.latestVersion}`, 'info');
+            showNotification(tr('ui.official.notifyAvailable', 'New version available: v{version}', {
+                version: state.latestVersion || '?',
+            }), 'info');
         } else if (state.status === 'downloaded') {
-            showNotification(`Güncelleme indirildi: v${state.latestVersion}`, 'success');
+            showNotification(tr('ui.official.notifyDownloaded', 'Update downloaded: v{version}', {
+                version: state.latestVersion || '?',
+            }), 'success');
         }
         lastUpdaterStatusNotified = notifyKey;
     }
@@ -2246,8 +2277,8 @@ function renderOfficialStatus(status, reason) {
     const safeStatus = String(status || 'unknown').toLowerCase();
     statusEl.classList.remove('pending', 'verified', 'unverified', 'unknown', 'development', 'error');
     statusEl.classList.add(safeStatus);
-    statusEl.textContent = safeStatus;
-    detailsEl.textContent = reason || 'No detail.';
+    statusEl.textContent = tr(`ui.official.status.${safeStatus}`, safeStatus);
+    detailsEl.textContent = localizeRuntimeMessage(reason, 'ui.official.noDetail', 'No detail.');
 }
 
 async function verifyOfficialBuildUi() {
@@ -2256,20 +2287,27 @@ async function verifyOfficialBuildUi() {
     const updatesEl = document.getElementById('official-update-result');
     if (updatesEl) updatesEl.textContent = '';
 
-    renderOfficialStatus('pending', 'Checking local build integrity against official release checksums...');
+    renderOfficialStatus('pending', tr('ui.official.verifyChecking', 'Checking local build integrity against official release checksums...'));
     try {
         const result = await ipcRenderer.invoke('official:verifyBuild');
-        const reasonParts = [result.reason || 'No reason provided.'];
-        if (result.officialTag) reasonParts.push(`Official tag: ${result.officialTag}`);
-        if (result.checksumsAsset) reasonParts.push(`Checksums asset: ${result.checksumsAsset}`);
-        if (result.localAsarSha256) reasonParts.push(`Local app.asar SHA256: ${result.localAsarSha256.slice(0, 12)}...`);
+        const reasonParts = [localizeRuntimeMessage(result.reason, 'ui.official.noReason', 'No reason provided.')];
+        if (result.officialTag) reasonParts.push(tr('ui.official.officialTag', 'Official tag: {tag}', { tag: result.officialTag }));
+        if (result.checksumsAsset) reasonParts.push(tr('ui.official.checksumsAsset', 'Checksums asset: {name}', { name: result.checksumsAsset }));
+        if (result.localAsarSha256) reasonParts.push(tr('ui.official.localAsar', 'Local app.asar SHA256: {hash}', { hash: `${result.localAsarSha256.slice(0, 12)}...` }));
         renderOfficialStatus(result.status || 'unknown', reasonParts.join(' '));
-        if (lockEl) lockEl.textContent = `Channel locked: ${result.owner}/${result.repo}`;
+        if (lockEl) {
+            lockEl.textContent = tr('ui.official.channelLockedDynamic', 'Channel locked: {owner}/{repo}', {
+                owner: result.owner || 'unknown',
+                repo: result.repo || 'unknown',
+            });
+        }
         if (detailsEl && result.officialReleaseUrl) {
-            detailsEl.innerHTML = `${escapeHtml(reasonParts.join(' '))} <a href="${result.officialReleaseUrl}" target="_blank" rel="noopener">Official release</a>`;
+            detailsEl.innerHTML = `${escapeHtml(reasonParts.join(' '))} <a href="${result.officialReleaseUrl}" target="_blank" rel="noopener">${escapeHtml(tr('ui.official.releaseLink', 'Official release'))}</a>`;
         }
     } catch (err) {
-        renderOfficialStatus('error', `Verification failed: ${err.message || err}`);
+        renderOfficialStatus('error', tr('ui.official.verifyFailed', 'Verification failed: {error}', {
+            error: err.message || err,
+        }));
     }
 }
 
@@ -2277,7 +2315,7 @@ async function checkOfficialUpdatesUi() {
     renderUpdaterState({
         ...(latestUpdaterState || {}),
         status: 'checking',
-        message: 'Checking latest official release...',
+        message: tr('ui.official.checkingRelease', 'Checking latest official release...'),
         canCheck: false,
         canDownload: false,
         canInstall: false,
@@ -2289,7 +2327,9 @@ async function checkOfficialUpdatesUi() {
         renderUpdaterState({
             ...(latestUpdaterState || {}),
             status: 'error',
-            message: `Official update check failed: ${err.message || err}`,
+            message: tr('ui.official.checkFailed', 'Official update check failed: {error}', {
+                error: err.message || err,
+            }),
             canCheck: true,
             canDownload: false,
             canInstall: false,
@@ -2305,7 +2345,9 @@ async function downloadOfficialUpdateUi() {
         renderUpdaterState({
             ...(latestUpdaterState || {}),
             status: 'error',
-            message: `Update download failed: ${err.message || err}`,
+            message: tr('ui.official.downloadFailed', 'Update download failed: {error}', {
+                error: err.message || err,
+            }),
             canCheck: true,
             canDownload: false,
             canInstall: false,
@@ -2317,12 +2359,14 @@ async function installOfficialUpdateUi() {
     try {
         const ok = await ipcRenderer.invoke('updater:quitAndInstall');
         if (!ok) {
-            showNotification('Önce indirilmeye hazır bir güncelleme bulunmalı.', 'warn');
+            showNotification(tr('ui.official.installNotReady', 'A downloaded update is required before installation can start.'), 'warn');
             return;
         }
-        showNotification('Güncelleme kurulumu için uygulama yeniden başlatılıyor.', 'info');
+        showNotification(tr('ui.official.installStarting', 'The app is restarting to install the update.'), 'info');
     } catch (err) {
-        showNotification(`Kurulum başlatılamadı: ${err.message || err}`, 'error');
+        showNotification(tr('ui.official.installFailed', 'Install could not be started: {error}', {
+            error: err.message || err,
+        }), 'error');
     }
 }
 
@@ -2353,7 +2397,7 @@ function initOfficialIntegrityPanel() {
             progress: null,
             transferred: 0,
             total: 0,
-            message: 'Unable to load updater state.',
+            message: tr('ui.official.updaterStateLoadError', 'Unable to load updater state.'),
             releaseName: null,
             releaseDate: null,
             updateAvailable: false,

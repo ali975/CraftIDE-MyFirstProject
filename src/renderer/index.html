@@ -853,26 +853,26 @@
                                 </div>
                             </div>
                             <div class="setting-group">
-                                <h3>Official Build Verification & Updates</h3>
-                                <p class="setting-help">
+                                <h3 data-i18n="ui.official.title">Official Build Verification & Updates</h3>
+                                <p class="setting-help" data-i18n="ui.official.desc">
                                     Integrity checks and in-app updates are locked to the official CraftIDE GitHub release channel.
                                 </p>
                                 <div class="official-check-card">
                                     <div class="official-check-header">
-                                        <span id="official-verify-status" class="official-check-status pending">Not checked</span>
-                                        <span id="official-channel-lock" class="official-channel-lock">Channel locked: ali975/CraftIDE-MyFirstProject</span>
+                                        <span id="official-verify-status" class="official-check-status pending" data-i18n="ui.official.notChecked">Not checked</span>
+                                        <span id="official-channel-lock" class="official-channel-lock" data-i18n="ui.official.channelLocked">Channel locked: ali975/CraftIDE-MyFirstProject</span>
                                     </div>
-                                    <div id="official-verify-details" class="official-check-details">
+                                    <div id="official-verify-details" class="official-check-details" data-i18n="ui.official.verifyPrompt">
                                         Press "Verify build" to compare local app hash with official release checksums.
                                     </div>
                                     <div class="official-check-actions">
-                                        <button class="btn-secondary" id="btn-official-verify-refresh">Verify build</button>
-                                        <button class="btn-secondary" id="btn-official-check-updates">Check for updates</button>
-                                        <button class="btn-secondary" id="btn-official-download-update">Download update</button>
-                                        <button class="btn-secondary" id="btn-official-install-update">Install update</button>
-                                        <button class="btn-secondary" id="btn-open-official-release">Open official release</button>
+                                        <button class="btn-secondary" id="btn-official-verify-refresh" data-i18n="ui.official.verifyBtn">Verify build</button>
+                                        <button class="btn-secondary" id="btn-official-check-updates" data-i18n="ui.official.checkBtn">Check for updates</button>
+                                        <button class="btn-secondary" id="btn-official-download-update" data-i18n="ui.official.downloadBtn">Download update</button>
+                                        <button class="btn-secondary" id="btn-official-install-update" data-i18n="ui.official.installBtn">Install update</button>
+                                        <button class="btn-secondary" id="btn-open-official-release" data-i18n="ui.official.openReleaseBtn">Open official release</button>
                                     </div>
-                                    <div id="official-auto-update-status" class="official-check-details">
+                                    <div id="official-auto-update-status" class="official-check-details" data-i18n="ui.official.updaterPreparing">
                                         In-app updater is preparing...
                                     </div>
                                     <div id="official-update-result" class="official-update-result"></div>
