@@ -6,7 +6,7 @@ import * as crypto from 'crypto';
 import * as https from 'https';
 import { exec } from 'child_process';
 import { ProjectScaffolder } from './scaffolder';
-const { createUtf8Logger, decodeUtf8Buffer, normalizeUtf8Payload } = require('../shared/utf8.js');
+const { createUtf8Logger, decodeUtf8Buffer, normalizeUtf8Payload } = require('../../src/shared/utf8.js');
 import {
     checkForAppUpdates,
     getUpdaterCapability,
