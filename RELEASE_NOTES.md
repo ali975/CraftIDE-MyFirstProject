@@ -1,6 +1,7 @@
 ## Highlights
 
 - Fixed the GitHub Actions release workflow so publishing works with the default `secrets.GITHUB_TOKEN` and no longer requires a manual `GH_TOKEN` secret.
+- Fixed the release workflow test step on Windows by replacing shell-dependent glob expansion with a platform-safe Node test runner.
 - Fixed Visual Builder UTF-8 corruption in card headers, labels, emoji actions, and template fallbacks that previously rendered mojibake in the UI.
 - Centralized UTF-8-safe file, JSON, and IPC normalization to keep Turkish characters and emoji text stable across renderer, main process, and packaged builds.
 - Switched locale catalog loading to explicit UTF-8 reads and added mojibake fallback tracing for dynamic translations.
