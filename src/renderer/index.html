@@ -7,6 +7,7 @@
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:;">
     <title>CraftIDE — Minecraft Development Studio</title>
+    <link rel="icon" type="image/png" href="../../logo.png">
     <!-- Image Editor: canvas tabanlı, offline -->
     <!-- xterm.js Terminal CSS -->
     <link rel="stylesheet" href="../../node_modules/xterm/css/xterm.css">
@@ -19,11 +20,11 @@
     <!-- Custom Titlebar                                        -->
     <!-- ═══════════════════════════════════════════════════════ -->
     <div id="titlebar" class="titlebar">
-        <div class="titlebar-drag">
+            <div class="titlebar-drag">
             <div class="titlebar-logo">
-                <img class="titlebar-icon" src="../../assets/icons/icon-32.png" alt="CraftIDE icon">
+                <img class="titlebar-icon" src="../../logo.png" alt="CraftIDE icon">
                 <span class="titlebar-text">CraftIDE</span>
-                <span class="titlebar-version">v0.2.3</span>
+                <span class="titlebar-version" id="titlebar-version">v0.2.6</span>
             </div>
             <div class="titlebar-filename" id="titlebar-filename" data-i18n="ui.titlebar.welcome">Welcome</div>
         </div>
@@ -852,9 +853,9 @@
                                 </div>
                             </div>
                             <div class="setting-group">
-                                <h3>Official Build Verification</h3>
+                                <h3>Official Build Verification & Updates</h3>
                                 <p class="setting-help">
-                                    Open source remains enabled, but update and integrity checks are locked to the official CraftIDE GitHub channel.
+                                    Integrity checks and in-app updates are locked to the official CraftIDE GitHub release channel.
                                 </p>
                                 <div class="official-check-card">
                                     <div class="official-check-header">
@@ -866,8 +867,13 @@
                                     </div>
                                     <div class="official-check-actions">
                                         <button class="btn-secondary" id="btn-official-verify-refresh">Verify build</button>
-                                        <button class="btn-secondary" id="btn-official-check-updates">Check official updates</button>
+                                        <button class="btn-secondary" id="btn-official-check-updates">Check for updates</button>
+                                        <button class="btn-secondary" id="btn-official-download-update">Download update</button>
+                                        <button class="btn-secondary" id="btn-official-install-update">Install update</button>
                                         <button class="btn-secondary" id="btn-open-official-release">Open official release</button>
+                                    </div>
+                                    <div id="official-auto-update-status" class="official-check-details">
+                                        In-app updater is preparing...
                                     </div>
                                     <div id="official-update-result" class="official-update-result"></div>
                                 </div>

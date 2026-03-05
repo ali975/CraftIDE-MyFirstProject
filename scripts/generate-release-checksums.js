@@ -25,8 +25,8 @@ function main() {
     }
 
     const lines = [];
-    maybePushChecksum(lines, path.join(releaseDir, `CraftIDE ${version}.exe`), `CraftIDE ${version}.exe`);
-    maybePushChecksum(lines, path.join(releaseDir, `CraftIDE Setup ${version}.exe`), `CraftIDE Setup ${version}.exe`);
+    maybePushChecksum(lines, path.join(releaseDir, `CraftIDE-${version}.exe`), `CraftIDE-${version}.exe`);
+    maybePushChecksum(lines, path.join(releaseDir, `CraftIDE-Setup-${version}.exe`), `CraftIDE-Setup-${version}.exe`);
     maybePushChecksum(lines, path.join(releaseDir, 'win-unpacked', 'resources', 'app.asar'), 'app.asar');
 
     if (!lines.length) {

@@ -2157,6 +2157,87 @@ function applySettings() {
     }
 }
 
+async function syncTitlebarVersion() {
+    const versionEl = document.getElementById('titlebar-version');
+    if (!versionEl) return;
+    try {
+        const version = await ipcRenderer.invoke('app:getVersion');
+        if (version) versionEl.textContent = `v${version}`;
+    } catch {
+        // ignore version lookup failures in renderer
+    }
+}
+
+let latestUpdaterState = null;
+let lastUpdaterStatusNotified = '';
+
+function formatByteSize(bytes) {
+    const value = Number(bytes || 0);
+    if (!Number.isFinite(value) || value <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = value;
+    let unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex += 1;
+    }
+    return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function renderUpdaterState(state) {
+    latestUpdaterState = state || null;
+
+    const statusEl = document.getElementById('official-auto-update-status');
+    const updatesEl = document.getElementById('official-update-result');
+    const checkBtn = document.getElementById('btn-official-check-updates');
+    const downloadBtn = document.getElementById('btn-official-download-update');
+    const installBtn = document.getElementById('btn-official-install-update');
+
+    if (checkBtn) checkBtn.disabled = !state?.canCheck;
+    if (downloadBtn) downloadBtn.disabled = !state?.canDownload;
+    if (installBtn) installBtn.disabled = !state?.canInstall;
+
+    if (!statusEl || !updatesEl) return;
+    if (!state) {
+        statusEl.textContent = 'Updater state is unavailable.';
+        updatesEl.textContent = '';
+        return;
+    }
+
+    const message = state.message || 'Updater is idle.';
+    const releaseSuffix = state.latestVersion ? ` Latest: v${state.latestVersion}` : '';
+    const progressSuffix = state.status === 'downloading'
+        ? ` (${state.progress ?? 0}% - ${formatByteSize(state.transferred)} / ${formatByteSize(state.total)})`
+        : '';
+    statusEl.textContent = `${message}${releaseSuffix}${progressSuffix}`;
+
+    if (state.status === 'available') {
+        updatesEl.innerHTML = `Update available: ${escapeHtml(state.currentVersion)} -> ${escapeHtml(state.latestVersion || '?')}. Use "Download update" to fetch it in-app.`;
+    } else if (state.status === 'downloaded') {
+        updatesEl.innerHTML = `Update downloaded: ${escapeHtml(state.currentVersion)} -> ${escapeHtml(state.latestVersion || '?')}. Click "Install update" to restart and apply it.`;
+    } else if (state.status === 'not-available') {
+        updatesEl.innerHTML = `You are on the latest official version (${escapeHtml(state.currentVersion)}).`;
+    } else if (state.status === 'disabled') {
+        updatesEl.innerHTML = `In-app auto update is unavailable for this build. ${escapeHtml(state.message || '')}`;
+    } else if (state.status === 'error') {
+        updatesEl.innerHTML = `Auto update error: ${escapeHtml(state.message || 'Unknown updater error.')}`;
+    } else if (state.status === 'downloading') {
+        updatesEl.innerHTML = `Downloading official update ${escapeHtml(state.latestVersion || '')} in the background.`;
+    } else {
+        updatesEl.innerHTML = '';
+    }
+
+    const notifyKey = `${state.status}:${state.latestVersion || ''}`;
+    if (notifyKey !== lastUpdaterStatusNotified) {
+        if (state.status === 'available') {
+            showNotification(`Yeni sürüm hazır: v${state.latestVersion}`, 'info');
+        } else if (state.status === 'downloaded') {
+            showNotification(`Güncelleme indirildi: v${state.latestVersion}`, 'success');
+        }
+        lastUpdaterStatusNotified = notifyKey;
+    }
+}
+
 function renderOfficialStatus(status, reason) {
     const statusEl = document.getElementById('official-verify-status');
     const detailsEl = document.getElementById('official-verify-details');
@@ -2193,26 +2274,63 @@ async function verifyOfficialBuildUi() {
 }
 
 async function checkOfficialUpdatesUi() {
-    const updatesEl = document.getElementById('official-update-result');
-    if (updatesEl) updatesEl.textContent = 'Checking latest official release...';
+    renderUpdaterState({
+        ...(latestUpdaterState || {}),
+        status: 'checking',
+        message: 'Checking latest official release...',
+        canCheck: false,
+        canDownload: false,
+        canInstall: false,
+    });
     try {
-        const result = await ipcRenderer.invoke('official:checkUpdates');
-        if (!updatesEl) return;
-        const assetNames = (result.assets || []).slice(0, 3).map((a) => a.name).join(', ');
-        if (result.updateAvailable) {
-            updatesEl.innerHTML = `Update available: ${escapeHtml(result.currentVersion)} -> ${escapeHtml(result.latestVersion)}. <a href="${result.releaseUrl}" target="_blank" rel="noopener">Open release</a>${assetNames ? ` (${escapeHtml(assetNames)})` : ''}`;
-            showNotification(`Official update available: ${result.latestVersion}`, 'info');
-        } else {
-            updatesEl.innerHTML = `You are on the latest official version (${escapeHtml(result.currentVersion)}).`;
-        }
+        const state = await ipcRenderer.invoke('updater:check');
+        renderUpdaterState(state);
     } catch (err) {
-        if (updatesEl) updatesEl.textContent = `Official update check failed: ${err.message || err}`;
+        renderUpdaterState({
+            ...(latestUpdaterState || {}),
+            status: 'error',
+            message: `Official update check failed: ${err.message || err}`,
+            canCheck: true,
+            canDownload: false,
+            canInstall: false,
+        });
+    }
+}
+
+async function downloadOfficialUpdateUi() {
+    try {
+        const state = await ipcRenderer.invoke('updater:download');
+        renderUpdaterState(state);
+    } catch (err) {
+        renderUpdaterState({
+            ...(latestUpdaterState || {}),
+            status: 'error',
+            message: `Update download failed: ${err.message || err}`,
+            canCheck: true,
+            canDownload: false,
+            canInstall: false,
+        });
+    }
+}
+
+async function installOfficialUpdateUi() {
+    try {
+        const ok = await ipcRenderer.invoke('updater:quitAndInstall');
+        if (!ok) {
+            showNotification('Önce indirilmeye hazır bir güncelleme bulunmalı.', 'warn');
+            return;
+        }
+        showNotification('Güncelleme kurulumu için uygulama yeniden başlatılıyor.', 'info');
+    } catch (err) {
+        showNotification(`Kurulum başlatılamadı: ${err.message || err}`, 'error');
     }
 }
 
 function initOfficialIntegrityPanel() {
     const verifyBtn = document.getElementById('btn-official-verify-refresh');
     const updatesBtn = document.getElementById('btn-official-check-updates');
+    const downloadBtn = document.getElementById('btn-official-download-update');
+    const installBtn = document.getElementById('btn-official-install-update');
     const openBtn = document.getElementById('btn-open-official-release');
 
     if (!verifyBtn || verifyBtn.dataset.bound === '1') return;
@@ -2220,12 +2338,37 @@ function initOfficialIntegrityPanel() {
 
     verifyBtn.addEventListener('click', () => verifyOfficialBuildUi());
     updatesBtn?.addEventListener('click', () => checkOfficialUpdatesUi());
+    downloadBtn?.addEventListener('click', () => downloadOfficialUpdateUi());
+    installBtn?.addEventListener('click', () => installOfficialUpdateUi());
     openBtn?.addEventListener('click', () => {
         window.open('https://github.com/ali975/CraftIDE-MyFirstProject/releases/latest', '_blank');
     });
 
     verifyOfficialBuildUi();
+    ipcRenderer.invoke('updater:getState').then(renderUpdaterState).catch(() => {
+        renderUpdaterState({
+            status: 'error',
+            currentVersion: 'unknown',
+            latestVersion: null,
+            progress: null,
+            transferred: 0,
+            total: 0,
+            message: 'Unable to load updater state.',
+            releaseName: null,
+            releaseDate: null,
+            updateAvailable: false,
+            canCheck: false,
+            canDownload: false,
+            canInstall: false,
+            isPortable: false,
+            isPackaged: false,
+        });
+    });
 }
+
+ipcRenderer.on('updater:state', (_, state) => {
+    renderUpdaterState(state);
+});
 
 document.addEventListener('lang:changed', () => {
     refreshLocalizedTabLabels();
@@ -2353,6 +2496,7 @@ console.log('⛏️ CraftIDE renderer initialized!');
 // Ayarları yükle
 loadSettings();
 initOfficialIntegrityPanel();
+syncTitlebarVersion();
 
 // Terminal'i otomatik başlat
 initTerminal();

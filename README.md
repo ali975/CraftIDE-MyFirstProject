@@ -1,39 +1,38 @@
 # CraftIDE
 
-AI-assisted Minecraft development studio built on Electron + Monaco.
+CraftIDE is a desktop IDE for Minecraft creators who want code, visual builders, test servers, and packaging in one place.
 
-CraftIDE provides code editor, visual/no-code builders, test server automation, and packaging in one desktop app for Paper/Spigot, Fabric, Forge, and Skript workflows.
+It targets Paper/Spigot plugins, Fabric mods, Forge mods, and Skript projects with an Electron + Monaco foundation and a workflow designed around rapid iteration.
 
-## What's New (Root Revision Sprint)
+## What CraftIDE Includes
 
-- Visual Builder top region is now vertically resizable (`84px` to `360px`) with persisted height (`craftide.vb.topRegionHeight`).
-- Visual Builder toolbar was redesigned to single-line priority actions + `More` menu for secondary actions.
-- Empty-canvas pan supports `Left Mouse Drag` (plus legacy `Middle Mouse` and `Alt+Left` compatibility).
-- `Browse Templates` button and templates modal integration were fixed.
-- 12 new Visual Builder templates added across Plugin/Fabric/Forge/Skript.
-- Visual Builder EN/TR dynamic i18n coverage expanded for toolbar/no-code UI/node parameter labels.
-- New centralized keyboard shortcut system added:
-  - global + context registry,
-  - conflict warning,
-  - per-command reset + reset-all,
-  - settings UI integration.
-- Explorer `New File / New Folder` was rebuilt with in-app quick create (no browser `prompt()` dependency).
-- Image Editor critical parse/runtime break was fixed; init/open/draw/save flow stabilized.
-- Test Server version list became dynamic by server type via IPC `server:list-versions` with cache + fallback.
-- Triangle sidebar icon now opens dedicated `Minecraft Tools Hub` page (`mc-tools://`).
-- New official build verification panel added in Settings:
-  - checks local `app.asar` hash against official GitHub release checksums,
-  - checks updates only from the locked official channel `ali975/CraftIDE-MyFirstProject`.
+- Monaco-based code editor for Java, YAML, Skript, and project files
+- Visual Builder for flow-based plugin and mod logic
+- No-code helper tools for GUI, commands, permissions, recipes, and media
+- Local test server manager for build, deploy, run, and debug loops
+- Image editor and Minecraft-focused utility pages
+- English/Turkish UI support
+- Official GitHub Releases based in-app update channel for installer builds
 
-## Feature Highlights
+## Update Model
 
-- Visual Builder for node-based plugin/mod/script logic.
-- No-code extension layer with validation and behavior packs.
-- Integrated test server manager for local workflow.
-- Image editor and additional Minecraft tool pages.
-- Dynamic EN/TR localization system.
+CraftIDE now supports GitHub-based in-app updates for packaged Windows installer builds.
 
-## Build and Run
+- Updates are locked to the official release channel: `ali975/CraftIDE-MyFirstProject`
+- Users do not need to revisit the GitHub Releases page for every new version
+- User data is preserved during updates
+- Portable builds remain available, but in-app auto update is intended for the installer build
+
+User data is stored separately from the application files, so updating the app does not remove project state, settings, or `.craftide` data.
+
+## Current Release Highlights
+
+- Fixed the Visual Builder templates modal flow again
+- Synced the packaged app icon and titlebar icon to `logo.png`
+- Added GitHub Releases based in-app updater plumbing
+- Kept official build verification and release-channel locking
+
+## Development
 
 ```bash
 git clone https://github.com/ali975/CraftIDE-MyFirstProject.git
@@ -42,38 +41,39 @@ npm install
 npm run dev
 ```
 
-Build distributable:
+## Build
 
 ```bash
 npm run dist
 ```
 
-Main output:
+Main Windows outputs:
 
-- `release/CraftIDE Setup 0.2.3.exe`
-- `release/CraftIDE 0.2.3.exe`
+- `release/CraftIDE-Setup-0.2.6.exe`
+- `release/CraftIDE-0.2.6.exe`
 
-## Release/Distribution Rule
+Optional direct GitHub publishing:
 
-Per project rule, run `npm run dist` after each main update package before publishing release artifacts.
+```bash
+npm run dist:publish
+```
 
-## Repository Structure (Core)
+This requires GitHub credentials or a valid `GH_TOKEN`.
 
-- `src/main` Electron main process + IPC
-- `src/renderer` UI, Visual Builder, editor integrations
-- `release` generated installer/artifacts
-- `tests` unit tests
+## Project Structure
+
+- `src/main` Electron main process, IPC, updater integration
+- `src/renderer` renderer UI, editors, Visual Builder, tool pages
+- `assets/icons` packaged Windows icon assets
+- `release` generated installers and release metadata
+- `tests` automated tests
+
+## Official Distribution
+
+- Official builds are published only from `ali975/CraftIDE-MyFirstProject`
+- Forks must not be presented as official CraftIDE releases without permission
+- Trademark and branding rules are documented in [TRADEMARK.md](./TRADEMARK.md)
 
 ## License
 
 CraftIDE is licensed under `GNU AGPL-3.0-only`.
-
-Commercial distribution is allowed by AGPL, but you must comply with AGPL obligations.
-For name/logo/branding usage rules, see [TRADEMARK.md](./TRADEMARK.md).
-
-## Official Distribution Policy
-
-- Official builds are published only from the `ali975/CraftIDE-MyFirstProject` repository.
-- Rebuilds/forks must not be presented as "official CraftIDE" without written trademark permission.
-- Third-party paid redistribution must clearly state it is unofficial and must not use CraftIDE logos/brand assets.
-

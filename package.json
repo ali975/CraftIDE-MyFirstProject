@@ -1,17 +1,17 @@
 {
     "name": "craftide",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "description": "CraftIDE - Minecraft Development Studio: AI-powered IDE for Minecraft plugin and Skript development",
-    "author": "CraftIDE Team",
+    "author": "Ali975",
     "license": "AGPL-3.0-only",
     "repository": {
         "type": "git",
-        "url": "https://github.com/USERNAME/craftide.git"
+        "url": "https://github.com/ali975/CraftIDE-MyFirstProject.git"
     },
     "bugs": {
-        "url": "https://github.com/USERNAME/craftide/issues"
+        "url": "https://github.com/ali975/CraftIDE-MyFirstProject/issues"
     },
-    "homepage": "https://github.com/USERNAME/craftide#readme",
+    "homepage": "https://github.com/ali975/CraftIDE-MyFirstProject#readme",
     "main": "dist/main/main.js",
     "scripts": {
         "start": "electron .",
@@ -19,6 +19,7 @@
         "build:main": "tsc -p tsconfig.main.json",
         "test": "node --test tests/*.test.js",
         "dist": "npm run build:main && electron-builder --win",
+        "dist:publish": "npm run build:main && electron-builder --win --publish always",
         "postdist": "node scripts/generate-release-checksums.js",
         "dist:portable": "npm run build:main && electron-builder --win portable",
         "pack": "npm run build:main && electron-builder --dir"
@@ -29,9 +30,18 @@
         "directories": {
             "output": "release"
         },
+        "publish": [
+            {
+                "provider": "github",
+                "owner": "ali975",
+                "repo": "CraftIDE-MyFirstProject",
+                "releaseType": "release"
+            }
+        ],
         "files": [
             "dist/main/**/*",
             "src/renderer/**/*",
+            "logo.png",
             "assets/icons/**/*",
             "node_modules/**/*"
         ],
@@ -52,9 +62,14 @@
                     ]
                 }
             ],
+            "artifactName": "${productName}-${version}.${ext}",
             "signAndEditExecutable": false
         },
+        "portable": {
+            "artifactName": "${productName}-${version}.${ext}"
+        },
         "nsis": {
+            "artifactName": "${productName}-Setup-${version}.${ext}",
             "oneClick": false,
             "perMachine": false,
             "allowToChangeInstallationDirectory": true,
@@ -66,6 +81,7 @@
         }
     },
     "dependencies": {
+        "electron-updater": "^6.8.3",
         "monaco-editor": "^0.45.0",
         "xterm": "^5.3.0",
         "xterm-addon-fit": "^0.8.0"

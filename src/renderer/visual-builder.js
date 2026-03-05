@@ -706,13 +706,6 @@ function initVisualBuilder() {
         });
     }
 
-    // Templates button
-    document.getElementById('btn-vb-templates')?.addEventListener('click', showTemplatesModal);
-    document.getElementById('btn-vb-templates')?.addEventListener('mousedown', (e) => e.stopPropagation());
-    document.getElementById('btn-vb-load-template-hint')?.addEventListener('click', showTemplatesModal);
-    document.getElementById('btn-vb-load-template-hint')?.addEventListener('mousedown', (e) => e.stopPropagation());
-    document.getElementById('vb-templates-close')?.addEventListener('click', hideTemplatesModal);
-
     if (!document.body.dataset.vbLangBound) {
         document.body.dataset.vbLangBound = '1';
         document.addEventListener('lang:changed', () => {
@@ -827,12 +820,38 @@ function renderMiniPreview(canvas, tpl) {
 
 function showTemplatesModal() {
     const modal = document.getElementById('vb-templates-modal');
-    if (modal) modal.style.display = 'flex';
+    if (!modal) return;
+    buildTemplateGrid();
+    modal.style.display = 'flex';
+    document.getElementById('vb-templates-close')?.focus?.();
 }
 
 function hideTemplatesModal() {
     const modal = document.getElementById('vb-templates-modal');
     if (modal) modal.style.display = 'none';
+}
+
+function bindTemplatesModalUi() {
+    if (document.body.dataset.vbTemplatesBound === '1') return;
+    document.body.dataset.vbTemplatesBound = '1';
+
+    const openModal = (event) => {
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        showTemplatesModal();
+    };
+
+    document.getElementById('btn-vb-templates')?.addEventListener('click', openModal);
+    document.getElementById('btn-vb-load-template-hint')?.addEventListener('click', openModal);
+    document.getElementById('vb-templates-close')?.addEventListener('click', hideTemplatesModal);
+    document.getElementById('vb-templates-modal')?.addEventListener('click', (event) => {
+        if (event.target?.id === 'vb-templates-modal') hideTemplatesModal();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        const modal = document.getElementById('vb-templates-modal');
+        if (modal?.style.display === 'flex') hideTemplatesModal();
+    });
 }
 
 function loadTemplate(tpl) {
@@ -2053,6 +2072,7 @@ window.CraftIDEVB = {
 window.highlightEventInVB = highlightEventInVB;
 
 document.addEventListener('DOMContentLoaded', () => {
+    bindTemplatesModalUi();
     initVisualBuilder();
 });
 

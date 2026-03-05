@@ -1,39 +1,38 @@
 # CraftIDE
 
-Electron + Monaco tabanli, yapay zeka destekli Minecraft gelistirme studosu.
+CraftIDE, Minecraft üreticileri için hazırlanmış masaüstü bir geliştirme ortamıdır. Kod editörü, görsel araçlar, test sunucusu ve paketleme adımlarını tek uygulamada toplar.
 
-CraftIDE; Paper/Spigot, Fabric, Forge ve Skript odakli projeler icin kod editoru, gorsel/no-code uretim, test sunucusu ve paketleme adimlarini tek masaustu uygulamasinda birlestirir.
+Uygulama; Paper/Spigot eklentileri, Fabric modları, Forge modları ve Skript projeleri için Electron + Monaco tabanlı birleşik bir çalışma akışı sunar.
 
-## Son Koklu Revizyonlar
+## CraftIDE Neler Sunar
 
-- Visual Builder ust bolgesi artik dikey olarak resize edilebilir (`84px` - `360px`) ve yukseklik `craftide.vb.topRegionHeight` ile kalicidir.
-- Visual Builder toolbar tek satir + `More` menusu modeline gecirildi; kalabalik azaltildi.
-- Canvas bos alanda `Sol Tik + Surukle` pan eklendi (`Orta Tik` ve `Alt+Sol` uyumlulugu korunur).
-- `Browse Templates` butonu ve template modal akisi duzeltildi.
-- Plugin/Fabric/Forge/Skript icin toplam 12 yeni Visual Builder sablonu eklendi.
-- Visual Builder icin EN/TR dinamik i18n kapsami genisletildi (toolbar, no-code metinleri, node param etiketleri).
-- Merkezi kisayol sistemi eklendi:
-  - global + context komut kaydi,
-  - cakisma uyari sistemi,
-  - komut bazli reset + tumunu sifirla,
-  - ayarlar ekrani entegrasyonu.
-- Explorer `New File / New Folder` akisi in-app quick-create olarak yeniden yazildi (`prompt()` bagimliligi kalkti).
-- Image Editor parse/runtime kirigi giderildi; `init -> open -> draw -> save` zinciri stabilize edildi.
-- Test Server surum listesi server type bazli dinamik hale getirildi (`server:list-versions`, cache + fallback).
-- Sidebar ucgen ikonu artik ayri `Minecraft Tools Hub` sayfasi aciyor (`mc-tools://`).
-- Ayarlar ekranina resmi build dogrulama paneli eklendi:
-  - yerel `app.asar` hash degeri, resmi GitHub release checksum dosyasi ile karsilastirilir,
-  - guncelleme kontrolu sadece kilitli resmi kanal `ali975/CraftIDE-MyFirstProject` uzerinden yapilir.
+- Java, YAML, Skript ve proje dosyaları için Monaco tabanlı editör
+- Akış tabanlı Visual Builder
+- GUI, komut, yetki, tarif ve medya araçları
+- Derle, dağıt, çalıştır ve hata ayıkla döngüsü için yerel test sunucusu yöneticisi
+- Görsel düzenleme aracı ve Minecraft odaklı yardımcı sayfalar
+- İngilizce/Türkçe arayüz desteği
+- Resmî GitHub Release kanalı üzerinden uygulama içi güncelleme desteği
 
-## One Cikan Yetkinlikler
+## Güncelleme Modeli
 
-- Node tabanli Visual Builder ile plugin/mod/script akisi.
-- No-code katmani (validation, behavior packs vb.).
-- Entegre test sunucusu yonetimi.
-- Image Editor ve ek Minecraft arac sayfalari.
-- Dinamik EN/TR dil sistemi.
+CraftIDE artık paketlenmiş Windows kurulum sürümleri için GitHub tabanlı uygulama içi güncelleme desteğine sahiptir.
 
-## Kurulum ve Calistirma
+- Güncellemeler yalnızca resmî kanal olan `ali975/CraftIDE-MyFirstProject` üzerinden alınır
+- Kullanıcıların her yeni sürümde GitHub Releases sayfasına gidip tekrar indirme yapması gerekmez
+- Güncelleme sırasında kullanıcı verileri korunur
+- Portable sürüm üretilebilir, ancak uygulama içi otomatik güncelleme kurulum sürümü için tasarlanmıştır
+
+Kullanıcı verileri uygulama dosyalarından ayrı tutulur. Bu yüzden uygulamayı güncellemek proje durumu, ayarlar veya `.craftide` verilerini silmez.
+
+## Bu Sürümde Öne Çıkanlar
+
+- Visual Builder şablon modal akışı yeniden düzeltildi
+- Paketlenmiş uygulama ikonu ve başlık çubuğu ikonu `logo.png` ile senkronize edildi
+- GitHub Releases tabanlı uygulama içi güncelleyici altyapısı eklendi
+- Resmî sürüm doğrulama ve kanal kilidi korunmaya devam etti
+
+## Geliştirme
 
 ```bash
 git clone https://github.com/ali975/CraftIDE-MyFirstProject.git
@@ -42,38 +41,39 @@ npm install
 npm run dev
 ```
 
-Dagitim paketi icin:
+## Derleme
 
 ```bash
 npm run dist
 ```
 
-Ana ciktilar:
+Ana Windows çıktıları:
 
-- `release/CraftIDE Setup 0.2.3.exe`
-- `release/CraftIDE 0.2.3.exe`
+- `release/CraftIDE-Setup-0.2.6.exe`
+- `release/CraftIDE-0.2.6.exe`
 
-## Dagitim Kurali
+GitHub'a doğrudan yayınlamak için:
 
-Proje kuralina gore her ana guncelleme paketinden sonra release artefact uretimi icin `npm run dist` calistirilir.
+```bash
+npm run dist:publish
+```
 
-## Dizin Ozetleri
+Bunun için GitHub kimlik doğrulaması veya geçerli bir `GH_TOKEN` gerekir.
 
-- `src/main` Electron main process + IPC
-- `src/renderer` arayuz, Visual Builder, editor entegrasyonlari
-- `release` olusan kurulum dosyalari
-- `tests` birim testleri
+## Proje Yapısı
+
+- `src/main` Electron ana süreç, IPC ve güncelleyici entegrasyonu
+- `src/renderer` arayüz, editörler, Visual Builder ve araç sayfaları
+- `assets/icons` paketlenen Windows ikon dosyaları
+- `release` üretilen kurulum dosyaları ve release metadatası
+- `tests` otomatik testler
+
+## Resmî Dağıtım
+
+- Resmî sürümler yalnızca `ali975/CraftIDE-MyFirstProject` deposundan yayımlanır
+- Fork sürümler izin olmadan resmî CraftIDE sürümü gibi sunulmamalıdır
+- Marka ve isim kullanımı kuralları [TRADEMARK.md](./TRADEMARK.md) içinde yer alır
 
 ## Lisans
 
-CraftIDE `GNU AGPL-3.0-only` ile lisanslanmistir.
-
-AGPL ticari dagitima izin verir; ancak AGPL yukumluluklarina uyulmasi zorunludur.
-Isim/logo/marka kullanim kurallari icin [TRADEMARK.md](./TRADEMARK.md) dosyasina bakin.
-
-## Resmi Dagitim Politikasi
-
-- Resmi buildler sadece `ali975/CraftIDE-MyFirstProject` reposundan yayinlanir.
-- Fork veya yeniden derlenmis surumler, yazili marka izni olmadan "official CraftIDE" olarak sunulamaz.
-- Ucretli ucuncu taraf dagitimlari "resmi degil" bilgisini acikca gostermeli ve CraftIDE marka/logo varliklarini kullanmamalidir.
-
+CraftIDE `GNU AGPL-3.0-only` ile lisanslanmıştır.

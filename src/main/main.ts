@@ -6,6 +6,7 @@ import { registerIpcHandlers } from './ipc';
 import { ProjectScaffolder } from './scaffolder';
 import { registerTerminalHandlers, cleanupTerminals } from './terminal';
 import { registerTestServerHandlers, cleanupTestServer } from './test-server';
+import { registerUpdaterIpcHandlers, registerUpdaterWindow } from './updater';
 
 /**
  * CraftIDE — Minecraft Development Studio
@@ -32,8 +33,10 @@ function createWindow(): void {
             webSecurity: false,
             webviewTag: true,
         },
-        icon: path.join(__dirname, '../../assets/icons/icon-256.png'),
+        icon: path.join(__dirname, '../../logo.png'),
     });
+
+    registerUpdaterWindow(mainWindow);
 
     // HTML dosyasını yükle
     mainWindow.loadFile(path.join(__dirname, '../../src/renderer/index.html'));
@@ -78,6 +81,7 @@ app.whenReady().then(() => {
 
     // IPC handler'ları kaydet
     registerIpcHandlers();
+    registerUpdaterIpcHandlers();
 
     // Ana pencereyi oluştur
     createWindow();
