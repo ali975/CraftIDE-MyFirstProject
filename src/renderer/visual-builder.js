@@ -7,6 +7,15 @@
 // Blok TanÄ±mlarÄ± â€” TÃ¼m Modlar
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
+const {
+    createUtf8Logger,
+    humanizeIdentifier,
+    repairMojibake,
+    sanitizeVisibleText,
+} = require('../shared/utf8.js');
+
+const vbUtf8Log = createUtf8Logger('visual-builder', localStorage.getItem('craftide:utf8-debug') === '1');
+
 const ALL_BLOCK_DEFS = {
     // â”€â”€ PLUGIN (Paper/Bukkit) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     plugin: {
@@ -599,14 +608,15 @@ const VB_PARAM_LABEL_KEYS = {
 
 function vbTr(key, fallback, params) {
     if (window.Lang && typeof window.Lang.t === 'function') {
-        const translated = window.Lang.t(key, params || {});
+        const translated = vbSafeText(window.Lang.t(key, params || {}), fallback || key, `translation:${key}`);
         if (translated !== key || !fallback) {
             return translated;
         }
     }
     if (!fallback) return key;
-    if (!params) return fallback;
-    return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), fallback);
+    const safeFallback = vbSafeText(fallback, key, `fallback:${key}`);
+    if (!params) return safeFallback;
+    return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), safeFallback);
 }
 
 function vbNotify(key, fallback, type = 'info', params) {
@@ -614,29 +624,37 @@ function vbNotify(key, fallback, type = 'info', params) {
     showNotification(vbTr(key, fallback, params), type);
 }
 
+function vbSafeText(rawText, fallbackText, traceKey) {
+    const fallback = String(fallbackText || '');
+    const repaired = repairMojibake(rawText);
+    const safe = sanitizeVisibleText(repaired, fallback);
+    if (safe !== rawText && traceKey) {
+        vbUtf8Log('visible-text-repaired', { traceKey, rawText, safe });
+    }
+    return safe;
+}
+
 function getBlockLabel(blockId, fallback) {
-    return vbTr(`ui.vb.block.${blockId}`, fallback || blockId);
+    const safeFallback = vbSafeText(fallback, humanizeIdentifier(blockId), `block:${blockId}`);
+    return vbSafeText(vbTr(`ui.vb.block.${blockId}`, safeFallback), safeFallback, `block:${blockId}:translated`);
 }
 
 function getTemplateName(tpl) {
-    const fallback = tpl?.name || tpl?.id || 'Template';
-    return vbTr(`ui.vb.template.${tpl?.id}.name`, fallback);
+    const fallback = vbSafeText(tpl?.name, humanizeIdentifier(tpl?.id || 'template'), `template:${tpl?.id}:name`);
+    return vbSafeText(vbTr(`ui.vb.template.${tpl?.id}.name`, fallback), fallback, `template:${tpl?.id}:name:translated`);
 }
 
 function getTemplateDescription(tpl) {
-    const fallback = tpl?.desc || '';
-    return vbTr(`ui.vb.template.${tpl?.id}.desc`, fallback);
+    const fallback = vbSafeText(tpl?.desc, '', `template:${tpl?.id}:desc`);
+    return vbSafeText(vbTr(`ui.vb.template.${tpl?.id}.desc`, fallback), fallback, `template:${tpl?.id}:desc:translated`);
 }
 
 function normalizeParamKey(name) {
     const raw = String(name || '').trim();
-    const plain = raw.toLowerCase()
-        .replace(/[ÅŸ]/g, 's')
-        .replace(/[Ä±]/g, 'i')
-        .replace(/[Ã§]/g, 'c')
-        .replace(/[ÄŸ]/g, 'g')
-        .replace(/[Ã¶]/g, 'o')
-        .replace(/[Ã¼]/g, 'u');
+    const plain = repairMojibake(raw)
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
     return plain.replace(/[^a-z0-9]/g, '');
 }
 
@@ -1070,7 +1088,13 @@ function loadTemplate(tpl) {
         if (!BLOCK_DEFS[n.blockId]) return;
         const node = createNode(n.blockId, n.x, n.y);
         if (node) {
-            if (n.params) Object.assign(node.params, n.params);
+            if (n.params) {
+                for (const [key, value] of Object.entries(n.params)) {
+                    node.params[key] = typeof value === 'string'
+                        ? vbSafeText(value, repairMojibake(value), `template:${tpl?.id}:param:${key}`)
+                        : value;
+                }
+            }
             refreshNodeInputs(node);
             idMap[i] = node.id;
         }
@@ -1100,7 +1124,14 @@ function refreshNodeInputs(node) {
     el.querySelectorAll('input, select').forEach(inp => {
         const name = inp.dataset.paramName;
         if (name && node.params[name] !== undefined) {
-            inp.value = node.params[name];
+            const rawValue = node.params[name];
+            const safeValue = typeof rawValue === 'string'
+                ? vbSafeText(rawValue, repairMojibake(rawValue), `node:${node.id}:param:${name}`)
+                : rawValue;
+            if (safeValue !== rawValue) {
+                node.params[name] = safeValue;
+            }
+            inp.value = safeValue;
             if (inp.tagName === 'INPUT') inp.placeholder = getParamLabel(name);
         }
     });
@@ -1136,7 +1167,9 @@ function createNode(blockId, x, y) {
     const node = { id, blockId, type: def.type, label: getBlockLabel(blockId, def.label), x, y, params: {} };
 
     for (const p of (def.params || [])) {
-        node.params[p.n] = p.d || '';
+        node.params[p.n] = typeof p.d === 'string'
+            ? vbSafeText(p.d, repairMojibake(p.d), `default:${blockId}:${p.n}`)
+            : (p.d || '');
     }
     vbNodes.push(node);
     registerRecentVbBlock(blockId);
@@ -1185,9 +1218,9 @@ function renderNode(node) {
     }
 
     const infoBtn = document.createElement('span');
-    infoBtn.textContent = 'ğŸ’¡';
+    infoBtn.textContent = '\u{1F4A1}';
     infoBtn.title = vbTr('ui.vb.askAi', 'Ask AI Assistant');
-    infoBtn.style.cssText = 'cursor:pointer;opacity:0.8;font-size:12px;margin-left:auto;padding:0 2px;line-height:1;';
+    infoBtn.style.cssText = 'cursor:pointer;opacity:0.8;font-size:12px;margin-left:auto;padding:0 2px;line-height:1;font-family:var(--font-sans);';
     infoBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (window.aiManager) {
@@ -1203,9 +1236,9 @@ function renderNode(node) {
     header.appendChild(infoBtn);
 
     const delBtn = document.createElement('span');
-    delBtn.textContent = 'âœ•';
+    delBtn.textContent = '\u2715';
     delBtn.title = vbTr('ui.vb.deleteBlock', 'Delete Block');
-    delBtn.style.cssText = 'cursor:pointer;opacity:0.7;font-size:12px;margin-left:8px;padding:0 2px;line-height:1;';
+    delBtn.style.cssText = 'cursor:pointer;opacity:0.7;font-size:12px;margin-left:8px;padding:0 2px;line-height:1;font-family:var(--font-sans);';
     delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteNode(node.id); });
     header.appendChild(delBtn);
 
@@ -2122,8 +2155,18 @@ async function vbLoadBlueprint() {
                 y: n.y || 100,
                 params: {},
             };
-            (def.params || []).forEach(p => { node.params[p.n] = p.d; });
-            if (n.params) Object.assign(node.params, n.params);
+            (def.params || []).forEach((p) => {
+                node.params[p.n] = typeof p.d === 'string'
+                    ? vbSafeText(p.d, repairMojibake(p.d), `blueprint-default:${n.blockId}:${p.n}`)
+                    : p.d;
+            });
+            if (n.params) {
+                for (const [key, value] of Object.entries(n.params)) {
+                    node.params[key] = typeof value === 'string'
+                        ? vbSafeText(value, repairMojibake(value), `blueprint:${n.blockId}:${key}`)
+                        : value;
+                }
+            }
             vbNodes.push(node);
             idMap[n.id] = newId;
             renderNode(node);
@@ -2306,7 +2349,11 @@ function vbImportGraph(graph, options) {
     for (const n of (migrated.nodes || [])) {
         const created = createNode(n.blockId, n.x, n.y);
         if (!created) continue;
-        Object.assign(created.params, n.params || {});
+        for (const [key, value] of Object.entries(n.params || {})) {
+            created.params[key] = typeof value === 'string'
+                ? vbSafeText(value, repairMojibake(value), `import:${n.blockId}:${key}`)
+                : value;
+        }
         refreshNodeInputs(created);
         idMap[n.id] = created.id;
         if (created.id > maxId) maxId = created.id;

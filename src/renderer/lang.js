@@ -2,9 +2,30 @@
  * CraftIDE Language System (i18n)
  */
 
+const path = require('path');
+const { createUtf8Logger, hasMojibake, readJsonUtf8, sanitizeVisibleText } = require('../shared/utf8.js');
+
+const localeDebugEnabled = localStorage.getItem('craftide:utf8-debug') === '1';
+const localeUtf8Log = createUtf8Logger('lang', localeDebugEnabled);
+
+function loadLocaleCatalog(name) {
+    const filePath = path.join(__dirname, 'locales', `${name}.json`);
+    const catalog = readJsonUtf8(filePath);
+    const sanitized = {};
+    for (const [key, value] of Object.entries(catalog)) {
+        const fallback = String(value ?? '');
+        sanitized[key] = sanitizeVisibleText(value, fallback);
+        if (hasMojibake(value)) {
+            localeUtf8Log('locale-entry-repaired', { lang: name, key, filePath });
+        }
+    }
+    localeUtf8Log('locale-loaded', { lang: name, filePath, entries: Object.keys(sanitized).length });
+    return sanitized;
+}
+
 const DICT = {
-    en: require('./locales/en.json'),
-    tr: require('./locales/tr.json'),
+    en: loadLocaleCatalog('en'),
+    tr: loadLocaleCatalog('tr'),
 };
 
 class LangManager {
@@ -27,7 +48,12 @@ class LangManager {
 
     t(key, params = {}) {
         const currentDict = DICT[this.currentLang] || DICT.en || {};
-        let text = currentDict[key] || DICT.en[key] || key;
+        const fallbackText = DICT.en[key] || key;
+        let text = currentDict[key] || fallbackText;
+        if (hasMojibake(text)) {
+            localeUtf8Log('translation-mojibake-fallback', { key, lang: this.currentLang });
+            text = fallbackText;
+        }
         for (const [k, v] of Object.entries(params)) {
             text = text.replaceAll(`{${k}}`, String(v));
         }

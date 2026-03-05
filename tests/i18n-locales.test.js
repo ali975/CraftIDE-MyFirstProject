@@ -1,12 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
 const path = require('path');
+const { readJsonUtf8 } = require('../src/shared/utf8.js');
 
 const rootDir = path.join(__dirname, '..');
 
 function readLocale(name) {
-    return JSON.parse(fs.readFileSync(path.join(rootDir, 'src', 'renderer', 'locales', `${name}.json`), 'utf8'));
+    return readJsonUtf8(path.join(rootDir, 'src', 'renderer', 'locales', `${name}.json`));
 }
 
 test('renderer locale catalogs stay in parity', () => {

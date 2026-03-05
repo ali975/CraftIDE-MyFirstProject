@@ -18,7 +18,7 @@ jobs:
   release:
     runs-on: windows-latest
     env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout
@@ -34,7 +34,7 @@ jobs:
         shell: pwsh
         run: |
           if (-not $env:GH_TOKEN) {
-            throw "GH_TOKEN secret is required for release publishing."
+            throw "GitHub Actions GITHUB_TOKEN is required for release publishing."
           }
 
       - name: Resolve release tag

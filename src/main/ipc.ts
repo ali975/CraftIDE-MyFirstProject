@@ -6,6 +6,7 @@ import * as crypto from 'crypto';
 import * as https from 'https';
 import { exec } from 'child_process';
 import { ProjectScaffolder } from './scaffolder';
+const { createUtf8Logger, decodeUtf8Buffer, normalizeUtf8Payload } = require('../shared/utf8.js');
 import {
     checkForAppUpdates,
     getUpdaterCapability,
@@ -120,6 +121,7 @@ type OfficialUpdateStatus = {
 const OFFICIAL_OWNER = 'ali975';
 const OFFICIAL_REPO = 'CraftIDE-MyFirstProject';
 const OFFICIAL_GITHUB_API = `https://api.github.com/repos/${OFFICIAL_OWNER}/${OFFICIAL_REPO}`;
+const utf8DebugLog = createUtf8Logger('ipc', process.env.CRAFTIDE_UTF8_DEBUG === '1');
 
 function localized(key: string, fallback: string, params: LocalizedParams = {}): { key: string; fallback: string; params: LocalizedParams } {
     return { key, fallback, params };
@@ -186,6 +188,7 @@ function isPortablePackagedBuild(): boolean {
 
 async function httpGet(url: string, accept: string): Promise<{ status: number; body: string }> {
     return await new Promise((resolve, reject) => {
+        utf8DebugLog('httpGet:start', { url, accept });
         const req = https.get(url, {
             headers: {
                 Accept: accept,
@@ -195,9 +198,11 @@ async function httpGet(url: string, accept: string): Promise<{ status: number; b
             const chunks: Buffer[] = [];
             res.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
             res.on('end', () => {
+                const body = decodeUtf8Buffer(Buffer.concat(chunks));
+                utf8DebugLog('httpGet:end', { url, status: res.statusCode || 0, bytes: body.length });
                 resolve({
                     status: res.statusCode || 0,
-                    body: Buffer.concat(chunks).toString('utf-8'),
+                    body,
                 });
             });
         });
@@ -468,7 +473,7 @@ async function runBuild(projectPath: string): Promise<BuildRunResult> {
     }
 
     return new Promise((resolve) => {
-        exec(command, { cwd: projectPath }, (error: Error | null, stdout: string, stderr: string) => {
+        exec(command, { cwd: projectPath, encoding: 'utf8' }, (error: Error | null, stdout: string, stderr: string) => {
             if (error) {
                 resolve({
                     success: false,
@@ -660,7 +665,7 @@ async function zipFiles(files: string[], destinationZip: string): Promise<{ succ
         const paths = files.map((f) => `'${f.replace(/'/g, "''")}'`).join(',');
         const script = `Compress-Archive -Path ${paths} -DestinationPath '${destinationZip.replace(/'/g, "''")}' -Force`;
         return new Promise((resolve) => {
-            exec(`powershell -NoProfile -Command "${script}"`, (err) => {
+            exec(`powershell -NoProfile -Command "${script}"`, { encoding: 'utf8' }, (err) => {
                 if (err) resolve({ success: false, warning: 'Compress-Archive failed. Returning raw files instead.' });
                 else resolve({ success: true });
             });
@@ -669,7 +674,7 @@ async function zipFiles(files: string[], destinationZip: string): Promise<{ succ
 
     return new Promise((resolve) => {
         const args = files.map((f) => `"${f}"`).join(' ');
-        exec(`zip -j "${destinationZip}" ${args}`, (err) => {
+        exec(`zip -j "${destinationZip}" ${args}`, { encoding: 'utf8' }, (err) => {
             if (err) resolve({ success: false, warning: 'zip command failed. Returning raw files instead.' });
             else resolve({ success: true });
         });
@@ -707,7 +712,9 @@ export function registerIpcHandlers(): void {
 
     ipcMain.handle('fs:readFile', async (_, filePath: string) => {
         try {
-            return fs.readFileSync(filePath, 'utf-8');
+            const content = fs.readFileSync(filePath, 'utf-8');
+            utf8DebugLog('fs:readFile', { filePath, length: content.length });
+            return content;
         } catch {
             return null;
         }
@@ -718,6 +725,7 @@ export function registerIpcHandlers(): void {
             const dir = path.dirname(filePath);
             if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
             fs.writeFileSync(filePath, content, 'utf-8');
+            utf8DebugLog('fs:writeFile', { filePath, length: String(content || '').length });
             return true;
         } catch {
             return false;
@@ -832,6 +840,12 @@ export function registerIpcHandlers(): void {
     ipcMain.handle('dialog:showMessage', async (_, options: MessageBoxOptions) => {
         const result = await dialog.showMessageBox(options);
         return result.response;
+    });
+
+    ipcMain.handle('debug:utf8Echo', async (_, payload: unknown) => {
+        const normalized = normalizeUtf8Payload(payload);
+        utf8DebugLog('debug:utf8Echo', normalized);
+        return normalized;
     });
 
     ipcMain.handle('project:scaffold', async (_, config: {

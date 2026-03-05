@@ -1,8 +1,15 @@
 ## Highlights
 
-- Fixed the official update panel so every build checks the locked GitHub release channel instead of relying only on `electron-updater`.
-- Added manual asset selection for `Auto`, `Setup`, and `Portable` flows, with portable builds opening the correct release asset instead of failing silently.
-- Moved updater and integrity verification messaging to locale keys so renderer status text no longer depends on regex-based translation patches.
-- Expanded dynamic localization coverage and added locale parity checks plus an i18n audit script for renderer regressions.
-- Upgraded the Visual Builder context menu with block search, category filters, favorites, recent blocks, and metadata-driven parameter editors.
-- Standardized release preparation with checksum validation, release manifest generation, English release notes, and a Windows GitHub release workflow.
+- Fixed the GitHub Actions release workflow so publishing works with the default `secrets.GITHUB_TOKEN` and no longer requires a manual `GH_TOKEN` secret.
+- Fixed Visual Builder UTF-8 corruption in card headers, labels, emoji actions, and template fallbacks that previously rendered mojibake in the UI.
+- Centralized UTF-8-safe file, JSON, and IPC normalization to keep Turkish characters and emoji text stable across renderer, main process, and packaged builds.
+- Switched locale catalog loading to explicit UTF-8 reads and added mojibake fallback tracing for dynamic translations.
+- Added automated UTF-8 smoke, JSON translation load, and IPC roundtrip tests to prevent future encoding regressions.
+
+## Artifacts
+
+- `CraftIDE-<version>.exe`
+- `CraftIDE-Setup-<version>.exe`
+- `latest.yml`
+- `SHA256SUMS-<version>.txt`
+- `CraftIDE-Setup-<version>.exe.blockmap`
