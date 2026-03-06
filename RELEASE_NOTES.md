@@ -1,11 +1,11 @@
 ## Highlights
 
-- Fixed the GitHub Actions release workflow so publishing works with the default `secrets.GITHUB_TOKEN` and no longer requires a manual `GH_TOKEN` secret.
-- Fixed the release workflow test step on Windows by replacing shell-dependent glob expansion with a platform-safe Node test runner.
-- Fixed Visual Builder UTF-8 corruption in card headers, labels, emoji actions, and template fallbacks that previously rendered mojibake in the UI.
-- Centralized UTF-8-safe file, JSON, and IPC normalization to keep Turkish characters and emoji text stable across renderer, main process, and packaged builds.
-- Switched locale catalog loading to explicit UTF-8 reads and added mojibake fallback tracing for dynamic translations.
-- Added automated UTF-8 smoke, JSON translation load, and IPC roundtrip tests to prevent future encoding regressions.
+- Added shared renderer utilities for translation, escaping, notifications, and mode normalization to reduce duplicated logic across large global scripts.
+- Added a pure Visual Builder graph-to-code generation layer and new regression tests for plugin, Skript, Fabric, and Forge outputs.
+- Added Monaco dirty-state tracking, reusable editor models, unsaved-close prompts, and app-close guards for text tabs to reduce data loss.
+- Added a renderer-level global error boundary so uncaught renderer errors surface as notifications instead of failing silently.
+- Fixed several user-visible mojibake strings in Visual Builder template defaults and example flows.
+- Switched the YAML raw editor path to reuse the cached Monaco model instead of creating disposable models.
 
 ## Artifacts
 

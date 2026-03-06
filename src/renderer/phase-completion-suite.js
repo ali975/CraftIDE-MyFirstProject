@@ -8,6 +8,7 @@
     const fs = require('fs');
     const path = require('path');
     const os = require('os');
+    const Utils = window.CraftIDEUtils || {};
 
     const U = window.CraftIDEPhaseUtils || {};
 
@@ -26,17 +27,22 @@
     const MATERIALS = ['DIAMOND', 'NETHERITE_SWORD', 'GOLDEN_APPLE', 'TOTEM_OF_UNDYING', 'SHIELD', 'BOW', 'ELYTRA'];
 
     function esc(value) {
+        if (typeof Utils.esc === 'function') return Utils.esc(value);
         const d = document.createElement('div');
         d.textContent = String(value || '');
         return d.innerHTML;
     }
 
     function notify(msg, type = 'info') {
-        if (window.CraftIDEAppState?.showNotification) window.CraftIDEAppState.showNotification(msg, type);
+        if (typeof Utils.notify === 'function') Utils.notify(msg, type);
+        else if (window.CraftIDEAppState?.showNotification) window.CraftIDEAppState.showNotification(msg, type);
         else console.log(`[${type}] ${msg}`);
     }
 
     function currentMode() {
+        if (typeof Utils.normalizeMode === 'function') {
+            return Utils.normalizeMode(window.CraftIDEVB?.getMode?.() || 'plugin');
+        }
         const mode = String(window.CraftIDEVB?.getMode?.() || 'plugin').toLowerCase();
         if (mode === 'paper' || mode === 'spigot' || mode === 'bukkit') return 'plugin';
         return mode;

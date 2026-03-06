@@ -5,6 +5,7 @@
 (() => {
     const { ipcRenderer } = require('electron');
     const nodePath = require('path');
+    const Utils = window.CraftIDEUtils || {};
 
     const MODE_ALIAS = { paper: 'plugin', spigot: 'plugin', bukkit: 'plugin', plugin: 'plugin', fabric: 'fabric', forge: 'forge', skript: 'skript' };
     const STATE = {
@@ -92,18 +93,22 @@
         ],
     };
 
-    function normalizeMode(raw) { return MODE_ALIAS[String(raw || '').toLowerCase()] || 'plugin'; }
+    function normalizeMode(raw) { return typeof Utils.normalizeMode === 'function' ? Utils.normalizeMode(raw) : (MODE_ALIAS[String(raw || '').toLowerCase()] || 'plugin'); }
     function getMode() { return normalizeMode(window.CraftIDEVB?.getMode?.() || 'plugin'); }
     function t(key, fallback, params) {
+        if (typeof Utils.tr === 'function') return Utils.tr(key, fallback, params);
         if (window.Lang && typeof window.Lang.t === 'function') return window.Lang.t(key, params || {});
         if (!fallback) return key;
         if (!params) return fallback;
         return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), fallback);
     }
-    function notify(msg, type = 'info') { window.CraftIDEAppState?.showNotification ? window.CraftIDEAppState.showNotification(msg, type) : console.log(msg); }
+    function notify(msg, type = 'info') {
+        if (typeof Utils.notify === 'function') return Utils.notify(msg, type);
+        window.CraftIDEAppState?.showNotification ? window.CraftIDEAppState.showNotification(msg, type) : console.log(msg);
+    }
     function notifyT(key, fallback, type = 'info', params) { notify(t(key, fallback, params), type); }
     function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-    function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+    function esc(s) { return typeof Utils.esc === 'function' ? Utils.esc(s) : String(s || ''); }
     function formatMessage(entry, fallbackKey, fallbackText) {
         if (entry && typeof entry === 'object' && entry.messageKey) {
             return t(entry.messageKey, entry.message || fallbackText || fallbackKey, entry.messageParams || {});

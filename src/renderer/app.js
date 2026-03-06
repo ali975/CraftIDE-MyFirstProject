@@ -5,6 +5,7 @@
 
 const { ipcRenderer } = require('electron');
 const nodePath = require('path');
+const sharedUtils = window.CraftIDEUtils || {};
 
 // ═══════════════════════════════════════════════════════════
 // State
@@ -34,11 +35,17 @@ window.CraftIDEAppState = {
 };
 
 function interpolateText(template, params) {
+    if (typeof sharedUtils.interpolateText === 'function') {
+        return sharedUtils.interpolateText(template, params);
+    }
     if (!params) return template;
     return Object.entries(params).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), String(template || ''));
 }
 
 function tr(key, fallback, params) {
+    if (typeof sharedUtils.tr === 'function') {
+        return sharedUtils.tr(key, fallback, params);
+    }
     if (window.Lang && typeof window.Lang.t === 'function') {
         const translated = window.Lang.t(key, params || {});
         if (translated !== key || !fallback) {
@@ -58,6 +65,22 @@ function syncRendererStore(patch) {
         window.CraftIDEStore.patch(patch || {});
     }
 }
+
+window.onerror = function (message, source, lineno, colno, error) {
+    console.error('Renderer error:', { message, source, lineno, colno, error });
+    try {
+        showNotification(tr('msg.unexpectedRendererError', 'An unexpected renderer error occurred.'), 'error');
+    } catch (_) { }
+    return false;
+};
+
+window.onunhandledrejection = function (event) {
+    const reason = event && 'reason' in event ? event.reason : event;
+    console.error('Unhandled renderer rejection:', reason);
+    try {
+        showNotification(tr('msg.unexpectedRendererError', 'An unexpected renderer error occurred.'), 'error');
+    } catch (_) { }
+};
 
 const VIRTUAL_TAB_META = {
     'visual-builder://': { key: 'ui.tab.visualBuilder', icon: '🧩', fallback: 'Visual Builder' },
@@ -85,6 +108,307 @@ function getVirtualTabName(filePath, fallbackName) {
     const meta = getVirtualTabMeta(filePath);
     if (!meta) return fallbackName || '';
     return tr(meta.key, fallbackName || meta.fallback);
+}
+
+const VIRTUAL_TAB_REGISTRY = {
+    'visual-builder://': {
+        activate: () => {
+            document.getElementById('visual-builder-container').style.display = 'flex';
+            if (typeof resizeVBCanvas === 'function') setTimeout(resizeVBCanvas, 50);
+        },
+    },
+    'blockbench://': {
+        activate: () => {
+            document.getElementById('blockbench-container').style.display = 'block';
+        },
+    },
+    'settings://': {
+        activate: () => {
+            document.getElementById('settings-container').style.display = 'block';
+        },
+    },
+    'server-manager://': {
+        activate: () => {
+            document.getElementById('server-manager-container').style.display = 'flex';
+            setTimeout(() => initServerConsole(), 50);
+        },
+    },
+    'image-editor://': {
+        activate: () => {
+            document.getElementById('image-editor-container').style.display = 'block';
+            if (window.initImageEditor && !document.getElementById('ie-root')) {
+                window.initImageEditor();
+            }
+        },
+    },
+    'gui-builder://': {
+        activate: () => {
+            document.getElementById('gui-builder-container').style.display = 'flex';
+            if (typeof window.initGuiBuilder === 'function') setTimeout(() => window.initGuiBuilder(), 50);
+        },
+    },
+    'command-tree://': {
+        activate: () => {
+            document.getElementById('command-tree-container').style.display = 'flex';
+            if (typeof window.initCommandTree === 'function') setTimeout(() => window.initCommandTree(), 50);
+        },
+    },
+    'recipe-creator://': {
+        activate: () => {
+            document.getElementById('recipe-creator-container').style.display = 'flex';
+            if (typeof window.initRecipeCreator === 'function') setTimeout(() => window.initRecipeCreator(), 50);
+        },
+    },
+    'permission-tree://': {
+        activate: () => {
+            document.getElementById('permission-tree-container').style.display = 'flex';
+            if (typeof window.initPermissionTree === 'function') setTimeout(() => window.initPermissionTree(), 50);
+        },
+    },
+    'marketplace://': {
+        activate: () => {
+            document.getElementById('marketplace-container').style.display = 'flex';
+            if (typeof window.initMarketplace === 'function') setTimeout(() => window.initMarketplace(), 50);
+        },
+    },
+    'mc-tools://': {
+        activate: () => {
+            document.getElementById('mc-tools-hub-container').style.display = 'flex';
+            if (typeof renderMcToolsHub === 'function') setTimeout(() => renderMcToolsHub(), 30);
+        },
+    },
+};
+
+function getVirtualTabConfig(filePath) {
+    if (!filePath || typeof filePath !== 'string') return null;
+    for (const prefix of Object.keys(VIRTUAL_TAB_REGISTRY)) {
+        if (filePath.startsWith(prefix)) {
+            return Object.assign({ prefix }, getVirtualTabMeta(prefix) || {}, VIRTUAL_TAB_REGISTRY[prefix]);
+        }
+    }
+    return null;
+}
+
+function createOpenFileRecord(filePath, patch = {}) {
+    return Object.assign({
+        content: '',
+        modified: false,
+        virtual: false,
+        generated: false,
+        displayName: patch.displayName || null,
+        lastSavedContent: '',
+        languageHint: null,
+        model: null,
+        modelListener: null,
+    }, patch || {});
+}
+
+function getOpenFileRecord(filePath) {
+    return openFiles.get(filePath) || null;
+}
+
+function upsertOpenFile(filePath, patch = {}) {
+    const existing = getOpenFileRecord(filePath);
+    const next = createOpenFileRecord(filePath, Object.assign({}, existing || {}, patch || {}));
+    openFiles.set(filePath, next);
+    return next;
+}
+
+function getTabBaseName(filePath) {
+    if (filePath === 'welcome') return tr('ui.titlebar.welcome', 'Welcome');
+    const record = getOpenFileRecord(filePath);
+    const meta = getVirtualTabMeta(filePath);
+    if (meta) return getVirtualTabName(filePath, record?.displayName || meta.fallback);
+    if (filePath.startsWith('generated://')) return record?.displayName || filePath.replace('generated://', '');
+    return record?.displayName || nodePath.basename(filePath);
+}
+
+function formatTabName(filePath) {
+    const record = getOpenFileRecord(filePath);
+    const base = getTabBaseName(filePath);
+    return record?.modified ? `* ${base}` : base;
+}
+
+function updateTabLabel(filePath) {
+    const tab = document.querySelector(`.tab[data-tab="${CSS.escape(filePath)}"]`);
+    if (!tab) return;
+    const nameEl = tab.querySelector('.tab-name');
+    if (nameEl) nameEl.textContent = formatTabName(filePath);
+}
+
+function isImageFilePath(filePath) {
+    const ext = filePath && !filePath.includes('//') ? nodePath.extname(filePath).toLowerCase() : '';
+    return ['.png', '.jpg', '.jpeg'].includes(ext) || String(filePath || '').startsWith('image-editor://');
+}
+
+function isTextBackedTab(filePath, record) {
+    if (!filePath || filePath === 'welcome') return false;
+    if (isImageFilePath(filePath)) return false;
+    if (filePath.startsWith('generated://')) return true;
+    if (filePath.includes('//')) return false;
+    return !(record && record.virtual);
+}
+
+function canPersistFile(filePath, record) {
+    return isTextBackedTab(filePath, record) && !filePath.includes('//') && !(record && record.virtual);
+}
+
+function getRecordContent(filePath) {
+    const record = getOpenFileRecord(filePath);
+    if (!record) return '';
+    if (record.model && typeof record.model.getValue === 'function') return record.model.getValue();
+    return String(record.content || '');
+}
+
+function updateRecordDirtyState(filePath, content) {
+    const record = getOpenFileRecord(filePath);
+    if (!record) return;
+    record.content = content;
+    record.modified = content !== String(record.lastSavedContent || '');
+    updateTabLabel(filePath);
+}
+
+function attachModelListener(filePath, model) {
+    if (!model) return;
+    const record = getOpenFileRecord(filePath);
+    if (!record) return;
+    if (record.modelListener && typeof record.modelListener.dispose === 'function') {
+        record.modelListener.dispose();
+    }
+    record.model = model;
+    record.modelListener = model.onDidChangeContent(() => {
+        updateRecordDirtyState(filePath, model.getValue());
+    });
+}
+
+function ensureEditorModel(filePath, language, contentOverride) {
+    const record = upsertOpenFile(filePath, {});
+    const desiredContent = typeof contentOverride === 'string' ? contentOverride : String(record.content || '');
+    if (!window.monaco || !window.monaco.editor) return null;
+    if (!record.modified && record.lastSavedContent === '' && desiredContent !== '') {
+        record.lastSavedContent = desiredContent;
+    }
+
+    if (!record.model || (typeof record.model.isDisposed === 'function' && record.model.isDisposed())) {
+        record.model = window.monaco.editor.createModel(desiredContent, language);
+        attachModelListener(filePath, record.model);
+    } else {
+        if (window.monaco.editor.setModelLanguage && record.model.getLanguageId && record.model.getLanguageId() !== language) {
+            window.monaco.editor.setModelLanguage(record.model, language);
+        }
+        if (!record.modified && record.model.getValue() !== desiredContent) {
+            record.model.setValue(desiredContent);
+        }
+    }
+
+    record.languageHint = language;
+    return record.model;
+}
+
+function showMonacoFile(filePath, language, contentOverride) {
+    const model = ensureEditorModel(filePath, language, contentOverride);
+    if (!model || !window.monacoEditor) return;
+    document.getElementById('editor-container').style.display = 'block';
+    if (window.monacoEditor.getModel() !== model) {
+        window.monacoEditor.setModel(model);
+    }
+    document.getElementById('status-language').textContent = language.charAt(0).toUpperCase() + language.slice(1);
+}
+
+function disposeFileModel(filePath) {
+    const record = getOpenFileRecord(filePath);
+    if (!record || !record.model) return;
+    if (record.modelListener && typeof record.modelListener.dispose === 'function') {
+        record.modelListener.dispose();
+        record.modelListener = null;
+    }
+    if (typeof record.model.dispose === 'function') {
+        record.model.dispose();
+    }
+    record.model = null;
+}
+
+function getSaveDialogConfig(filePath) {
+    const fileName = getTabBaseName(filePath) || 'generated.txt';
+    if (fileName.endsWith('.sk')) {
+        return {
+            defaultPath: fileName,
+            filters: [{ name: 'Skript Files', extensions: ['sk'] }, { name: 'All Files', extensions: ['*'] }],
+        };
+    }
+    if (fileName.endsWith('.java')) {
+        return {
+            defaultPath: fileName,
+            filters: [{ name: 'Java Files', extensions: ['java'] }, { name: 'All Files', extensions: ['*'] }],
+        };
+    }
+    return {
+        defaultPath: fileName,
+        filters: [{ name: 'All Files', extensions: ['*'] }],
+    };
+}
+
+async function saveFileRecord(filePath, options = {}) {
+    const record = getOpenFileRecord(filePath);
+    if (!record || !isTextBackedTab(filePath, record)) return false;
+
+    const content = getRecordContent(filePath);
+    const requiresSaveAs = !canPersistFile(filePath, record) || options.saveAs === true;
+    let targetPath = filePath;
+
+    if (requiresSaveAs) {
+        const dialogConfig = getSaveDialogConfig(filePath);
+        targetPath = await ipcRenderer.invoke('dialog:saveFile', {
+            title: tr('dialog.saveAs.title', 'Save File As'),
+            defaultPath: dialogConfig.defaultPath,
+            filters: dialogConfig.filters,
+        });
+        if (!targetPath) return false;
+    }
+
+    const success = await ipcRenderer.invoke('fs:writeFile', targetPath, content);
+    if (!success) {
+        showNotification(tr('msg.fileSaveError', 'Could not save file!'), 'error');
+        return false;
+    }
+
+    record.content = content;
+    record.lastSavedContent = content;
+    record.modified = false;
+    updateTabLabel(filePath);
+
+    if (requiresSaveAs) {
+        await openFile(targetPath);
+    }
+
+    showNotification('💾 ' + tr('msg.fileSaved', '{name} saved', { name: nodePath.basename(targetPath) }), 'success');
+    return true;
+}
+
+async function confirmCloseTextTab(filePath) {
+    const record = getOpenFileRecord(filePath);
+    if (!record || !record.modified || !isTextBackedTab(filePath, record)) return true;
+
+    const canSave = canPersistFile(filePath, record) || filePath.startsWith('generated://');
+    const buttons = canSave
+        ? [tr('dialog.unsaved.save', 'Save'), tr('dialog.unsaved.dontSave', "Don't Save"), tr('dialog.unsaved.cancel', 'Cancel')]
+        : [tr('dialog.unsaved.dontSave', "Don't Save"), tr('dialog.unsaved.cancel', 'Cancel')];
+    const cancelId = buttons.length - 1;
+    const result = await ipcRenderer.invoke('dialog:showMessage', {
+        type: 'question',
+        title: tr('dialog.unsaved.title', 'Unsaved Changes'),
+        message: tr('dialog.unsaved.message', 'There are unsaved changes in "{name}".', { name: getTabBaseName(filePath) }),
+        detail: tr('dialog.unsaved.detail', 'Do you want to save your changes?'),
+        buttons,
+        defaultId: canSave ? 0 : 1,
+        cancelId,
+    });
+
+    if (result.response === cancelId) return false;
+    if (canSave && result.response === 0) {
+        return saveFileRecord(filePath);
+    }
+    return true;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -768,8 +1092,14 @@ async function openFile(filePath, virtualName = null) {
         return;
     }
 
-    if (filePath.startsWith('visual-builder://') || filePath.startsWith('blockbench://') || filePath.startsWith('settings://') || filePath.startsWith('server-manager://') || filePath.startsWith('image-editor://') || filePath.startsWith('gui-builder://') || filePath.startsWith('command-tree://') || filePath.startsWith('recipe-creator://') || filePath.startsWith('permission-tree://') || filePath.startsWith('marketplace://') || filePath.startsWith('mc-tools://')) {
-        openFiles.set(filePath, { content: '', modified: false, virtual: true });
+    if (getVirtualTabConfig(filePath)) {
+        upsertOpenFile(filePath, {
+            content: '',
+            modified: false,
+            virtual: true,
+            displayName: virtualName || getVirtualTabName(filePath, ''),
+            lastSavedContent: '',
+        });
         addTab(filePath, getVirtualTabName(filePath, virtualName));
         activateTab(filePath);
         return;
@@ -778,7 +1108,14 @@ async function openFile(filePath, virtualName = null) {
     if (filePath.startsWith('generated://')) {
         // generated:// sekmeleri zaten openFiles'a eklendi — sadece aktif et
         if (!openFiles.has(filePath)) {
-            openFiles.set(filePath, { content: '', modified: false, virtual: true, generated: true });
+            upsertOpenFile(filePath, {
+                content: '',
+                modified: false,
+                virtual: true,
+                generated: true,
+                displayName: virtualName || filePath.replace('generated://', ''),
+                lastSavedContent: '',
+            });
         }
         addTab(filePath, virtualName);
         activateTab(filePath);
@@ -799,7 +1136,13 @@ async function openFile(filePath, virtualName = null) {
         }
     }
 
-    openFiles.set(filePath, { content: content, modified: false, virtual: false });
+    upsertOpenFile(filePath, {
+        content,
+        modified: false,
+        virtual: false,
+        displayName: nodePath.basename(filePath),
+        lastSavedContent: content,
+    });
     addTab(filePath);
     activateTab(filePath);
 }
@@ -809,6 +1152,7 @@ function addTab(filePath, overrideName = null) {
     let name = overrideName;
     let icon = '📄';
     let ext = '';
+    const record = upsertOpenFile(filePath, {});
 
     const virtualMeta = getVirtualTabMeta(filePath);
     if (virtualMeta) {
@@ -824,12 +1168,13 @@ function addTab(filePath, overrideName = null) {
         icon = getFileIcon({ name: name, ext: ext, isDirectory: false });
     }
 
+    record.displayName = name;
     const tab = document.createElement('div');
     tab.className = 'tab';
     tab.setAttribute('data-tab', filePath);
     tab.innerHTML =
         '<span class="tab-icon">' + icon + '</span>' +
-        '<span class="tab-name">' + name + '</span>' +
+        '<span class="tab-name">' + formatTabName(filePath) + '</span>' +
         '<button class="tab-close" title="' + tr('ui.tab.close', 'Close') + '"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.708.708L7.293 8l-3.647 3.646.708.708L8 8.707z"/></svg></button>';
 
     tab.addEventListener('click', (e) => {
@@ -853,12 +1198,7 @@ function refreshLocalizedTabLabels() {
         const closeEl = tab.querySelector('.tab-close');
         if (closeEl) closeEl.title = tr('ui.tab.close', 'Close');
         if (!nameEl) return;
-        if (path === 'welcome') {
-            nameEl.textContent = tr('ui.titlebar.welcome', 'Welcome');
-            return;
-        }
-        const meta = getVirtualTabMeta(path);
-        if (meta) nameEl.textContent = tr(meta.key, meta.fallback);
+        nameEl.textContent = path === 'welcome' ? tr('ui.titlebar.welcome', 'Welcome') : formatTabName(path);
     });
 }
 
@@ -886,12 +1226,11 @@ function activateTab(filePath) {
 
     const ext = filePath.includes('//') ? '' : nodePath.extname(filePath).toLowerCase();
 
-    const fileData = openFiles.get(filePath);
+    const fileData = upsertOpenFile(filePath, {});
+    const virtualTab = getVirtualTabConfig(filePath);
 
-    if (filePath.startsWith('visual-builder://')) {
-        document.getElementById('visual-builder-container').style.display = 'flex';
-        // Auto-refresh layout for canvas
-        if (typeof resizeVBCanvas === 'function') setTimeout(resizeVBCanvas, 50);
+    if (virtualTab) {
+        virtualTab.activate(filePath, fileData);
     } else if (filePath.startsWith('blockbench://') || ext === '.bbmodel') {
         document.getElementById('blockbench-container').style.display = 'block';
     } else if (filePath.startsWith('settings://')) {
@@ -928,16 +1267,9 @@ function activateTab(filePath) {
             window.loadImageToEditor(filePath);
         }
     } else if (filePath.startsWith('generated://')) {
-        document.getElementById('editor-container').style.display = 'block';
-        if (fileData && window.monacoEditor && window.monaco) {
-            const genName = filePath.replace('generated://', '');
-            const language = genName.endsWith('.sk') ? 'plaintext' : 'java';
-            const model = window.monaco.editor.createModel(fileData.content, language);
-            const oldModel = window.monacoEditor.getModel();
-            window.monacoEditor.setModel(model);
-            if (oldModel && oldModel !== model) oldModel.dispose();
-            document.getElementById('status-language').textContent = language.charAt(0).toUpperCase() + language.slice(1);
-        }
+        const genName = filePath.replace('generated://', '');
+        const language = genName.endsWith('.sk') ? 'plaintext' : 'java';
+        showMonacoFile(filePath, language, fileData.content);
     } else if ((ext === '.yml' || ext === '.yaml') && fileData) {
         // Visual Config Editor
         const cfgContainer = document.getElementById('config-editor-container');
@@ -946,40 +1278,29 @@ function activateTab(filePath) {
             const fn = nodePath.basename(filePath).toLowerCase();
             showConfigEditor(filePath, fileData.content, fn === 'plugin.yml' ? 'plugin' : 'generic');
         } else {
-            // Fallback: Monaco
-            document.getElementById('editor-container').style.display = 'block';
-            if (window.monacoEditor && window.monaco) {
-                const model = window.monaco.editor.createModel(fileData.content, 'yaml');
-                const oldModel = window.monacoEditor.getModel();
-                window.monacoEditor.setModel(model);
-                if (oldModel && oldModel !== model) oldModel.dispose();
-            }
+            showMonacoFile(filePath, 'yaml', fileData.content);
         }
     } else {
-        // Default Monaco Editor
-        document.getElementById('editor-container').style.display = 'block';
-        if (fileData && window.monacoEditor && window.monaco) {
-            const language = getLanguageForFile(filePath);
-            const model = window.monaco.editor.createModel(fileData.content, language);
-            const oldModel = window.monacoEditor.getModel();
-            window.monacoEditor.setModel(model);
-            if (oldModel && oldModel !== model) {
-                oldModel.dispose();
-            }
-            document.getElementById('status-language').textContent = language.charAt(0).toUpperCase() + language.slice(1);
-        }
+        const language = getLanguageForFile(filePath);
+        showMonacoFile(filePath, language, fileData.content);
     }
 
     currentFilePath = filePath;
+    if (fileData.model && typeof fileData.model.getValue === 'function') {
+        fileData.content = fileData.model.getValue();
+    }
     syncRendererStore({
         ui: { currentFile: currentFilePath },
         project: { openTabs: document.querySelectorAll('.tab').length },
     });
-    document.getElementById('titlebar-filename').textContent = filePath.startsWith('virtual://') || filePath.includes('//') ? tabName : nodePath.basename(filePath);
+    document.getElementById('titlebar-filename').textContent = getTabBaseName(filePath);
     setTimeout(() => window.Lang?.applyTranslations?.(), 0);
 }
 
 async function closeTab(filePath) {
+    if (!(await confirmCloseTextTab(filePath))) {
+        return;
+    }
     // Kaydedilmemiş değişiklik kontrolü (resim dosyaları için)
     const extCheck = filePath.includes('//') ? '' : nodePath.extname(filePath).toLowerCase();
     const isImageFile = ['.png', '.jpg', '.jpeg'].includes(extCheck);
@@ -1010,6 +1331,7 @@ async function closeTab(filePath) {
             tab.remove();
         }
     });
+    disposeFileModel(filePath);
     openFiles.delete(filePath);
 
     const remainingTabs = document.querySelectorAll('.tab');
@@ -1046,7 +1368,7 @@ function showWelcome() {
 async function saveCurrentFile() {
     if (!currentFilePath || !window.monacoEditor) return;
 
-    const content = window.monacoEditor.getValue();
+    return await saveFileRecord(currentFilePath);
     const success = await ipcRenderer.invoke('fs:writeFile', currentFilePath, content);
 
     if (success) {
@@ -3213,7 +3535,25 @@ setTimeout(() => {
 // ═══════════════════════════════════════════════════════════
 // Uygulama Kapanma Koruması — Kaydedilmemiş Değişiklik Kontrolü
 // ═══════════════════════════════════════════════════════════
-ipcRenderer.on('request-close', () => {
+ipcRenderer.on('request-close', async () => {
+    const dirtyFiles = [...openFiles.entries()]
+        .filter(([filePath, record]) => Boolean(record?.modified) && isTextBackedTab(filePath, record))
+        .map(([filePath]) => getTabBaseName(filePath));
+
+    if (dirtyFiles.length > 0) {
+        const preview = dirtyFiles.slice(0, 3).join(', ');
+        const suffix = dirtyFiles.length > 3 ? ` (+${dirtyFiles.length - 3})` : '';
+        const result = await ipcRenderer.invoke('dialog:showMessage', {
+            type: 'question',
+            title: tr('dialog.unsaved.title', 'Unsaved Changes'),
+            message: tr('dialog.unsaved.exitMessage', 'There are unsaved text files before exit.'),
+            detail: preview + suffix,
+            buttons: [tr('dialog.unsaved.dontSave', "Don't Save"), tr('dialog.unsaved.cancel', 'Cancel')],
+            defaultId: 1,
+            cancelId: 1,
+        });
+        if (result.response === 1) return;
+    }
     const dirty = typeof window.imageEditorIsDirty === 'function' && window.imageEditorIsDirty();
     const hasPath = typeof window.imageEditorCurrentPath === 'function' && window.imageEditorCurrentPath();
 
@@ -3259,12 +3599,7 @@ if (rawBtn._cfgRawMode) {
                 // Monaco ile g??ster
                 container.style.display = 'none';
                 document.getElementById('editor-container').style.display = 'block';
-                if (window.monacoEditor && window.monaco) {
-                    const model = window.monaco.editor.createModel(content, 'yaml');
-                    const oldModel = window.monacoEditor.getModel();
-                    window.monacoEditor.setModel(model);
-                    if (oldModel && oldModel !== model) oldModel.dispose();
-                }
+                showMonacoFile(_configEditorCurrentPath, 'yaml', content);
                 rawBtn.textContent = tr('ui.config.formView', 'Form View');
             } else {
                 document.getElementById('editor-container').style.display = 'none';

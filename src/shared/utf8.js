@@ -1,7 +1,43 @@
 const fs = require('fs');
 
 const UTF8_SMOKE_TEXT = '\u00E7\u011F\u0131\u00F6\u015F\u00FC \u0130\u0131 \u{1F680}';
-const MOJIBAKE_RE = /(\u011F\u0178|\u00E2\u20AC|\u00C3[\u0080-\u00BF]|\u00C2[\u0080-\u00BF]|\uFFFD)/;
+const MOJIBAKE_RE = /(\u011F\u0178|â[\u0080-\u00FF\u0153\u0161\u017E\u0178\u2018-\u201E\u2020-\u2022\u2026\u2030\u2039\u203A\u20AC\u2122]|[ÃÂ][\u0080-\u00FF]|ğŸ|[“”‘’•–—…™šœžŸ]|\uFFFD)/;
+
+const LEGACY_SINGLE_BYTE_MAP = new Map([
+    ['€', 0x80],
+    ['‚', 0x82],
+    ['ƒ', 0x83],
+    ['„', 0x84],
+    ['…', 0x85],
+    ['†', 0x86],
+    ['‡', 0x87],
+    ['ˆ', 0x88],
+    ['‰', 0x89],
+    ['Š', 0x8a],
+    ['‹', 0x8b],
+    ['Œ', 0x8c],
+    ['Ž', 0x8e],
+    ['‘', 0x91],
+    ['’', 0x92],
+    ['“', 0x93],
+    ['”', 0x94],
+    ['•', 0x95],
+    ['–', 0x96],
+    ['—', 0x97],
+    ['˜', 0x98],
+    ['™', 0x99],
+    ['š', 0x9a],
+    ['›', 0x9b],
+    ['œ', 0x9c],
+    ['ž', 0x9e],
+    ['Ÿ', 0x9f],
+    ['Ğ', 0xd0],
+    ['İ', 0xdd],
+    ['Ş', 0xde],
+    ['ğ', 0xf0],
+    ['ı', 0xfd],
+    ['ş', 0xfe],
+]);
 
 function stripBom(text) {
     if (!text) return '';
@@ -29,12 +65,39 @@ function hasMojibake(text) {
 function repairMojibake(text) {
     const raw = String(text ?? '');
     if (!raw || !hasMojibake(raw)) return raw;
-    try {
-        const repaired = Buffer.from(raw, 'latin1').toString('utf8');
-        return hasMojibake(repaired) ? raw : repaired;
-    } catch {
-        return raw;
+    let current = raw;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        const encoded = encodeLegacyBytes(current);
+        if (!encoded) break;
+        try {
+            const repaired = encoded.toString('utf8');
+            if (!repaired || repaired === current) break;
+            current = repaired;
+            if (!hasMojibake(current)) {
+                return current;
+            }
+        } catch {
+            break;
+        }
     }
+    return current;
+}
+
+function encodeLegacyBytes(text) {
+    const bytes = [];
+    for (const char of String(text ?? '')) {
+        const code = char.charCodeAt(0);
+        if (code <= 0xff) {
+            bytes.push(code);
+            continue;
+        }
+        const mapped = LEGACY_SINGLE_BYTE_MAP.get(char);
+        if (mapped === undefined) {
+            return null;
+        }
+        bytes.push(mapped);
+    }
+    return Buffer.from(bytes);
 }
 
 function humanizeIdentifier(value) {

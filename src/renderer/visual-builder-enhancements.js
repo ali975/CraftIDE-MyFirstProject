@@ -1,5 +1,6 @@
 (() => {
     const { ipcRenderer } = require('electron');
+    const Utils = window.CraftIDEUtils || {};
 
     const PANEL_LEFT = 280;
     const PANEL_RIGHT = 340;
@@ -55,18 +56,14 @@
 
     const D = { left: null, right: null, search: null, cards: null, preview: null, wizard: null };
 
-    const esc = (s) => {
-        const d = document.createElement('div');
-        d.textContent = String(s || '');
-        return d.innerHTML;
-    };
+    const esc = (s) => (typeof Utils.esc === 'function' ? Utils.esc(s) : String(s || ''));
     const lang = () => (window.Lang && window.Lang.currentLang === 'tr' ? 'tr' : 'en');
     const t = (tr, en) => (lang() === 'tr' ? tr : en);
     const activeVB = () => {
         const c = document.getElementById('visual-builder-container');
         return !!c && c.style.display !== 'none';
     };
-    const notify = (m, type = 'info') => (typeof showNotification === 'function' ? showNotification(m, type) : console.log(m));
+    const notify = (m, type = 'info') => (typeof Utils.notify === 'function' ? Utils.notify(m, type) : (typeof showNotification === 'function' ? showNotification(m, type) : console.log(m)));
     const defsByMode = (mode) => (window.CraftIDEVB?.getDefinitions?.()?.[mode] || {});
 
     function applyFriendlyLabels() {

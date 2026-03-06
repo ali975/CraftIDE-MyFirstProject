@@ -13,6 +13,7 @@ const {
     repairMojibake,
     sanitizeVisibleText,
 } = require('../shared/utf8.js');
+const CraftIDEUtils = window.CraftIDEUtils || {};
 
 const vbUtf8Log = createUtf8Logger('visual-builder', localStorage.getItem('craftide:utf8-debug') === '1');
 
@@ -41,14 +42,14 @@ const ALL_BLOCK_DEFS = {
         IsInWorld: { type: 'condition', label: 'World Check', params: [{ n: 'world', t: 'text', d: 'world' }] },
 
         // Aksiyonlar
-        SendMessage: { type: 'action', label: window.Lang ? window.Lang.t('vb.SendMessage') : 'Send Message', params: [{ n: 'mesaj', t: 'text', d: '&aHoÅŸ geldin!' }] },
+        SendMessage: { type: 'action', label: window.Lang ? window.Lang.t('vb.SendMessage') : 'Send Message', params: [{ n: 'mesaj', t: 'text', d: '&aHoş geldin!' }] },
         Broadcast: { type: 'action', label: 'Broadcast', params: [{ n: 'mesaj', t: 'text', d: '&eDuyuru!' }] },
         Teleport: { type: 'action', label: window.Lang ? window.Lang.t('vb.Teleport') : 'Teleport', params: [{ n: 'x', t: 'number', d: '0' }, { n: 'y', t: 'number', d: '64' }, { n: 'z', t: 'number', d: '0' }] },
         GiveItem: { type: 'action', label: window.Lang ? window.Lang.t('vb.GiveItem') : 'Give Item', params: [{ n: 'material', t: 'text', d: 'DIAMOND' }, { n: 'adet', t: 'number', d: '1' }] },
         PlaySound: { type: 'action', label: window.Lang ? window.Lang.t('vb.PlaySound') : 'Play Sound', params: [{ n: 'ses', t: 'text', d: 'ENTITY_EXPERIENCE_ORB_PICKUP' }] },
         SpawnEntity: { type: 'action', label: 'Spawn Entity', params: [{ n: 'entityType', t: 'text', d: 'ZOMBIE' }] },
         CancelEvent: { type: 'action', label: 'Cancel Event', params: [] },
-        KickPlayer: { type: 'action', label: window.Lang ? window.Lang.t('vb.KickPlayer') : 'Kick Player', params: [{ n: 'sebep', t: 'text', d: 'Kurallara aykÄ±rÄ± davranÄ±ÅŸ' }] },
+        KickPlayer: { type: 'action', label: window.Lang ? window.Lang.t('vb.KickPlayer') : 'Kick Player', params: [{ n: 'sebep', t: 'text', d: 'Kurallara aykırı davranış' }] },
         SetGameMode: { type: 'action', label: 'Set Gamemode', params: [{ n: 'mod', t: 'select', opts: ['CREATIVE', 'SURVIVAL', 'ADVENTURE', 'SPECTATOR'], d: 'CREATIVE' }] },
         SetHealth: { type: 'action', label: 'Set Health', params: [{ n: 'can', t: 'number', d: '20' }] },
         SendTitle: { type: 'action', label: 'Show Title', params: [{ n: 'baslik', t: 'text', d: 'Hos Geldin!' }, { n: 'alt', t: 'text', d: 'Sunucuya baglandin' }] },
@@ -209,7 +210,7 @@ const VB_TEMPLATES = [
         mode: 'plugin',
         nodes: [
             { blockId: 'PlayerJoin', x: 80, y: 120 },
-            { blockId: 'SendMessage', x: 320, y: 120, params: { mesaj: '&aHoÅŸ geldin! &e{player}' } },
+            { blockId: 'SendMessage', x: 320, y: 120, params: { mesaj: '&aHoş geldin! &e{player}' } },
             { blockId: 'SendTitle', x: 320, y: 240, params: { baslik: '&6CraftServer', alt: '&eHos Geldin!' } },
         ],
         connections: [
@@ -226,7 +227,7 @@ const VB_TEMPLATES = [
             { blockId: 'PlayerCommand', x: 80, y: 120, params: { command: '/spawn' } },
             { blockId: 'CommandEquals', x: 320, y: 80, params: { cmd: '/spawn' } },
             { blockId: 'Teleport', x: 560, y: 80, params: { x: '0', y: '64', z: '0' } },
-            { blockId: 'SendMessage', x: 560, y: 200, params: { mesaj: '&aSpawn\'a Ä±ÅŸÄ±nlandÄ±nÄ±z!' } },
+            { blockId: 'SendMessage', x: 560, y: 200, params: { mesaj: '&aSpawn\'a ışınlandınız!' } },
             { blockId: 'CancelEvent', x: 320, y: 200, params: {} },
         ],
         connections: [
@@ -244,7 +245,7 @@ const VB_TEMPLATES = [
         nodes: [
             { blockId: 'PlayerDeath', x: 80, y: 120 },
             { blockId: 'CancelEvent', x: 320, y: 80, params: {} },
-            { blockId: 'SendMessage', x: 320, y: 200, params: { mesaj: '&cÃ–ldÃ¼n! EÅŸyalarÄ±n korunuyor.' } },
+            { blockId: 'SendMessage', x: 320, y: 200, params: { mesaj: '&cÖldün! Eşyaların korunuyor.' } },
         ],
         connections: [
             { from: 0, to: 1 },
@@ -259,7 +260,7 @@ const VB_TEMPLATES = [
         nodes: [
             { blockId: 'PlayerCommand', x: 80, y: 120, params: { command: '/myop' } },
             { blockId: 'IsOp', x: 320, y: 80 },
-            { blockId: 'Broadcast', x: 560, y: 80, params: { mesaj: '&6Op komutu Ã§alÄ±ÅŸtÄ±rÄ±ldÄ±!' } },
+            { blockId: 'Broadcast', x: 560, y: 80, params: { mesaj: '&6Op komutu çalıştırıldı!' } },
             { blockId: 'SendMessage', x: 560, y: 200, params: { mesaj: '&cBu komutu kullanmaya yetkiniz yok!' } },
             { blockId: 'CancelEvent', x: 320, y: 200 },
         ],
@@ -294,7 +295,7 @@ const VB_TEMPLATES = [
         mode: 'fabric',
         nodes: [
             { blockId: 'FabricPlayerJoin', x: 80, y: 120 },
-            { blockId: 'FabricSendMsg', x: 320, y: 120, params: { mesaj: 'HoÅŸ geldin!' } },
+            { blockId: 'FabricSendMsg', x: 320, y: 120, params: { mesaj: 'Hoş geldin!' } },
         ],
         connections: [{ from: 0, to: 1 }],
     },
@@ -305,7 +306,7 @@ const VB_TEMPLATES = [
         mode: 'skript',
         nodes: [
             { blockId: 'SkJoin', x: 80, y: 120 },
-            { blockId: 'SkSendMsg', x: 320, y: 80, params: { mesaj: '&aHoÅŸ geldin, {player}!' } },
+            { blockId: 'SkSendMsg', x: 320, y: 80, params: { mesaj: '&aHoş geldin, {player}!' } },
             { blockId: 'SkBroadcast', x: 320, y: 200, params: { mesaj: '&e%player% sunucuya katÄ±ldÄ±!' } },
         ],
         connections: [
@@ -321,7 +322,7 @@ const VB_TEMPLATES = [
         nodes: [
             { blockId: 'SkCommand', x: 80, y: 120, params: { komut: '/spawn' } },
             { blockId: 'SkTeleport', x: 320, y: 80, params: { x: '0', y: '64', z: '0' } },
-            { blockId: 'SkSendMsg', x: 320, y: 200, params: { mesaj: '&aSpawn\'a Ä±ÅŸÄ±nlandÄ±nÄ±z!' } },
+            { blockId: 'SkSendMsg', x: 320, y: 200, params: { mesaj: '&aSpawn\'a ışınlandınız!' } },
         ],
         connections: [
             { from: 0, to: 1 },
@@ -607,11 +608,19 @@ const VB_PARAM_LABEL_KEYS = {
 };
 
 function vbTr(key, fallback, params) {
-    if (window.Lang && typeof window.Lang.t === 'function') {
-        const translated = vbSafeText(window.Lang.t(key, params || {}), fallback || key, `translation:${key}`);
-        if (translated !== key || !fallback) {
-            return translated;
-        }
+    const translator = typeof CraftIDEUtils.tr === 'function'
+        ? CraftIDEUtils.tr
+        : ((innerKey, innerFallback, innerParams) => {
+            if (window.Lang && typeof window.Lang.t === 'function') {
+                const translated = window.Lang.t(innerKey, innerParams || {});
+                if (translated !== innerKey || !innerFallback) return translated;
+            }
+            if (!innerFallback) return innerKey;
+            return innerFallback;
+        });
+    const translated = vbSafeText(translator(key, fallback, params), fallback || key, `translation:${key}`);
+    if (translated !== key || !fallback) {
+        return translated;
     }
     if (!fallback) return key;
     const safeFallback = vbSafeText(fallback, key, `fallback:${key}`);
@@ -620,8 +629,19 @@ function vbTr(key, fallback, params) {
 }
 
 function vbNotify(key, fallback, type = 'info', params) {
+    if (typeof CraftIDEUtils.notify === 'function') {
+        CraftIDEUtils.notify(vbTr(key, fallback, params), type);
+        return;
+    }
     if (typeof showNotification !== 'function') return;
     showNotification(vbTr(key, fallback, params), type);
+}
+
+function generateCodeFromGraph(graph, options) {
+    if (window.CraftIDEVBCodegen && typeof window.CraftIDEVBCodegen.generateFromGraph === 'function') {
+        return window.CraftIDEVBCodegen.generateFromGraph(graph || {}, Object.assign({ mode: vbCurrentMode }, options || {}));
+    }
+    return '';
 }
 
 function vbSafeText(rawText, fallbackText, traceKey) {
@@ -2428,6 +2448,7 @@ window.CraftIDEVB = {
         return added;
     },
     generateCode: (options) => vbGenerateCode(options || { returnOnly: true }),
+    generateCodeFromGraph: (graph, options) => generateCodeFromGraph(graph, options || {}),
 };
 window.highlightEventInVB = highlightEventInVB;
 
