@@ -1,11 +1,11 @@
 ## Highlights
 
-- Added shared renderer utilities for translation, escaping, notifications, and mode normalization to reduce duplicated logic across large global scripts.
-- Added a pure Visual Builder graph-to-code generation layer and new regression tests for plugin, Skript, Fabric, and Forge outputs.
-- Added Monaco dirty-state tracking, reusable editor models, unsaved-close prompts, and app-close guards for text tabs to reduce data loss.
-- Added a renderer-level global error boundary so uncaught renderer errors surface as notifications instead of failing silently.
-- Fixed several user-visible mojibake strings in Visual Builder template defaults and example flows.
-- Switched the YAML raw editor path to reuse the cached Monaco model instead of creating disposable models.
+- Added a creator-first welcome flow that turns plain-language Minecraft ideas into AI-seeded builder drafts.
+- Added shared creator-intent inference, graph seeding, and creator-brief helpers with regression coverage.
+- Added guided designer routing for commands, shops, quests, regions, loot, and NPC dialogue flows.
+- Expanded the Phase Suite with seeded economy, quest, region, and loot designers that generate starter graphs and files.
+- Upgraded the local blueprint marketplace into a metadata-driven solution gallery with categories, tags, and richer cards.
+- Added marketplace regression tests so solution-pack normalization and filtering stay stable over future changes.
 
 ## Artifacts
 

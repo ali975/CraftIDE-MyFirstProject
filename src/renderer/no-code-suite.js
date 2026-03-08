@@ -5,6 +5,7 @@
 (() => {
     const { ipcRenderer } = require('electron');
     const nodePath = require('path');
+    const CreatorBrief = require('../shared/creator-brief.js');
     const Utils = window.CraftIDEUtils || {};
 
     const MODE_ALIAS = { paper: 'plugin', spigot: 'plugin', bukkit: 'plugin', plugin: 'plugin', fabric: 'fabric', forge: 'forge', skript: 'skript' };
@@ -12,6 +13,7 @@
         intentGraph: null,
         validationSig: '',
         suggestionSig: '',
+        creatorSig: '',
         buildRunning: false,
         oneStepRunning: false,
         cancelBuild: false,
@@ -163,15 +165,7 @@
             graph.mode = mode;
             return graph;
         }
-        return {
-            version: '2',
-            mode,
-            nodes: [
-                { id: 1, blockId: mode === 'plugin' ? 'PlayerJoin' : mode === 'fabric' ? 'FabricPlayerJoin' : mode === 'forge' ? 'ForgePlayerLogin' : 'SkJoin', x: 100, y: 120, params: {} },
-                { id: 2, blockId: mode === 'plugin' ? 'SendMessage' : mode === 'fabric' ? 'FabricSendMsg' : mode === 'forge' ? 'ForgeSendMsg' : 'SkSendMsg', x: 340, y: 120, params: { mesaj: 'Done.' } },
-            ],
-            connections: [{ from: 1, to: 2 }],
-        };
+        return CreatorBrief.buildGraphFromWizardSeed(CreatorBrief.inferWizardSeed(prompt, mode));
     }
 
     function validationSignature(graph) {
@@ -242,7 +236,14 @@
         if (out) out.innerHTML = `<div class="nc-card"><strong>${esc(t('ui.nc.generatedGraph', 'Generated graph'))}</strong><div class="nc-sub">${esc(t('ui.nc.generatedGraphSummary', '{nodes} node(s), {connections} connection(s)', { nodes: graph.nodes.length, connections: graph.connections.length }))}</div></div>`;
     }
 
-    async function applyIntent() { if (!STATE.intentGraph) { notifyT('ui.nc.notify.analyzeFirst', 'Analyze first.', 'error'); return; } applyGraph(STATE.intentGraph); closeModal('nc-intent-modal'); await validateGraph(true); }
+    async function applyIntent() {
+        if (!STATE.intentGraph) { notifyT('ui.nc.notify.analyzeFirst', 'Analyze first.', 'error'); return; }
+        applyGraph(STATE.intentGraph);
+        closeModal('nc-intent-modal');
+        await validateGraph(true);
+        renderSuggestions(true);
+        renderCreatorPanels(true);
+    }
 
     function suggestionsForGraph(graph) {
         const suggestions = [];
@@ -298,6 +299,51 @@
         }
 
         return suggestions.slice(0, 8);
+    }
+
+    function describePrompt(prompt, mode) {
+        return CreatorBrief.describePrompt(prompt, mode, { translate: t });
+    }
+
+    function buildCreatorBrief(graph) {
+        const validation = localValidate(graph);
+        const suggestions = suggestionsForGraph(graph);
+        const simulation = window.CraftIDEPhaseUtils?.simulateGraph ? window.CraftIDEPhaseUtils.simulateGraph(graph) : null;
+        return CreatorBrief.buildCreatorBrief(graph, {
+            translate: t,
+            validation,
+            suggestions,
+            simulation,
+        });
+    }
+
+    function renderCreatorPanels(force = false) {
+        const graph = currentGraph();
+        const sig = JSON.stringify({
+            mode: graph.mode,
+            nodes: (graph.nodes || []).map((n) => [n.id, n.blockId, n.params]),
+            connections: graph.connections || [],
+        });
+        if (!force && sig === STATE.creatorSig) return;
+        STATE.creatorSig = sig;
+
+        const briefBody = document.getElementById('nc-creator-brief');
+        const risksBody = document.getElementById('nc-creator-risks');
+        const nextBody = document.getElementById('nc-creator-next');
+        if (!briefBody || !risksBody || !nextBody) return;
+
+        const info = buildCreatorBrief(graph);
+        briefBody.innerHTML = [`<div class="nc-row"><strong>${esc(info.summary)}</strong></div>`]
+            .concat(info.steps.map((line) => `<div class="nc-row">${esc(line)}</div>`))
+            .join('');
+
+        if (info.risks.length) {
+            risksBody.innerHTML = info.risks.map((line) => `<div class="nc-row warn">${esc(line)}</div>`).join('');
+        } else {
+            risksBody.innerHTML = `<div class="nc-row ok">${esc(t('ui.nc.creator.risksClear', 'No major risks detected in the current draft.'))}</div>`;
+        }
+
+        nextBody.innerHTML = info.nextSteps.map((line) => `<div class="nc-row">${esc(line)}</div>`).join('');
     }
 
     function renderSuggestions(force = false) {
@@ -520,11 +566,11 @@
         }
     }
 
-    function openOneStepModal(seedPrompt) {
+    function openOneStepModal(seedPrompt, options = {}) {
         const modeEl = document.getElementById('nc-one-step-mode');
         const promptEl = document.getElementById('nc-one-step-input');
-        if (modeEl) modeEl.value = getMode();
-        if (promptEl && seedPrompt) promptEl.value = seedPrompt;
+        if (modeEl) modeEl.value = normalizeMode(options.mode || getMode());
+        if (promptEl && typeof seedPrompt === 'string') promptEl.value = seedPrompt;
         openModal('nc-one-step-modal');
         promptEl?.focus();
     }
@@ -562,7 +608,10 @@
         setText('#btn-nc-guaranteed', 'ui.nc.guaranteed', 'Guaranteed Build');
         setText('#btn-nc-scenarios', 'ui.nc.scenario', 'Scenario Test');
         setText('#btn-nc-release', 'ui.nc.release', 'One-Click Release');
-        setText('.nc-panel .nc-head', 'ui.nc.health', 'No-Code Health');
+        setText('#nc-health-title', 'ui.nc.health', 'No-Code Health');
+        setText('#nc-brief-title', 'ui.nc.creator.brief', 'Creator Brief');
+        setText('#nc-risks-title', 'ui.nc.creator.risks', 'Risks to Review');
+        setText('#nc-next-title', 'ui.nc.creator.next', 'Recommended Next Steps');
         setText('#nc-one-step-modal .nc-m-title', 'ui.nc.modal.oneStepTitle', 'One-Step Natural Language -> Plugin');
         setText('#nc-intent-modal .nc-m-title', 'ui.nc.modal.intentTitle', 'Intent Wizard');
         setText('#nc-pack-modal .nc-m-title', 'ui.nc.modal.packTitle', 'Behavior Packs');
@@ -629,7 +678,19 @@
         const panel = document.createElement('div');
         panel.className = 'nc-panel';
         panel.innerHTML = `
-            <div class="nc-head">No-Code Health</div>
+            <div id="nc-health-title" class="nc-head">No-Code Health</div>
+            <div class="nc-stack">
+                <div id="nc-brief-title" class="nc-head">Creator Brief</div>
+                <div id="nc-creator-brief" class="nc-body"><div class="nc-row">${esc(t('ui.nc.creator.emptySummary', 'Start with a trigger or use the one-step AI flow to create your first draft.'))}</div></div>
+            </div>
+            <div class="nc-stack">
+                <div id="nc-risks-title" class="nc-head">Risks to Review</div>
+                <div id="nc-creator-risks" class="nc-body"><div class="nc-row ok">${esc(t('ui.nc.creator.risksClear', 'No major risks detected in the current draft.'))}</div></div>
+            </div>
+            <div class="nc-stack">
+                <div id="nc-next-title" class="nc-head">Recommended Next Steps</div>
+                <div id="nc-creator-next" class="nc-body"><div class="nc-row">${esc(t('ui.nc.creator.next.addTrigger', 'Add a trigger block or start with the one-step AI flow.'))}</div></div>
+            </div>
             <div class="nc-stack">
                 <div id="nc-validator-body" class="nc-body"><div class="nc-row">Validation panel initialized.</div></div>
                 <div id="nc-suggest-body" class="nc-body"><div class="nc-row">Suggestion engine initialized.</div></div>
@@ -663,6 +724,8 @@
                 const p = (PACKS[mode] || []).find((x) => x.id === btn.getAttribute('data-pack'));
                 if (!p) return;
                 applyGraph(JSON.parse(JSON.stringify(p.graph)));
+                renderSuggestions(true);
+                renderCreatorPanels(true);
                 closeModal('nc-pack-modal');
                 validateGraph(true);
             }));
@@ -692,6 +755,7 @@
             if (!String(window.CraftIDEAppState?.getCurrentFilePath?.() || '').startsWith('visual-builder://')) return;
             validateGraph(false);
             renderSuggestions(false);
+            renderCreatorPanels(false);
         }, 2800);
     }
 
@@ -701,10 +765,12 @@
         startLiveValidation();
         validateGraph(true);
         renderSuggestions(true);
+        renderCreatorPanels(true);
         document.addEventListener('lang:changed', () => {
             localizeNoCodeUI();
             validateGraph(true);
             renderSuggestions(true);
+            renderCreatorPanels(true);
         });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
@@ -723,6 +789,8 @@
             } catch {}
             if (!graph) graph = localGraphFromPrompt(String(prompt || ''), mode);
             applyGraph(graph);
+            renderSuggestions(true);
+            renderCreatorPanels(true);
             await validateGraph(true);
             renderSuggestions(true);
             if (options.generateCode !== false) window.CraftIDEVB?.generateCode?.();
@@ -731,6 +799,8 @@
         },
         getPacksForMode: (mode) => [...(PACKS[normalizeMode(mode || getMode())] || [])],
         getSuggestions: (graph) => suggestionsForGraph(graph || currentGraph()),
+        describePrompt,
+        summarizeCurrentGraph: (graph) => buildCreatorBrief(graph || currentGraph()),
         openOneStepModal,
         oneClickFixCurrent: async () => runGuaranteedBuild(),
     };

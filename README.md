@@ -27,10 +27,10 @@ User data is stored separately from the application files, so updating the app d
 
 ## Current Release Highlights
 
-- Fixed the Visual Builder templates modal flow again
-- Synced the packaged app icon and titlebar icon to `logo.png`
-- Added GitHub Releases based in-app updater plumbing
-- Kept official build verification and release-channel locking
+- Added a creator-first welcome flow that turns plain-language Minecraft ideas into guided project drafts
+- Added routed designer paths for commands, shops, quests, regions, loot, and NPC flows
+- Expanded the solution gallery with category and tag metadata for reusable local packs
+- Strengthened regression coverage for creator-intent helpers and marketplace filtering
 
 ## Development
 
@@ -49,8 +49,8 @@ npm run dist
 
 Main Windows outputs:
 
-- `release/CraftIDE-Setup-0.2.6.exe`
-- `release/CraftIDE-0.2.6.exe`
+- `release/CraftIDE-Setup-0.2.13.exe`
+- `release/CraftIDE-0.2.13.exe`
 
 Optional direct GitHub publishing:
 

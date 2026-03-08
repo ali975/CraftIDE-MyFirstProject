@@ -3,6 +3,8 @@
  * Minecraft envanter GUI'lerini görsel olarak tasarla, koda dönüştür
  */
 
+const GuiCreatorBrief = require('../shared/creator-brief.js');
+
 // ═══════════════════════════════════════════════════════════
 // Durum
 // ═══════════════════════════════════════════════════════════
@@ -332,5 +334,32 @@ function gbGenerateCode() {
     }
 }
 
+function gbApplyDesignerSeed(options = {}) {
+    initGuiBuilder();
+    const prompt = String(options.prompt || '').trim();
+    const command = GuiCreatorBrief.extractSlashCommand(prompt, '/shop');
+    const titleSource = command.replace(/^[\/]/, '').replace(/[-_]/g, ' ').trim() || 'Shop';
+    const title = titleSource.replace(/\b\w/g, (char) => char.toUpperCase()) + ' Menu';
+    const titleInput = document.getElementById('gb-gui-title');
+    const rowsSelect = document.getElementById('gb-rows-select');
+
+    if (titleInput) titleInput.value = options.title || title;
+    if (rowsSelect) rowsSelect.value = String(options.rows || 3);
+    if (rowsSelect) rowsSelect.dispatchEvent(new Event('change'));
+
+    const itemCommand = prompt.toLowerCase().includes('buy') ? `say {player} clicked buy in ${command}` : `say {player} opened ${command}`;
+    gbSlots = Array(gbRows * 9).fill(null).map(() => ({ material: '', name: '', lore: '', clickAction: 'none', clickValue: '' }));
+    gbSlots[11] = { material: 'EMERALD', name: '&aBuy', lore: '&7Purchase option', clickAction: 'command', clickValue: itemCommand };
+    gbSlots[13] = { material: 'CHEST', name: '&eBrowse', lore: '&7Open categories', clickAction: 'none', clickValue: '' };
+    gbSlots[15] = { material: 'BARRIER', name: '&cClose', lore: '&7Exit menu', clickAction: 'close', clickValue: '' };
+    gbSelectedSlot = null;
+    document.getElementById('gb-config-panel').style.display = 'none';
+    gbRenderGrid();
+}
+
 // Global erişim için
 window.initGuiBuilder = initGuiBuilder;
+window.CraftIDEGUIBuilder = {
+    init: initGuiBuilder,
+    applyDesignerSeed: gbApplyDesignerSeed,
+};

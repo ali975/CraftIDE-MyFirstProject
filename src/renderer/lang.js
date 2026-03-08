@@ -284,11 +284,34 @@ class LangManager {
         const mkSearch = document.getElementById('mk-search');
         if (mkSearch) mkSearch.placeholder = this.t('ui.market.search');
         this._setText('.mk-filter-btn[data-mode="all"]', 'ui.market.all');
+        const mkCategoryFilter = document.getElementById('mk-category-filter');
+        if (mkCategoryFilter) {
+            const categoryOptions = Array.from(mkCategoryFilter.options);
+            if (categoryOptions[0]) categoryOptions[0].textContent = this.t('ui.market.category.all');
+            if (categoryOptions[1]) categoryOptions[1].textContent = this.t('ui.market.category.economy');
+            if (categoryOptions[2]) categoryOptions[2].textContent = this.t('ui.market.category.quest');
+            if (categoryOptions[3]) categoryOptions[3].textContent = this.t('ui.market.category.protection');
+            if (categoryOptions[4]) categoryOptions[4].textContent = this.t('ui.market.category.reward');
+            if (categoryOptions[5]) categoryOptions[5].textContent = this.t('ui.market.category.utility');
+        }
         this._setText('#marketplace-container > div:nth-child(2) > div:nth-child(2) > div:nth-child(1)', 'ui.market.publishTitle');
         this._setText('#marketplace-container > div:nth-child(2) > div:nth-child(2) > div:nth-child(2)', 'ui.market.publishHint');
         const mkLabels = document.querySelectorAll('#marketplace-container > div:nth-child(2) > div:nth-child(2) > label');
         if (mkLabels[0]) mkLabels[0].textContent = this.t('ui.market.name');
         if (mkLabels[1]) mkLabels[1].textContent = this.t('ui.market.desc');
+        if (mkLabels[2]) mkLabels[2].textContent = this.t('ui.market.category');
+        if (mkLabels[3]) mkLabels[3].textContent = this.t('ui.market.tags');
+        const mkPublishCategory = document.getElementById('mk-publish-category');
+        if (mkPublishCategory) {
+            const publishOptions = Array.from(mkPublishCategory.options);
+            if (publishOptions[0]) publishOptions[0].textContent = this.t('ui.market.category.economy');
+            if (publishOptions[1]) publishOptions[1].textContent = this.t('ui.market.category.quest');
+            if (publishOptions[2]) publishOptions[2].textContent = this.t('ui.market.category.protection');
+            if (publishOptions[3]) publishOptions[3].textContent = this.t('ui.market.category.reward');
+            if (publishOptions[4]) publishOptions[4].textContent = this.t('ui.market.category.utility');
+        }
+        const mkPublishTags = document.getElementById('mk-publish-tags');
+        if (mkPublishTags) mkPublishTags.placeholder = this.t('ui.market.tagsPlaceholder');
         this._setText('#btn-mk-publish', 'ui.market.publish');
 
         // Recipe Creator

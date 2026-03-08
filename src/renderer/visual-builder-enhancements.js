@@ -1,5 +1,6 @@
 (() => {
     const { ipcRenderer } = require('electron');
+    const CreatorBrief = require('../shared/creator-brief.js');
     const Utils = window.CraftIDEUtils || {};
 
     const PANEL_LEFT = 280;
@@ -376,10 +377,37 @@
         modal.addEventListener('click', (e) => { if (e.target === modal) closeWizard(); });
     }
 
-    function openWizard() {
-        createWizard();
+    function applyWizardSeed(options = {}) {
+        if (!D.wizard) return;
+        const inferred = typeof options.prompt === 'string' && options.prompt.trim()
+            ? CreatorBrief.inferWizardSeed(options.prompt, options.mode || window.CraftIDEVB.getMode())
+            : null;
+        const seed = {
+            ...(inferred || {}),
+            ...(options || {}),
+        };
+
+        const mode = seed.mode || window.CraftIDEVB.getMode();
         const sel = D.wizard.querySelector('#vb-wz-mode');
-        if (sel) sel.value = window.CraftIDEVB.getMode();
+        if (sel) sel.value = mode;
+
+        const triggerSet = new Set(Array.isArray(seed.triggers) && seed.triggers.length ? seed.triggers : ['join']);
+        D.wizard.querySelectorAll('.vb-wizard-step:nth-child(3) input[type="checkbox"]').forEach((input) => {
+            input.checked = triggerSet.has(input.value);
+        });
+
+        const actionSet = new Set(Array.isArray(seed.actions) && seed.actions.length ? seed.actions : ['message']);
+        D.wizard.querySelectorAll('.vb-wizard-step:nth-child(4) input[type="checkbox"]').forEach((input) => {
+            input.checked = actionSet.has(input.value);
+        });
+
+        const cmdInput = D.wizard.querySelector('#vb-wz-command');
+        if (cmdInput) cmdInput.value = seed.command || '/spawn';
+    }
+
+    function openWizard(options = {}) {
+        createWizard();
+        applyWizardSeed(options);
         D.wizard.style.display = 'flex';
     }
 
@@ -389,42 +417,13 @@
 
     async function buildWizardGraph() {
         const mode = D.wizard.querySelector('#vb-wz-mode').value;
-        const cfg = WIZ[mode] || WIZ.plugin;
         const triggers = [...D.wizard.querySelectorAll('.vb-wizard-step:nth-child(3) input[type="checkbox"]:checked')].map((e) => e.value);
         const actions = [...D.wizard.querySelectorAll('.vb-wizard-step:nth-child(4) input[type="checkbox"]:checked')].map((e) => e.value);
         const cmd = String(D.wizard.querySelector('#vb-wz-command').value || '/spawn').trim();
         if (!triggers.length) return notify(t('En az bir tetikleyici secin.', 'Select at least one trigger.'), 'error');
         if (!actions.length) return notify(t('En az bir aksiyon secin.', 'Select at least one action.'), 'error');
 
-        const graph = { version: '2', mode, nodes: [], connections: [] };
-        let id = 1;
-        triggers.forEach((tk, row) => {
-            const triggerBlock = cfg.triggers[tk];
-            if (!triggerBlock) return;
-            const eid = id++;
-            const eNode = { id: eid, blockId: triggerBlock, x: 80, y: 80 + row * 220, params: {} };
-            if (tk === 'command') {
-                const c = cmd.startsWith('/') ? cmd : `/${cmd}`;
-                if (mode === 'plugin') eNode.params.command = c;
-                if (mode === 'skript') eNode.params.komut = c;
-            }
-            graph.nodes.push(eNode);
-
-            let from = eid;
-            if (tk === 'command' && mode === 'plugin' && cfg.cmdFilter) {
-                const cid = id++;
-                graph.nodes.push({ id: cid, blockId: cfg.cmdFilter, x: 320, y: 80 + row * 220, params: { cmd: eNode.params.command || '/spawn' } });
-                graph.connections.push({ from: eid, to: cid });
-                from = cid;
-            }
-            actions.forEach((ak, col) => {
-                const act = cfg.actions[ak];
-                if (!act) return;
-                const aid = id++;
-                graph.nodes.push({ id: aid, blockId: act[0], x: 560 + Math.floor(col / 2) * 220, y: 40 + row * 220 + (col % 2) * 90, params: { ...(act[1] || {}) } });
-                graph.connections.push({ from, to: aid });
-            });
-        });
+        const graph = CreatorBrief.buildGraphFromWizardSeed({ mode, triggers, actions, command: cmd });
 
         // Try existing NL endpoint for better structure; fallback to local graph.
         try {
@@ -476,6 +475,8 @@
             return Object.entries(defs).filter(([id, def]) => matches(def, id, query || '')).map(([id]) => id);
         };
         window.CraftIDEVB.applyFriendlyLabels = () => { applyFriendlyLabels(); renderCards(); renderPreview(); return true; };
+        window.CraftIDEVB.openWizard = (options = {}) => { openWizard(options); return true; };
+        window.CraftIDEVB.inferWizardSeed = (prompt, mode) => CreatorBrief.inferWizardSeed(prompt, mode || window.CraftIDEVB.getMode());
         window.CraftIDEVB.history = { undo, redo };
     }
 

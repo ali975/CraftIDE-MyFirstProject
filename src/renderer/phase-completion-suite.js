@@ -8,6 +8,7 @@
     const fs = require('fs');
     const path = require('path');
     const os = require('os');
+    const CreatorBrief = require('../shared/creator-brief.js');
     const Utils = window.CraftIDEUtils || {};
 
     const U = window.CraftIDEPhaseUtils || {};
@@ -147,6 +148,121 @@
         if (modal) modal.style.display = 'none';
     }
 
+    function applyNpcDesignerSeed(options = {}) {
+        ensureModal();
+        const prompt = String(options.prompt || '').trim();
+        const lower = prompt.toLowerCase();
+        const nameInput = document.getElementById('phase-npc-name');
+        const dialogInput = document.getElementById('phase-npc-dialog');
+        const optionsInput = document.getElementById('phase-npc-options');
+        const name = options.name || (lower.includes('merchant') ? 'Merchant' : lower.includes('quest') ? 'Quest Giver' : 'Guide');
+        const promptDialog = prompt || 'Welcome to our server. Do you need help?';
+        const optionSet = [];
+        if (lower.includes('trade') || lower.includes('shop')) optionSet.push('Trade');
+        if (lower.includes('quest')) optionSet.push('Quest');
+        if (lower.includes('reward')) optionSet.push('Reward');
+        if (!optionSet.length) optionSet.push('Continue', 'Bye');
+        if (nameInput) nameInput.value = name;
+        if (dialogInput) dialogInput.value = options.dialog || promptDialog;
+        if (optionsInput) optionsInput.value = (options.options && options.options.length ? options.options : optionSet).join('|');
+    }
+
+    function applyQuestDesignerSeed(options = {}) {
+        ensureModal();
+        const prompt = String(options.prompt || '').trim();
+        const seed = CreatorBrief.inferQuestSeed(prompt);
+        const nameInput = document.getElementById('phase-quest-name');
+        const npcInput = document.getElementById('phase-quest-npc');
+        const objectiveInput = document.getElementById('phase-quest-objective');
+        const rewardInput = document.getElementById('phase-quest-reward');
+        const commandInput = document.getElementById('phase-quest-command');
+        const promptInput = document.getElementById('phase-quest-prompt');
+
+        if (promptInput) promptInput.value = prompt;
+        if (nameInput) nameInput.value = options.questName || seed.questName || 'Village Quest';
+        if (npcInput) npcInput.value = options.npcName || seed.npcName || 'Guide Luma';
+        if (objectiveInput) objectiveInput.value = options.objective || seed.objective || 'Talk to the guide';
+        if (rewardInput) rewardInput.value = options.reward || seed.reward || 'Starter reward bundle';
+        if (commandInput) commandInput.value = options.command || seed.command || '/quest';
+    }
+
+    function applyRegionDesignerSeed(options = {}) {
+        ensureModal();
+        const prompt = String(options.prompt || '').trim();
+        const seed = CreatorBrief.inferRegionSeed(prompt);
+        const promptInput = document.getElementById('phase-region-prompt');
+        const nameInput = document.getElementById('phase-region-name');
+        const worldInput = document.getElementById('phase-region-world');
+        const modeInput = document.getElementById('phase-region-mode');
+        const messageInput = document.getElementById('phase-region-message');
+
+        if (promptInput) promptInput.value = prompt;
+        if (nameInput) nameInput.value = options.regionName || seed.regionName || 'Spawn Region';
+        if (worldInput) worldInput.value = options.world || seed.world || 'spawn';
+        if (modeInput) modeInput.value = options.mode || seed.mode || 'break';
+        if (messageInput) messageInput.value = options.message || seed.message || '&cYou cannot break blocks in this region.';
+    }
+
+    function applyLootDesignerSeed(options = {}) {
+        ensureModal();
+        const prompt = String(options.prompt || '').trim();
+        const seed = CreatorBrief.inferLootSeed(prompt);
+        const promptInput = document.getElementById('phase-loot-prompt');
+        const nameInput = document.getElementById('phase-loot-name');
+        const triggerInput = document.getElementById('phase-loot-trigger');
+        const commandInput = document.getElementById('phase-loot-command');
+        const materialInput = document.getElementById('phase-loot-material');
+        const amountInput = document.getElementById('phase-loot-amount');
+        const messageInput = document.getElementById('phase-loot-message');
+
+        if (promptInput) promptInput.value = prompt;
+        if (nameInput) nameInput.value = options.rewardName || seed.rewardName || 'Player Reward';
+        if (triggerInput) triggerInput.value = options.trigger || seed.trigger || 'join';
+        if (commandInput) commandInput.value = options.command || seed.command || '/reward';
+        if (materialInput) materialInput.value = options.material || seed.material || 'DIAMOND';
+        if (amountInput) amountInput.value = Number(options.amount || seed.amount || 3);
+        if (messageInput) messageInput.value = options.message || seed.message || '&aReward granted: 3x DIAMOND.';
+    }
+
+    function applyEconomyDesignerSeed(options = {}) {
+        ensureModal();
+        const prompt = String(options.prompt || '').trim();
+        const seed = CreatorBrief.inferEconomySeed(prompt);
+        const offers = CreatorBrief.parseEconomyOffers(options.offersText || '', prompt);
+        const promptInput = document.getElementById('phase-econ-prompt');
+        const commandInput = document.getElementById('phase-econ-command');
+        const titleInput = document.getElementById('phase-econ-title');
+        const itemInput = document.getElementById('phase-econ-item');
+        const priceInput = document.getElementById('phase-econ-price');
+        const amountInput = document.getElementById('phase-econ-amount');
+        const offersInput = document.getElementById('phase-econ-offers');
+        const firstOffer = offers[0] || null;
+
+        if (promptInput) promptInput.value = prompt;
+        if (commandInput) commandInput.value = options.command || seed.command || 'shop';
+        if (titleInput) titleInput.value = options.title || seed.title || 'Server Shop';
+        if (itemInput) itemInput.value = options.item || firstOffer?.material || seed.item || 'DIAMOND';
+        if (priceInput) priceInput.value = Number(options.price || firstOffer?.price || seed.price || 100);
+        if (amountInput) amountInput.value = Number(options.amount || firstOffer?.amount || seed.amount || 1);
+        if (offersInput) offersInput.value = offers.map((offer) => `${offer.material}:${offer.amount}:${offer.price}`).join('\n');
+    }
+
+    function openDesigner(kind, options = {}) {
+        openModal();
+        if (kind === 'npc') {
+            applyNpcDesignerSeed(options);
+        } else if (kind === 'quest') {
+            applyQuestDesignerSeed(options);
+        } else if (kind === 'region' || kind === 'protection') {
+            applyRegionDesignerSeed(options);
+        } else if (kind === 'loot' || kind === 'reward') {
+            applyLootDesignerSeed(options);
+        } else if (kind === 'economy' || kind === 'shop') {
+            applyEconomyDesignerSeed(options);
+        }
+        return true;
+    }
+
     function activeCodeText() {
         if (window.monacoEditor && typeof window.monacoEditor.getValue === 'function') return window.monacoEditor.getValue();
         const filePath = window.CraftIDEAppState?.getCurrentFilePath?.();
@@ -244,6 +360,248 @@
         };
         applyGraph(graph);
         notify('HUD designer generated code and a preview flow.', 'success');
+    }
+
+    function runEconomyDesigner() {
+        const prompt = String(document.getElementById('phase-econ-prompt')?.value || '').trim();
+        const fallbackSeed = CreatorBrief.inferEconomySeed(prompt);
+        const offers = CreatorBrief.parseEconomyOffers(document.getElementById('phase-econ-offers')?.value || '', prompt);
+        const primaryOffer = offers[0] || { material: fallbackSeed.item || fallbackSeed.itemMaterial || 'DIAMOND', amount: 1, price: 100 };
+        const command = String(document.getElementById('phase-econ-command')?.value || fallbackSeed.command || 'shop').trim().replace(/^\//, '') || 'shop';
+        const title = String(document.getElementById('phase-econ-title')?.value || fallbackSeed.title || 'Server Shop').trim() || 'Server Shop';
+        const item = String(document.getElementById('phase-econ-item')?.value || primaryOffer.material || fallbackSeed.item || fallbackSeed.itemMaterial || 'DIAMOND').trim() || 'DIAMOND';
+        const price = Number(document.getElementById('phase-econ-price')?.value || primaryOffer.price || fallbackSeed.price || 100) || 100;
+        const amount = Number(document.getElementById('phase-econ-amount')?.value || primaryOffer.amount || fallbackSeed.amount || 1) || 1;
+        const slashCommand = `/${command}`;
+        const inventoryName = `${command}Inv`;
+
+        const graph = {
+            version: '2',
+            mode: 'plugin',
+            nodes: [
+                { id: 1, blockId: 'PlayerCommand', x: 80, y: 120, params: {} },
+                { id: 2, blockId: 'CommandEquals', x: 280, y: 120, params: { cmd: slashCommand } },
+                { id: 3, blockId: 'CreateGUI', x: 500, y: 80, params: { baslik: title, satir: '3' } },
+                { id: 4, blockId: 'OpenGUI', x: 500, y: 190, params: { envanter: inventoryName } },
+                { id: 5, blockId: 'GetBalance', x: 720, y: 80, params: { hedef: 'player' } },
+                { id: 6, blockId: 'TakeMoney', x: 920, y: 80, params: { miktar: String(price) } },
+                { id: 7, blockId: 'GiveItem', x: 1120, y: 80, params: { material: item, adet: String(amount) } },
+                { id: 8, blockId: 'SendMessage', x: 1320, y: 80, params: { mesaj: `&aPurchased ${amount}x ${item} for ${price} coins.` } },
+            ],
+            connections: [{ from: 1, to: 2 }, { from: 2, to: 3 }, { from: 2, to: 4 }, { from: 4, to: 5 }, { from: 5, to: 6 }, { from: 6, to: 7 }, { from: 7, to: 8 }],
+        };
+        applyGraph(graph);
+
+        const yaml = [
+            `shop-command: ${slashCommand}`,
+            `shop-title: "${title.replace(/"/g, '\\"')}"`,
+            `insufficient-funds-message: "${`You need ${price} coins to buy this offer.`.replace(/"/g, '\\"')}"`,
+            'offers:',
+            ...offers.flatMap((offer) => [
+                `  ${offer.id}:`,
+                `    material: ${offer.material}`,
+                `    amount: ${offer.amount}`,
+                `    price: ${offer.price}`,
+            ]),
+        ].join('\n');
+
+        const java = [
+            'package generated.economy;',
+            '',
+            'public final class EconomyShopSpec {',
+            `    public static final String COMMAND = "${slashCommand.replace(/"/g, '\\"')}";`,
+            `    public static final String TITLE = "${title.replace(/"/g, '\\"')}";`,
+            `    public static final String MATERIAL = "${item.replace(/"/g, '\\"')}";`,
+            `    public static final int AMOUNT = ${amount};`,
+            `    public static final int PRICE = ${price};`,
+            `    public static final String INSUFFICIENT_FUNDS = "${`You need ${price} coins to buy this offer.`.replace(/"/g, '\\"')}";`,
+            `    public static final String[][] OFFERS = new String[][] { ${offers.map((offer) => `{ "${offer.id}", "${offer.material}", "${offer.amount}", "${offer.price}" }`).join(', ')} };`,
+            '',
+            '    private EconomyShopSpec() {}',
+            '}',
+            '',
+        ].join('\n');
+
+        openGeneratedTab('economy-shop.yml', yaml, 'yaml');
+        openGeneratedTab('EconomyShopSpec.java', java, 'java');
+        notify(`Economy designer generated ${offers.length} shop offer(s) and starter files.`, 'success');
+    }
+
+    function runQuestDesigner() {
+        const prompt = String(document.getElementById('phase-quest-prompt')?.value || '').trim();
+        const seed = CreatorBrief.inferQuestSeed(prompt);
+        const questName = String(document.getElementById('phase-quest-name')?.value || seed.questName || 'Village Quest').trim() || 'Village Quest';
+        const npcName = String(document.getElementById('phase-quest-npc')?.value || seed.npcName || 'Guide Luma').trim() || 'Guide Luma';
+        const objective = String(document.getElementById('phase-quest-objective')?.value || seed.objective || 'Talk to the guide').trim() || 'Talk to the guide';
+        const reward = String(document.getElementById('phase-quest-reward')?.value || seed.reward || 'Starter reward bundle').trim() || 'Starter reward bundle';
+        const command = String(document.getElementById('phase-quest-command')?.value || seed.command || '/quest').trim() || '/quest';
+        const normalizedCommand = command.startsWith('/') ? command : `/${command}`;
+        const rewardCoins = /coin|money|credit/i.test(reward) ? Math.max(1, Number((reward.match(/\d+/) || [250])[0])) : 0;
+        const rewardMaterial = /emerald/i.test(reward) ? 'EMERALD' : /diamond/i.test(reward) ? 'DIAMOND' : 'BOOK';
+        const rewardAmount = Math.max(1, Number((reward.match(/\d+/) || [rewardCoins ? 1 : 1])[0]));
+
+        const graph = {
+            version: '2',
+            mode: 'plugin',
+            nodes: [
+                { id: 1, blockId: 'PlayerCommand', x: 80, y: 120, params: {} },
+                { id: 2, blockId: 'CommandEquals', x: 280, y: 120, params: { cmd: normalizedCommand } },
+                { id: 3, blockId: 'SendMessage', x: 520, y: 70, params: { mesaj: `&e${npcName}: ${objective}` } },
+                rewardCoins
+                    ? { id: 4, blockId: 'GiveMoney', x: 760, y: 70, params: { miktar: String(rewardCoins) } }
+                    : { id: 4, blockId: 'GiveItem', x: 760, y: 70, params: { material: rewardMaterial, adet: String(rewardAmount) } },
+                { id: 5, blockId: 'SendMessage', x: 1000, y: 70, params: { mesaj: `&aQuest reward claimed: ${reward}.` } },
+                { id: 6, blockId: 'Broadcast', x: 520, y: 200, params: { mesaj: `&6${questName} is now available from ${npcName}.` } },
+            ],
+            connections: [{ from: 1, to: 2 }, { from: 2, to: 3 }, { from: 2, to: 6 }, { from: 3, to: 4 }, { from: 4, to: 5 }],
+        };
+        applyGraph(graph);
+
+        const yaml = [
+            `quest: ${questName}`,
+            `command: ${normalizedCommand}`,
+            `npc: ${npcName}`,
+            `objective: "${objective.replace(/"/g, '\\"')}"`,
+            `reward: "${reward.replace(/"/g, '\\"')}"`,
+            'steps:',
+            `  - "Talk to ${npcName}"`,
+            `  - "${objective.replace(/"/g, '\\"')}"`,
+            `  - "Claim ${reward.replace(/"/g, '\\"')}"`,
+        ].join('\n');
+
+        const java = [
+            'package generated.quest;',
+            '',
+            'public final class QuestSpec {',
+            `    public static final String COMMAND = "${normalizedCommand.replace(/"/g, '\\"')}";`,
+            `    public static final String QUEST_NAME = "${questName.replace(/"/g, '\\"')}";`,
+            `    public static final String NPC_NAME = "${npcName.replace(/"/g, '\\"')}";`,
+            `    public static final String OBJECTIVE = "${objective.replace(/"/g, '\\"')}";`,
+            `    public static final String REWARD = "${reward.replace(/"/g, '\\"')}";`,
+            '',
+            '    private QuestSpec() {}',
+            '}',
+            '',
+        ].join('\n');
+
+        openGeneratedTab('quest-spec.yml', yaml, 'yaml');
+        openGeneratedTab('QuestSpec.java', java, 'java');
+        notify('Quest designer generated a guided quest flow and starter files.', 'success');
+    }
+
+    function runRegionDesigner() {
+        const prompt = String(document.getElementById('phase-region-prompt')?.value || '').trim();
+        const seed = CreatorBrief.inferRegionSeed(prompt);
+        const regionName = String(document.getElementById('phase-region-name')?.value || seed.regionName || 'Spawn Region').trim() || 'Spawn Region';
+        const world = String(document.getElementById('phase-region-world')?.value || seed.world || 'spawn').trim() || 'spawn';
+        const mode = String(document.getElementById('phase-region-mode')?.value || seed.mode || 'break').trim() || 'break';
+        const message = String(document.getElementById('phase-region-message')?.value || seed.message || '&cYou cannot break blocks in this region.').trim() || '&cYou cannot break blocks in this region.';
+        const eventBlock = mode === 'place' ? 'BlockPlace' : mode === 'pvp' ? 'EntityDamage' : 'BlockBreak';
+
+        const graph = {
+            version: '2',
+            mode: 'plugin',
+            nodes: [
+                { id: 1, blockId: eventBlock, x: 80, y: 120, params: {} },
+                { id: 2, blockId: 'IsInWorld', x: 320, y: 120, params: { world } },
+                { id: 3, blockId: 'CancelEvent', x: 560, y: 80, params: {} },
+                { id: 4, blockId: 'SendMessage', x: 560, y: 200, params: { mesaj: message } },
+            ],
+            connections: [{ from: 1, to: 2 }, { from: 2, to: 3 }, { from: 2, to: 4 }],
+        };
+        applyGraph(graph);
+
+        const yaml = [
+            `region: ${regionName}`,
+            `world: ${world}`,
+            `mode: ${mode}`,
+            `deny-message: "${message.replace(/"/g, '\\"')}"`,
+            'flags:',
+            `  block-break: ${mode === 'break' ? 'deny' : 'allow'}`,
+            `  block-place: ${mode === 'place' ? 'deny' : 'allow'}`,
+            `  pvp: ${mode === 'pvp' ? 'deny' : 'allow'}`,
+        ].join('\n');
+
+        const java = [
+            'package generated.region;',
+            '',
+            'public final class RegionProtectionSpec {',
+            `    public static final String REGION_NAME = "${regionName.replace(/"/g, '\\"')}";`,
+            `    public static final String WORLD = "${world.replace(/"/g, '\\"')}";`,
+            `    public static final String MODE = "${mode.replace(/"/g, '\\"')}";`,
+            `    public static final String DENY_MESSAGE = "${message.replace(/"/g, '\\"')}";`,
+            '',
+            '    private RegionProtectionSpec() {}',
+            '}',
+            '',
+        ].join('\n');
+
+        openGeneratedTab('region-protection.yml', yaml, 'yaml');
+        openGeneratedTab('RegionProtectionSpec.java', java, 'java');
+        notify('Region designer generated a protection flow and starter files.', 'success');
+    }
+
+    function runLootDesigner() {
+        const prompt = String(document.getElementById('phase-loot-prompt')?.value || '').trim();
+        const seed = CreatorBrief.inferLootSeed(prompt);
+        const rewardName = String(document.getElementById('phase-loot-name')?.value || seed.rewardName || 'Player Reward').trim() || 'Player Reward';
+        const trigger = String(document.getElementById('phase-loot-trigger')?.value || seed.trigger || 'join').trim() || 'join';
+        const command = String(document.getElementById('phase-loot-command')?.value || seed.command || '/reward').trim() || '/reward';
+        const material = String(document.getElementById('phase-loot-material')?.value || seed.material || 'DIAMOND').trim() || 'DIAMOND';
+        const amount = Number(document.getElementById('phase-loot-amount')?.value || seed.amount || 3) || 3;
+        const message = String(document.getElementById('phase-loot-message')?.value || seed.message || `&aReward granted: ${amount}x ${material}.`).trim() || `&aReward granted: ${amount}x ${material}.`;
+        const normalizedCommand = command.startsWith('/') ? command : `/${command}`;
+        const eventBlock = trigger === 'death' ? 'PlayerDeath' : trigger === 'command' ? 'PlayerCommand' : 'PlayerJoin';
+
+        const nodes = [
+            { id: 1, blockId: eventBlock, x: 80, y: 120, params: trigger === 'command' ? { command: normalizedCommand } : {} },
+        ];
+        const connections = [];
+        let from = 1;
+
+        if (trigger === 'command') {
+            nodes.push({ id: 2, blockId: 'CommandEquals', x: 300, y: 120, params: { cmd: normalizedCommand } });
+            connections.push({ from: 1, to: 2 });
+            from = 2;
+        }
+
+        const rewardId = trigger === 'command' ? 3 : 2;
+        const messageId = rewardId + 1;
+        nodes.push({ id: rewardId, blockId: 'GiveItem', x: 540, y: 80, params: { material, adet: String(amount) } });
+        nodes.push({ id: messageId, blockId: 'SendMessage', x: 540, y: 210, params: { mesaj: message } });
+        connections.push({ from, to: rewardId }, { from, to: messageId });
+
+        const graph = { version: '2', mode: 'plugin', nodes, connections };
+        applyGraph(graph);
+
+        const yaml = [
+            `reward: ${rewardName}`,
+            `trigger: ${trigger}`,
+            `command: ${normalizedCommand}`,
+            `material: ${material}`,
+            `amount: ${amount}`,
+            `message: "${message.replace(/"/g, '\\"')}"`,
+        ].join('\n');
+
+        const java = [
+            'package generated.loot;',
+            '',
+            'public final class LootRewardSpec {',
+            `    public static final String REWARD_NAME = "${rewardName.replace(/"/g, '\\"')}";`,
+            `    public static final String TRIGGER = "${trigger.replace(/"/g, '\\"')}";`,
+            `    public static final String COMMAND = "${normalizedCommand.replace(/"/g, '\\"')}";`,
+            `    public static final String MATERIAL = "${material.replace(/"/g, '\\"')}";`,
+            `    public static final int AMOUNT = ${amount};`,
+            `    public static final String MESSAGE = "${message.replace(/"/g, '\\"')}";`,
+            '',
+            '    private LootRewardSpec() {}',
+            '}',
+            '',
+        ].join('\n');
+
+        openGeneratedTab('loot-reward.yml', yaml, 'yaml');
+        openGeneratedTab('LootRewardSpec.java', java, 'java');
+        notify('Loot designer generated a reward flow and starter files.', 'success');
     }
 
     function runNpcDesigner() {
@@ -1000,6 +1358,65 @@
                         </div>
 
                         <div class="phase-card">
+                            <strong>C3 Economy Designer</strong>
+                            <textarea id="phase-econ-prompt" class="phase-txt" placeholder="Players can open /shop and buy 16 golden apples for 250 coins."></textarea>
+                            <div class="phase-inline">
+                                <input id="phase-econ-command" class="phase-inp" value="shop" placeholder="shop">
+                                <input id="phase-econ-title" class="phase-inp" value="Server Shop" placeholder="Server Shop">
+                            </div>
+                            <div class="phase-inline">
+                                <input id="phase-econ-item" class="phase-inp" value="DIAMOND" placeholder="DIAMOND">
+                                <input id="phase-econ-price" class="phase-inp" type="number" min="1" value="100" placeholder="100">
+                                <input id="phase-econ-amount" class="phase-inp" type="number" min="1" value="1" placeholder="1">
+                            </div>
+                            <textarea id="phase-econ-offers" class="phase-txt" placeholder="EMERALD:1:250&#10;GOLDEN_APPLE:16:500&#10;DIAMOND_SWORD:1:1200"></textarea>
+                            <button class="phase-btn" id="phase-run-econ">Generate Economy Flow</button>
+                        </div>
+
+                        <div class="phase-card">
+                            <strong>C7 Quest Designer</strong>
+                            <textarea id="phase-quest-prompt" class="phase-txt" placeholder="Create a daily quest where players collect wheat and claim 250 coins from /quest."></textarea>
+                            <div class="phase-inline">
+                                <input id="phase-quest-name" class="phase-inp" value="Village Quest" placeholder="Village Quest">
+                                <input id="phase-quest-command" class="phase-inp" value="/quest" placeholder="/quest">
+                            </div>
+                            <input id="phase-quest-npc" class="phase-inp" value="Guide Luma" placeholder="Guide Luma">
+                            <input id="phase-quest-objective" class="phase-inp" value="Talk to the guide" placeholder="Collect 10 wheat">
+                            <input id="phase-quest-reward" class="phase-inp" value="250 coins" placeholder="250 coins">
+                            <button class="phase-btn" id="phase-run-quest">Generate Quest Flow</button>
+                        </div>
+
+                        <div class="phase-card">
+                            <strong>C8 Region Designer</strong>
+                            <textarea id="phase-region-prompt" class="phase-txt" placeholder="Protect the spawn region so players cannot break blocks or pvp there."></textarea>
+                            <div class="phase-inline">
+                                <input id="phase-region-name" class="phase-inp" value="Spawn Region" placeholder="Spawn Region">
+                                <input id="phase-region-world" class="phase-inp" value="spawn" placeholder="spawn">
+                            </div>
+                            <div class="phase-inline">
+                                <select id="phase-region-mode" class="phase-sel"><option value="break">Block Break</option><option value="place">Block Place</option><option value="pvp">PvP</option></select>
+                                <input id="phase-region-message" class="phase-inp" value="&cYou cannot break blocks in this region." placeholder="&cYou cannot break blocks in this region.">
+                            </div>
+                            <button class="phase-btn" id="phase-run-region">Generate Region Flow</button>
+                        </div>
+
+                        <div class="phase-card">
+                            <strong>C9 Loot Designer</strong>
+                            <textarea id="phase-loot-prompt" class="phase-txt" placeholder="Create a boss loot reward that drops 5 diamonds on death."></textarea>
+                            <div class="phase-inline">
+                                <input id="phase-loot-name" class="phase-inp" value="Player Reward" placeholder="Player Reward">
+                                <select id="phase-loot-trigger" class="phase-sel"><option value="join">Player Join</option><option value="command">Command</option><option value="death">Player Death</option></select>
+                            </div>
+                            <div class="phase-inline">
+                                <input id="phase-loot-command" class="phase-inp" value="/reward" placeholder="/reward">
+                                <input id="phase-loot-material" class="phase-inp" value="DIAMOND" placeholder="DIAMOND">
+                                <input id="phase-loot-amount" class="phase-inp" type="number" min="1" value="3" placeholder="3">
+                            </div>
+                            <input id="phase-loot-message" class="phase-inp" value="&aReward granted: 3x DIAMOND." placeholder="&aReward granted: 3x DIAMOND.">
+                            <button class="phase-btn" id="phase-run-loot">Generate Loot Flow</button>
+                        </div>
+
+                        <div class="phase-card">
                             <strong>C6 Particle Designer</strong>
                             <div class="phase-inline">
                                 <select id="phase-particle-type" class="phase-sel"><option>flame</option><option>heart</option><option>smoke</option><option>cloud</option></select>
@@ -1119,6 +1536,10 @@
         document.getElementById('phase-run-mob')?.addEventListener('click', runMobDesigner);
         document.getElementById('phase-run-hud')?.addEventListener('click', runHudDesigner);
         document.getElementById('phase-run-npc')?.addEventListener('click', runNpcDesigner);
+        document.getElementById('phase-run-econ')?.addEventListener('click', runEconomyDesigner);
+        document.getElementById('phase-run-quest')?.addEventListener('click', runQuestDesigner);
+        document.getElementById('phase-run-region')?.addEventListener('click', runRegionDesigner);
+        document.getElementById('phase-run-loot')?.addEventListener('click', runLootDesigner);
         document.getElementById('phase-particle-preview')?.addEventListener('click', drawParticlePreview);
         document.getElementById('phase-particle-apply')?.addEventListener('click', runParticleApply);
         document.getElementById('phase-run-sim')?.addEventListener('click', runSimulation);
@@ -1215,6 +1636,7 @@
         window.CraftIDEPhaseSuite = {
             open: openModal,
             close: closeModal,
+            openDesigner,
             expandTemplates: ensureTemplateExpansion,
             runSimulation,
             runCompatibilityCheck,

@@ -243,6 +243,99 @@
                             <p class="welcome-subtitle" data-i18n="ui.welcome.subtitle">Minecraft Development Studio</p>
                         </div>
 
+                        <div class="welcome-idea-panel">
+                            <div class="welcome-idea-copy">
+                                <span class="welcome-idea-kicker" data-i18n="ui.welcome.idea.kicker">Describe your idea</span>
+                                <h2 class="welcome-idea-title" data-i18n="ui.welcome.idea.title">Turn a Minecraft idea into a working project flow</h2>
+                                <p class="welcome-idea-desc" data-i18n="ui.welcome.idea.desc">Write what you want to build, choose the target mode, and jump straight into the visual builder with AI-assisted setup.</p>
+                            </div>
+                            <div class="welcome-idea-controls">
+                                <label class="welcome-idea-label" for="welcome-idea-input" data-i18n="ui.welcome.idea.label">Project idea</label>
+                                <textarea id="welcome-idea-input" class="welcome-idea-input" rows="4" data-i18n-placeholder="ui.welcome.idea.placeholder" placeholder="Example: when players join, give them a starter kit and show a title"></textarea>
+                                <div class="welcome-idea-actions">
+                                    <div class="welcome-idea-mode-wrap">
+                                        <label class="welcome-idea-mode-label" for="welcome-idea-mode" data-i18n="ui.welcome.idea.mode">Target mode</label>
+                                        <select id="welcome-idea-mode" class="welcome-idea-mode">
+                                            <option value="plugin" data-i18n="ui.welcome.idea.mode.plugin">Paper / Plugin</option>
+                                            <option value="fabric" data-i18n="ui.welcome.idea.mode.fabric">Fabric</option>
+                                            <option value="forge" data-i18n="ui.welcome.idea.mode.forge">Forge</option>
+                                            <option value="skript" data-i18n="ui.welcome.idea.mode.skript">Skript</option>
+                                        </select>
+                                    </div>
+                                    <div class="welcome-idea-buttons">
+                                        <button id="btn-welcome-idea-start" class="btn-primary welcome-idea-primary" data-i18n="ui.welcome.idea.start">Start with AI Flow</button>
+                                        <button id="btn-welcome-idea-builder" class="btn-secondary welcome-idea-secondary" data-i18n="ui.welcome.idea.builder">Open Visual Builder</button>
+                                    </div>
+                                </div>
+                                <div class="welcome-idea-examples">
+                                    <span class="welcome-idea-examples-label" data-i18n="ui.welcome.idea.examples">Quick ideas</span>
+                                    <div class="welcome-idea-chip-row">
+                                        <button class="welcome-idea-chip" data-mode="plugin" data-seed="Players can use /spawn to teleport to spawn after a short delay." data-i18n="ui.welcome.idea.example.spawn">Spawn command with delay</button>
+                                        <button class="welcome-idea-chip" data-mode="plugin" data-seed="When players join, give them starter items and show a welcome title." data-i18n="ui.welcome.idea.example.welcome">Starter kit on join</button>
+                                        <button class="welcome-idea-chip" data-mode="skript" data-seed="Create a Skript command that opens a simple server menu." data-i18n="ui.welcome.idea.example.menu">Simple server menu</button>
+                                    </div>
+                                </div>
+                                <div class="welcome-idea-preview" id="welcome-idea-preview">
+                                    <div class="welcome-idea-preview-header">
+                                        <span class="welcome-idea-preview-title" data-i18n="ui.welcome.idea.previewTitle">Flow preview</span>
+                                        <span class="welcome-idea-preview-badge" id="welcome-idea-preview-badge" data-i18n="ui.welcome.idea.previewBadge">Draft</span>
+                                    </div>
+                                    <div class="welcome-idea-preview-grid">
+                                        <div class="welcome-idea-preview-card">
+                                            <div class="welcome-idea-preview-card-title" data-i18n="ui.welcome.idea.summaryTitle">What it will build</div>
+                                            <div class="welcome-idea-preview-card-body" id="welcome-idea-summary">Describe an idea to see a creator-friendly summary.</div>
+                                        </div>
+                                        <div class="welcome-idea-preview-card">
+                                            <div class="welcome-idea-preview-card-title" data-i18n="ui.welcome.idea.actionsTitle">Expected flow</div>
+                                            <div class="welcome-idea-preview-card-body" id="welcome-idea-actions">The app will turn your request into a visual graph, suggest missing blocks, and open the right builder flow.</div>
+                                        </div>
+                                        <div class="welcome-idea-preview-card">
+                                            <div class="welcome-idea-preview-card-title" data-i18n="ui.welcome.idea.nextTitle">Next step</div>
+                                            <div class="welcome-idea-preview-card-body" id="welcome-idea-next">Start with AI Flow to open the one-step builder with your idea prefilled.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="welcome-creator-paths">
+                                    <div class="welcome-creator-paths-header">
+                                        <span class="welcome-creator-paths-title" data-i18n="ui.welcome.paths.title">Recommended creator paths</span>
+                                        <span class="welcome-creator-paths-sub" id="welcome-creator-paths-sub" data-i18n="ui.welcome.paths.subtitle">CraftIDE can route this idea into the most useful designer.</span>
+                                    </div>
+                                    <div class="welcome-creator-path-row">
+                                        <button class="welcome-creator-path" id="welcome-path-command" data-path="command" type="button">
+                                            <span class="welcome-creator-path-badge" data-i18n="ui.welcome.paths.badge">Recommended</span>
+                                            <span class="welcome-creator-path-title">Command Designer</span>
+                                            <span class="welcome-creator-path-desc">Shape a command flow with subcommands and arguments.</span>
+                                        </button>
+                                        <button class="welcome-creator-path" id="welcome-path-shop" data-path="shop" type="button">
+                                            <span class="welcome-creator-path-badge" data-i18n="ui.welcome.paths.badge">Recommended</span>
+                                            <span class="welcome-creator-path-title">GUI Shop</span>
+                                            <span class="welcome-creator-path-desc">Start a chest menu for shop or server navigation flows.</span>
+                                        </button>
+                                        <button class="welcome-creator-path" id="welcome-path-quest" data-path="quest" type="button">
+                                            <span class="welcome-creator-path-badge" data-i18n="ui.welcome.paths.badge">Recommended</span>
+                                            <span class="welcome-creator-path-title">Quest Designer</span>
+                                            <span class="welcome-creator-path-desc">Create guided missions with objectives, rewards and claim flows.</span>
+                                        </button>
+                                        <button class="welcome-creator-path" id="welcome-path-region" data-path="region" type="button">
+                                            <span class="welcome-creator-path-badge" data-i18n="ui.welcome.paths.badge">Recommended</span>
+                                            <span class="welcome-creator-path-title">Region Designer</span>
+                                            <span class="welcome-creator-path-desc">Protect spawn, claims and PvP zones with guided flags.</span>
+                                        </button>
+                                        <button class="welcome-creator-path" id="welcome-path-loot" data-path="loot" type="button">
+                                            <span class="welcome-creator-path-badge" data-i18n="ui.welcome.paths.badge">Recommended</span>
+                                            <span class="welcome-creator-path-title">Loot Designer</span>
+                                            <span class="welcome-creator-path-desc">Create loot drops, starter rewards and crate-style giveaways.</span>
+                                        </button>
+                                        <button class="welcome-creator-path" id="welcome-path-npc" data-path="npc" type="button">
+                                            <span class="welcome-creator-path-badge" data-i18n="ui.welcome.paths.badge">Recommended</span>
+                                            <span class="welcome-creator-path-title">NPC Dialogue</span>
+                                            <span class="welcome-creator-path-desc">Generate dialogue files and option branches for guide NPCs.</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Two Column Layout -->
                         <div class="welcome-columns">
                             <!-- Left Column: Start + Recent -->
@@ -603,6 +696,15 @@
                         <button class="mk-filter-btn vb-toolbar-btn" data-mode="plugin">Plugin</button>
                         <button class="mk-filter-btn vb-toolbar-btn" data-mode="fabric">Fabric</button>
                         <button class="mk-filter-btn vb-toolbar-btn" data-mode="skript">Skript</button>
+                        <select id="mk-category-filter"
+                            style="padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;min-width:140px;">
+                            <option value="all">All categories</option>
+                            <option value="economy">Economy</option>
+                            <option value="quest">Quest</option>
+                            <option value="protection">Protection</option>
+                            <option value="reward">Reward</option>
+                            <option value="utility">Utility</option>
+                        </select>
                     </div>
                     <div style="display:flex;flex:1;overflow:hidden;">
                         <!-- Blueprint list -->
@@ -621,6 +723,18 @@
                             <label style="font-size:11px;color:var(--text-secondary);">Description</label>
                             <textarea id="mk-publish-desc" rows="3" placeholder="What does it do?"
                                 style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;resize:vertical;"></textarea>
+                            <label style="font-size:11px;color:var(--text-secondary);">Category</label>
+                            <select id="mk-publish-category"
+                                style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;">
+                                <option value="economy">Economy</option>
+                                <option value="quest">Quest</option>
+                                <option value="protection">Protection</option>
+                                <option value="reward">Reward</option>
+                                <option value="utility" selected>Utility</option>
+                            </select>
+                            <label style="font-size:11px;color:var(--text-secondary);">Tags</label>
+                            <input id="mk-publish-tags" type="text" placeholder="shop, starter, daily"
+                                style="padding:5px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;">
                             <button id="btn-mk-publish"
                                 style="padding:8px;background:#2ecc71;border:none;border-radius:4px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;margin-top:4px;">&#8593;
                                 Publish</button>

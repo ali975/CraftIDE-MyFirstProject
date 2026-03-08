@@ -6,6 +6,7 @@
 let mkInitialized = false;
 let mkBlueprints = [];
 let mkFilterMode = 'all';
+let mkFilterCategory = 'all';
 let mkSearchTerm = '';
 
 function mkTr(key, fallback, params) {
@@ -26,6 +27,66 @@ function mkModeLabel(mode) {
     return mkTr(key, fallback);
 }
 
+function mkCategoryLabel(category) {
+    const normalized = String(category || 'utility').toLowerCase();
+    const labels = {
+        all: ['ui.market.category.all', 'All categories'],
+        economy: ['ui.market.category.economy', 'Economy'],
+        quest: ['ui.market.category.quest', 'Quest'],
+        protection: ['ui.market.category.protection', 'Protection'],
+        reward: ['ui.market.category.reward', 'Reward'],
+        utility: ['ui.market.category.utility', 'Utility'],
+    };
+    const [key, fallback] = labels[normalized] || ['ui.market.category.utility', normalized];
+    return mkTr(key, fallback);
+}
+
+function mkInferCategory(bp) {
+    const nodes = Array.isArray(bp?.nodes) ? bp.nodes : [];
+    const ids = nodes.map((node) => String(node?.blockId || ''));
+    if (ids.some((id) => /GiveMoney|TakeMoney|GetBalance|CreateGUI|OpenGUI/.test(id))) return 'economy';
+    if (ids.some((id) => /PlayerDeath|GiveItem/.test(id)) && /reward|loot|crate/i.test(`${bp?.name || ''} ${bp?.description || ''}`)) return 'reward';
+    if (ids.some((id) => /BlockBreak|BlockPlace|IsInWorld|CancelEvent|EntityDamage/.test(id))) return 'protection';
+    if (/quest|objective|mission/i.test(`${bp?.name || ''} ${bp?.description || ''}`)) return 'quest';
+    return 'utility';
+}
+
+function mkNormalizeBlueprint(bp) {
+    const normalized = bp && typeof bp === 'object' ? { ...bp } : {};
+    normalized.category = String(normalized.category || mkInferCategory(normalized)).toLowerCase();
+    normalized.packType = normalized.packType || 'solution-pack';
+    normalized.tags = Array.isArray(normalized.tags)
+        ? normalized.tags.map((tag) => String(tag || '').trim()).filter(Boolean)
+        : String(normalized.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean);
+    normalized.name = String(normalized.name || mkTr('ui.market.untitledPack', 'Untitled Pack'));
+    normalized.description = String(normalized.description || '');
+    normalized.mode = String(normalized.mode || 'plugin').toLowerCase();
+    normalized.author = String(normalized.author || mkTr('ui.market.anonymous', 'Anonymous'));
+    normalized.created = String(normalized.created || '');
+    normalized.nodes = Array.isArray(normalized.nodes) ? normalized.nodes : [];
+    normalized.connections = Array.isArray(normalized.connections) ? normalized.connections : [];
+    return normalized;
+}
+
+function mkFilterBlueprints(blueprints, options = {}) {
+    const mode = String(options.mode || 'all').toLowerCase();
+    const category = String(options.category || 'all').toLowerCase();
+    const searchTerm = String(options.searchTerm || '').toLowerCase();
+
+    return (Array.isArray(blueprints) ? blueprints : [])
+        .map(mkNormalizeBlueprint)
+        .filter((bp) => {
+            if (mode !== 'all' && bp.mode !== mode) return false;
+            if (category !== 'all' && bp.category !== category) return false;
+            if (searchTerm) {
+                const haystack = [bp.name, bp.description, bp.category, ...(bp.tags || [])].join(' ').toLowerCase();
+                if (!haystack.includes(searchTerm)) return false;
+            }
+            return true;
+        })
+        .sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')));
+}
+
 function initMarketplace() {
     if (mkInitialized) { mkLoadAndRender(); return; }
     mkInitialized = true;
@@ -33,6 +94,12 @@ function initMarketplace() {
     // Arama
     const searchInput = document.getElementById('mk-search');
     if (searchInput) searchInput.addEventListener('input', (e) => { mkSearchTerm = e.target.value.toLowerCase(); mkRenderList(); });
+
+    const categorySelect = document.getElementById('mk-category-filter');
+    if (categorySelect) categorySelect.addEventListener('change', (e) => {
+        mkFilterCategory = String(e.target.value || 'all');
+        mkRenderList();
+    });
 
     // Filtre butonları
     document.querySelectorAll('.mk-filter-btn').forEach(btn => {
@@ -54,7 +121,7 @@ function initMarketplace() {
 async function mkLoadAndRender() {
     try {
         const result = await ipcRenderer.invoke('marketplace:getList');
-        mkBlueprints = Array.isArray(result) ? result : [];
+        mkBlueprints = Array.isArray(result) ? result.map(mkNormalizeBlueprint) : [];
     } catch (e) {
         mkBlueprints = [];
     }
@@ -66,10 +133,10 @@ function mkRenderList() {
     if (!container) return;
     container.innerHTML = '';
 
-    let filtered = mkBlueprints.filter(bp => {
-        if (mkFilterMode !== 'all' && bp.mode !== mkFilterMode) return false;
-        if (mkSearchTerm && !bp.name.toLowerCase().includes(mkSearchTerm) && !((bp.description || '').toLowerCase().includes(mkSearchTerm))) return false;
-        return true;
+    const filtered = mkFilterBlueprints(mkBlueprints, {
+        mode: mkFilterMode,
+        category: mkFilterCategory,
+        searchTerm: mkSearchTerm,
     });
 
     if (filtered.length === 0) {
@@ -92,9 +159,14 @@ function mkRenderList() {
                 <span class="mk-card-title">${_mkEscape(bp.name)}</span>
                 <span class="mk-mode-badge" style="background:${modeColor}20;color:${modeColor};border:1px solid ${modeColor}40;">${_mkEscape(mkModeLabel(bp.mode))}</span>
             </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                <span class="mk-mode-badge" style="background:rgba(56,189,248,0.14);color:#7dd3fc;border:1px solid rgba(125,211,252,0.35);">${_mkEscape(mkTr('ui.market.solutionPack', 'Solution Pack'))}</span>
+                <span class="mk-mode-badge" style="background:rgba(110,231,183,0.12);color:#6ee7b7;border:1px solid rgba(110,231,183,0.35);">${_mkEscape(mkCategoryLabel(bp.category))}</span>
+            </div>
             <div class="mk-card-desc">${_mkEscape(bp.description || mkTr('ui.market.noDesc', 'No description'))}</div>
+            ${(bp.tags || []).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${bp.tags.map((tag) => `<span class="mk-mode-badge" style="background:rgba(255,255,255,0.04);color:var(--text-secondary);border:1px solid var(--border-color);">#${_mkEscape(tag)}</span>`).join('')}</div>` : ''}
             <div class="mk-card-footer">
-                <span style="font-size:10px;color:var(--text-muted);">${bp.author || mkTr('ui.market.anonymous', 'Anonymous')} | ${bp.created || ''} | ${(bp.nodes || []).length} ${mkTr('ui.market.blocks', 'blocks')}</span>
+                <span style="font-size:10px;color:var(--text-muted);">${bp.author || mkTr('ui.market.anonymous', 'Anonymous')} | ${bp.created || ''} | ${(bp.nodes || []).length} ${mkTr('ui.market.blocks', 'blocks')} | ${(bp.connections || []).length} ${mkTr('ui.market.connections', 'connections')}</span>
                 <button class="mk-import-btn vb-toolbar-btn" data-id="${bp.id}">&#8595; ${mkTr('ui.market.load', 'Load')}</button>
             </div>
         `;
@@ -116,6 +188,8 @@ async function mkPublish() {
 
     const name = document.getElementById('mk-publish-name')?.value.trim();
     const desc = document.getElementById('mk-publish-desc')?.value.trim();
+    const category = String(document.getElementById('mk-publish-category')?.value || 'utility').trim().toLowerCase();
+    const tags = String(document.getElementById('mk-publish-tags')?.value || '').split(',').map((tag) => tag.trim()).filter(Boolean);
 
     if (!name) {
         if (typeof showNotification === 'function') showNotification(mkTr('msg.enterBlueprintName', 'Enter a blueprint name!'), 'error');
@@ -126,6 +200,9 @@ async function mkPublish() {
         name,
         description: desc || '',
         mode: typeof vbCurrentMode !== 'undefined' ? vbCurrentMode : 'plugin',
+        category,
+        tags,
+        packType: 'solution-pack',
         author: mkTr('ui.market.anonymous', 'Anonymous'),
         nodes: vbNodes.map(n => ({ id: n.id, blockId: n.blockId, x: n.x, y: n.y, params: { ...n.params } })),
         connections: (typeof vbConnections !== 'undefined' ? vbConnections : []).map(c => ({ from: c.from, to: c.to })),
@@ -137,6 +214,8 @@ async function mkPublish() {
         // Input'ları temizle
         const ni = document.getElementById('mk-publish-name'); if (ni) ni.value = '';
         const di = document.getElementById('mk-publish-desc'); if (di) di.value = '';
+        const ci = document.getElementById('mk-publish-category'); if (ci) ci.value = 'utility';
+        const ti = document.getElementById('mk-publish-tags'); if (ti) ti.value = '';
         await mkLoadAndRender();
     } catch (e) {
         if (typeof showNotification === 'function') showNotification(mkTr('msg.publishError', 'Publish error: {error}', { error: e.message }), 'error');
@@ -190,4 +269,14 @@ function mkImport(bp) {
     if (typeof showNotification === 'function') showNotification(mkTr('msg.blueprintLoaded', 'Blueprint loaded: {name}', { name: bp.name }), 'success');
 }
 
-window.initMarketplace = initMarketplace;
+if (typeof window !== 'undefined') {
+    window.initMarketplace = initMarketplace;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        mkInferCategory,
+        mkNormalizeBlueprint,
+        mkFilterBlueprints,
+    };
+}

@@ -3,6 +3,8 @@
  * Minecraft komut ağaçlarını görsel olarak tasarla, Java/Skript koduna dönüştür
  */
 
+const CommandCreatorBrief = require('../shared/creator-brief.js');
+
 let ctTree = null;          // Kök komut ağacı
 let ctSelectedNode = null;  // Seçili node referansı
 let ctInitialized = false;
@@ -317,4 +319,40 @@ function _ctOpenTab(code, fileName) {
     }
 }
 
+function ctApplyDesignerSeed(options = {}) {
+    initCommandTree();
+    const prompt = String(options.prompt || '').trim();
+    const slashCommand = CommandCreatorBrief.extractSlashCommand(prompt, '/command');
+    const baseName = slashCommand.replace(/^[\/]/, '') || 'command';
+    const lower = prompt.toLowerCase();
+    const subs = [];
+    if (lower.includes('buy') || lower.includes('sell')) {
+        subs.push({ name: 'buy', description: 'Buy flow', permission: '', args: [], subcommands: [] });
+        subs.push({ name: 'sell', description: 'Sell flow', permission: '', args: [], subcommands: [] });
+    }
+    if (lower.includes('reload') || lower.includes('admin')) {
+        subs.push({ name: 'reload', description: 'Reload command', permission: `${baseName}.reload`, args: [], subcommands: [] });
+    }
+    if (!subs.length) {
+        subs.push({ name: 'run', description: 'Default action', permission: '', args: [], subcommands: [] });
+    }
+
+    ctTree = {
+        name: baseName,
+        description: prompt || 'Command generated from creator path',
+        permission: options.permission || '',
+        aliases: [],
+        aliasesStr: '',
+        args: [],
+        subcommands: subs,
+    };
+    ctSelectedNode = ctTree;
+    ctRenderTree();
+    ctRenderConfig();
+}
+
 window.initCommandTree = initCommandTree;
+window.CraftIDECommandTree = {
+    init: initCommandTree,
+    applyDesignerSeed: ctApplyDesignerSeed,
+};
