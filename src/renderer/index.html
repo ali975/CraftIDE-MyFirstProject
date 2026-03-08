@@ -512,6 +512,9 @@
                             <button class="vb-toolbar-btn" id="btn-vb-templates" title="Templates" data-vb-primary="1">
                                 📋 Templates
                             </button>
+                            <button class="vb-toolbar-btn" id="btn-vb-variables" title="Variables Manager" data-vb-primary="1">
+                                🧮 Variables
+                            </button>
                             <button class="vb-toolbar-btn" id="btn-vb-generate" title="Generate Code" data-vb-primary="1">
                                 <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
                                     <path
@@ -580,6 +583,32 @@
                             <p style="color:var(--text-secondary);margin-bottom:16px;">Select a template — it will be
                                 auto-loaded onto the canvas for editing.</p>
                             <div class="vb-template-grid" id="vb-template-grid"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VB Variables Modal -->
+                <div class="modal-overlay" id="vb-variables-modal" style="display:none;">
+                    <div class="modal" style="max-width:500px;width:90%;">
+                        <div class="modal-header">
+                            <h2>🧮 Variables Manager</h2>
+                            <button class="modal-close" id="vb-variables-close">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <p style="color:var(--text-secondary);margin-bottom:16px;">Define variables for your project. You can access them using the standard variable blocks.</p>
+                            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                                <input type="text" id="vb-var-name" placeholder="Name (e.g. coins)" style="flex:1;padding:6px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);">
+                                <select id="vb-var-type" style="padding:6px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);">
+                                    <option value="number">Number</option>
+                                    <option value="string">Text</option>
+                                    <option value="boolean">Bool</option>
+                                </select>
+                                <input type="text" id="vb-var-default" placeholder="Default" style="width:80px;padding:6px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);">
+                                <button id="btn-vb-var-add" class="btn-primary" style="padding:6px 12px; font-weight:bold;">+</button>
+                            </div>
+                            <div id="vb-variables-list" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;border:1px solid var(--border-color);border-radius:4px;padding:8px;background:var(--bg-secondary);">
+                                <div style="text-align:center;color:var(--text-muted);padding:12px;font-style:italic;">No variables defined.</div>
+                            </div>
                         </div>
                     </div>
                 </div>

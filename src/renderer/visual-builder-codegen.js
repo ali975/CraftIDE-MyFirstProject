@@ -111,30 +111,61 @@
         return !!EVENT_BLOCKS[mode] && EVENT_BLOCKS[mode].has(node.blockId);
     }
 
-    function getConnectedChain(startId, connections) {
-        const chain = [];
-        const visited = new Set();
-        let currentId = startId;
-
-        while (currentId && !visited.has(currentId)) {
-            visited.add(currentId);
-            chain.push(currentId);
-            const next = connections.find((entry) => entry.from === currentId);
-            currentId = next ? next.to : null;
-        }
-
-        return chain;
+    function getNextNodeId(nodeId, portName, connections) {
+        const conn = connections.find(c => c.from === nodeId && (c.fromPort || 'out') === portName);
+        return conn ? conn.to : null;
     }
 
-    function generatePluginNodeCode(node, indent) {
+    function traverseTree(nodeId, indent, ctx, generateNodeCodeFunc) {
+        let currentId = nodeId;
+        let code = '';
+        while (currentId) {
+            // Avoid infinite loops in visual builder
+            if (ctx.visited.has(currentId)) {
+                code += indent + '// Loop detected\n';
+                break;
+            }
+            ctx.visited.add(currentId);
+
+            const node = ctx.nodes.find(n => n.id === currentId);
+            if (!node || isEventNode(ctx.mode, node)) break;
+
+            code += generateNodeCodeFunc(node, indent, ctx);
+
+            // If it branches, the node code func handled true/false. If it has a standard 'out' port, continue.
+            // Branches like IfElse have 'true' and 'false', no 'out'.
+            const nextId = getNextNodeId(currentId, 'out', ctx.connections);
+            if (!nextId) {
+                // Check if it's a legacy if-else which we didn't migrate? Actually all branching nodes now don't have 'out'.
+                break;
+            }
+            currentId = nextId;
+        }
+        return code;
+    }
+
+    function generatePluginNodeCode(node, indent, ctx) {
         const p = node.params || {};
+
+        const branch = (conditionStr) => {
+            let str = indent + 'if (' + conditionStr + ') {\n';
+            const trueId = getNextNodeId(node.id, 'true', ctx.connections);
+            if (trueId) str += traverseTree(trueId, indent + '    ', ctx, generatePluginNodeCode);
+            str += indent + '} else {\n';
+            const falseId = getNextNodeId(node.id, 'false', ctx.connections);
+            if (falseId) str += traverseTree(falseId, indent + '    ', ctx, generatePluginNodeCode);
+            str += indent + '}\n';
+            return str;
+        };
+
         switch (node.blockId) {
-            case 'HasPermission': return indent + 'if (event.getPlayer() != null && event.getPlayer().hasPermission("' + (p.permission || 'perm') + '")) {\n';
-            case 'IsOp': return indent + 'if (event.getPlayer() != null && event.getPlayer().isOp()) {\n';
-            case 'HasItem': return indent + 'if (event.getPlayer().getInventory().contains(Material.' + (p.material || 'DIAMOND') + ')) {\n';
-            case 'HealthCheck': return indent + 'if (event.getPlayer().getHealth() ' + (p.op || '>=') + ' ' + (p.value || '10') + ') {\n';
-            case 'CommandEquals': return indent + 'if (event.getMessage().equalsIgnoreCase("' + (p.cmd || '/cmd') + '")) {\n';
-            case 'IsInWorld': return indent + 'if (event.getPlayer().getWorld().getName().equals("' + (p.world || 'world') + '")) {\n';
+            case 'HasPermission': return branch('event.getPlayer() != null && event.getPlayer().hasPermission("' + (p.permission || 'perm') + '")');
+            case 'IsOp': return branch('event.getPlayer() != null && event.getPlayer().isOp()');
+            case 'HasItem': return branch('event.getPlayer().getInventory().contains(Material.' + (p.material || 'DIAMOND') + ')');
+            case 'HealthCheck': return branch('event.getPlayer().getHealth() ' + (p.op || '>=') + ' ' + (p.value || '10'));
+            case 'CommandEquals': return branch('event.getMessage().equalsIgnoreCase("' + (p.cmd || '/cmd') + '")');
+            case 'IsInWorld': return branch('event.getPlayer().getWorld().getName().equals("' + (p.world || 'world') + '")');
+            case 'IfElse': return branch('true /* Insert Condition */');
             case 'SendMessage': return indent + 'event.getPlayer().sendMessage(org.bukkit.ChatColor.translateAlternateColorCodes(\'&\', "' + (p.mesaj || 'Merhaba!') + '"));\n';
             case 'Broadcast': return indent + 'Bukkit.broadcastMessage(org.bukkit.ChatColor.translateAlternateColorCodes(\'&\', "' + (p.mesaj || 'Duyuru!') + '"));\n';
             case 'Teleport': return indent + 'event.getPlayer().teleport(new org.bukkit.Location(event.getPlayer().getWorld(), ' + (p.x || 0) + ', ' + (p.y || 64) + ', ' + (p.z || 0) + '));\n';
@@ -147,7 +178,6 @@
             case 'SetHealth': return indent + 'event.getPlayer().setHealth(' + (p.can || 20) + ');\n';
             case 'SendTitle': return indent + 'event.getPlayer().sendTitle("' + (p.baslik || 'Baslik') + '", "' + (p.alt || '') + '", 10, 70, 20);\n';
             case 'RunCommand': return indent + 'Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "' + (p.komut || '') + '".replace("{player}", event.getPlayer().getName()));\n';
-            case 'IfElse': return indent + '// If-Else block\n';
             case 'Loop': return indent + 'for (int i = 0; i < ' + (p.kez || 10) + '; i++) {\n' + indent + '    // loop body\n' + indent + '}\n';
             case 'Delay': return indent + 'getServer().getScheduler().runTaskLater(this, () -> {\n' + indent + '    // delayed action\n' + indent + '}, ' + (p.tick || 20) + ');\n';
             case 'ForEachPlayer': return indent + 'for (Player p : Bukkit.getOnlinePlayers()) {\n' + indent + '    // each player\n' + indent + '}\n';
@@ -162,6 +192,8 @@
             case 'ConfigSet': return indent + 'getConfig().set("' + (p.key || 'key') + '", ' + (p.deger || '"deger"') + ');\nsaveConfig();\n';
             case 'PDCGet': return indent + '{\n' + indent + '    org.bukkit.NamespacedKey pdcKey = new org.bukkit.NamespacedKey(this, "' + (p.key || 'coins') + '");\n' + indent + '    int pdcVal = event.getPlayer().getPersistentDataContainer().getOrDefault(pdcKey, org.bukkit.persistence.PersistentDataType.INTEGER, 0);\n' + indent + '}\n';
             case 'PDCSet': return indent + '{\n' + indent + '    org.bukkit.NamespacedKey pdcKey = new org.bukkit.NamespacedKey(this, "' + (p.key || 'coins') + '");\n' + indent + '    event.getPlayer().getPersistentDataContainer().set(pdcKey, org.bukkit.persistence.PersistentDataType.INTEGER, ' + (p.deger || '0') + ');\n' + indent + '}\n';
+            case 'DBConnect': return indent + '// DB Connect: ' + (p.type || 'sqlite') + ' - ' + (p.db || 'mydb') + ' (Requires lib)\n';
+            case 'DBUpdate': return indent + '// DB Update: ' + (p.query || '') + '\n';
             case 'GetBalance': return indent + '// double balance = economy.getBalance(event.getPlayer());\n';
             case 'GiveMoney': return indent + '// economy.depositPlayer(event.getPlayer(), ' + (p.miktar || 100) + ');\n';
             case 'TakeMoney': return indent + '// economy.withdrawPlayer(event.getPlayer(), ' + (p.miktar || 100) + ');\n';
@@ -199,16 +231,18 @@
         code += '    @Override\n    public void onDisable() {\n';
         code += '        getLogger().info("Plugin devre dışı!");\n    }\n\n';
 
-        const eventNodes = nodes.filter((node) => isEventNode('plugin', node) && node.blockId !== 'ServerLoad');
+        const ctx = { nodes, connections, visited: new Set(), mode: 'plugin' };
+
         for (const eventNode of eventNodes) {
             const eventType = PLUGIN_EVENT_TYPES[eventNode.blockId];
             if (!eventType) continue;
             code += '    @EventHandler\n';
             code += '    public void on' + eventNode.blockId + '(' + eventType + ' event) {\n';
-            for (const nodeId of getConnectedChain(eventNode.id, connections)) {
-                const node = nodes.find((entry) => entry.id === nodeId);
-                if (!node || isEventNode('plugin', node)) continue;
-                code += generatePluginNodeCode(node, '        ');
+
+            ctx.visited.clear();
+            const firstNodeId = getNextNodeId(eventNode.id, 'out', connections);
+            if (firstNodeId) {
+                code += traverseTree(firstNodeId, '        ', ctx, generatePluginNodeCode);
             }
             code += '    }\n\n';
         }
@@ -217,8 +251,20 @@
         return code;
     }
 
-    function generateFabricNodeCode(node, indent) {
+    function generateFabricNodeCode(node, indent, ctx) {
         const p = node.params || {};
+
+        const branch = (conditionStr) => {
+            let str = indent + 'if (' + conditionStr + ') {\n';
+            const trueId = getNextNodeId(node.id, 'true', ctx.connections);
+            if (trueId) str += traverseTree(trueId, indent + '    ', ctx, generateFabricNodeCode);
+            str += indent + '} else {\n';
+            const falseId = getNextNodeId(node.id, 'false', ctx.connections);
+            if (falseId) str += traverseTree(falseId, indent + '    ', ctx, generateFabricNodeCode);
+            str += indent + '}\n';
+            return str;
+        };
+
         switch (node.blockId) {
             case 'FabricSendMsg': return indent + 'player.sendMessage(Text.of("' + (p.mesaj || 'Merhaba!') + '"), false);\n';
             case 'FabricBroadcast': return indent + 'handler.getServer().getPlayerManager().broadcast(Text.of("' + (p.mesaj || 'Duyuru!') + '"), false);\n';
@@ -227,8 +273,12 @@
             case 'FabricSpawnEntity': return indent + '// Entity entity = EntityType.get("' + (p.type || 'minecraft:zombie') + '").get().create(player.getWorld());\n' + indent + '// entity.refreshPositionAndAngles(player.getX(), player.getY(), player.getZ(), 0, 0);\n' + indent + '// player.getWorld().spawnEntity(entity);\n';
             case 'FabricSetBlock': return indent + 'player.getWorld().setBlockState(new net.minecraft.util.math.BlockPos((int)' + (p.x || 0) + ', (int)' + (p.y || 64) + ', (int)' + (p.z || 0) + '), net.minecraft.block.Blocks.STONE.getDefaultState());\n';
             case 'FabricPlaySound': return indent + 'player.playSound(net.minecraft.registry.Registries.SOUND_EVENT.get(net.minecraft.util.Identifier.of("' + (p.ses || 'minecraft:entity.experience_orb.pickup') + '")), 1f, 1f);\n';
-            case 'FabricIsOp': return indent + 'if (player.hasPermissionLevel(4)) {\n';
-            case 'FabricIf': return indent + '// Condition block\n';
+            case 'FabricRegisterItem': return indent + 'net.minecraft.registry.Registry.register(net.minecraft.registry.Registries.ITEM, net.minecraft.util.Identifier.of("mymod", "' + (p.id || 'my_item') + '"), new net.minecraft.item.Item(new net.minecraft.item.Item.Settings()));\n';
+            case 'FabricRegisterBlock': return indent + 'net.minecraft.registry.Registry.register(net.minecraft.registry.Registries.BLOCK, net.minecraft.util.Identifier.of("mymod", "' + (p.id || 'my_block') + '"), new net.minecraft.block.Block(net.minecraft.block.AbstractBlock.Settings.create()));\n';
+            case 'FabricIsOp': return branch('player.hasPermissionLevel(4)');
+            case 'FabricHasPermission': return branch('me.lucko.fabric.api.permissions.v0.Permissions.check(player, "' + (p.perm || 'mymod.use') + '")');
+            case 'FabricServerSide': return branch('!player.getWorld().isClient()');
+            case 'FabricIf': return branch('true /* Insert Condition */');
             case 'FabricLoop': return indent + 'for (int i = 0; i < ' + (p.kez || 10) + '; i++) {\n' + indent + '    // loop body\n' + indent + '}\n';
             case 'FabricSchedule': return indent + '// Scheduled work based on server tick\n';
             default: return indent + '// ' + (node.label || node.blockId || 'node') + '\n';
@@ -251,7 +301,7 @@
         code += 'public class MyMod implements ModInitializer {\n\n';
         code += '    @Override\n    public void onInitialize() {\n';
 
-        const eventNodes = nodes.filter((node) => isEventNode('fabric', node));
+        const ctx = { nodes, connections, visited: new Set(), mode: 'fabric' };
         for (const eventNode of eventNodes) {
             const eventType = FABRIC_EVENT_TYPES[eventNode.blockId];
             if (!eventType) continue;
@@ -263,10 +313,11 @@
             } else {
                 code += 'handler) -> {\n';
             }
-            for (const nodeId of getConnectedChain(eventNode.id, connections)) {
-                const node = nodes.find((entry) => entry.id === nodeId);
-                if (!node || isEventNode('fabric', node)) continue;
-                code += generateFabricNodeCode(node, '            ');
+
+            ctx.visited.clear();
+            const firstNodeId = getNextNodeId(eventNode.id, 'out', connections);
+            if (firstNodeId) {
+                code += traverseTree(firstNodeId, '            ', ctx, generateFabricNodeCode);
             }
             code += '        });\n\n';
         }
@@ -275,15 +326,30 @@
         return code;
     }
 
-    function generateForgeNodeCode(node, indent) {
+    function generateForgeNodeCode(node, indent, ctx) {
         const p = node.params || {};
+
+        const branch = (conditionStr) => {
+            let str = indent + 'if (' + conditionStr + ') {\n';
+            const trueId = getNextNodeId(node.id, 'true', ctx.connections);
+            if (trueId) str += traverseTree(trueId, indent + '    ', ctx, generateForgeNodeCode);
+            str += indent + '} else {\n';
+            const falseId = getNextNodeId(node.id, 'false', ctx.connections);
+            if (falseId) str += traverseTree(falseId, indent + '    ', ctx, generateForgeNodeCode);
+            str += indent + '}\n';
+            return str;
+        };
+
         switch (node.blockId) {
             case 'ForgeSendMsg': return indent + 'if (event.getEntity() instanceof net.minecraft.world.entity.player.Player player) {\n' + indent + '    player.sendSystemMessage(Component.literal("' + (p.mesaj || 'Merhaba!') + '"));\n' + indent + '}\n';
             case 'ForgeCancelEvent': return indent + 'event.setCanceled(true);\n';
             case 'ForgeTeleport': return indent + 'if (event.getEntity() instanceof net.minecraft.world.entity.player.Player player) {\n' + indent + '    player.teleportTo(' + (p.x || 0) + ', ' + (p.y || 64) + ', ' + (p.z || 0) + ');\n' + indent + '}\n';
             case 'ForgeGiveItem': return indent + '// player.getInventory().add(new ItemStack(...));\n';
-            case 'ForgeIsOp': return indent + 'if (event.getEntity() instanceof net.minecraft.world.entity.player.Player p && p.hasPermissions(4)) {\n';
-            case 'ForgeIf': return indent + '// Condition block\n';
+            case 'ForgeRegisterItem': return indent + '// requires DeferredRegister for Item "' + (p.id || 'my_item') + '"\n';
+            case 'ForgeRegisterBlock': return indent + '// requires DeferredRegister for Block "' + (p.id || 'my_block') + '"\n';
+            case 'ForgeIsOp': return branch('event.getEntity() instanceof net.minecraft.world.entity.player.Player p && p.hasPermissions(4)');
+            case 'ForgeHasCapability': return branch('/* Forge Has Capability Check */ false');
+            case 'ForgeIf': return branch('true /* Insert Condition */');
             case 'ForgeLoop': return indent + 'for (int i = 0; i < ' + (p.kez || 10) + '; i++) {\n' + indent + '    // loop body\n' + indent + '}\n';
             default: return indent + '// ' + (node.label || node.blockId || 'node') + '\n';
         }
@@ -304,16 +370,17 @@
         code += '@Mod("mymod")\npublic class MyMod {\n\n';
         code += '    public MyMod() {\n        net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(this);\n    }\n\n';
 
-        const eventNodes = nodes.filter((node) => isEventNode('forge', node));
+        const ctx = { nodes, connections, visited: new Set(), mode: 'forge' };
         for (const eventNode of eventNodes) {
             const eventType = FORGE_EVENT_TYPES[eventNode.blockId];
             if (!eventType) continue;
             code += '    @SubscribeEvent\n';
             code += '    public void on' + eventNode.blockId + '(' + eventType + ' event) {\n';
-            for (const nodeId of getConnectedChain(eventNode.id, connections)) {
-                const node = nodes.find((entry) => entry.id === nodeId);
-                if (!node || isEventNode('forge', node)) continue;
-                code += generateForgeNodeCode(node, '        ');
+
+            ctx.visited.clear();
+            const firstNodeId = getNextNodeId(eventNode.id, 'out', connections);
+            if (firstNodeId) {
+                code += traverseTree(firstNodeId, '        ', ctx, generateForgeNodeCode);
             }
             code += '    }\n\n';
         }
@@ -322,14 +389,26 @@
         return code;
     }
 
-    function generateSkriptNodeCode(node, indent) {
+    function generateSkriptNodeCode(node, indent, ctx) {
         const p = node.params || {};
+
+        const branch = (conditionStr) => {
+            let str = indent + 'if ' + conditionStr + ':\n';
+            const trueId = getNextNodeId(node.id, 'true', ctx.connections);
+            if (trueId) str += traverseTree(trueId, indent + '    ', ctx, generateSkriptNodeCode);
+            str += indent + 'else:\n';
+            const falseId = getNextNodeId(node.id, 'false', ctx.connections);
+            if (falseId) str += traverseTree(falseId, indent + '    ', ctx, generateSkriptNodeCode);
+            return str;
+        };
+
         switch (node.blockId) {
-            case 'SkHasPerm': return indent + 'if player has permission "' + (p.perm || 'skript.use') + '":\n';
-            case 'SkIsOp': return indent + 'if player is op:\n';
-            case 'SkHasItem': return indent + 'if player has ' + (p.item || 'diamond') + ':\n';
-            case 'SkHealthCheck': return indent + 'if health of player >= ' + (p.deger || 10) + ':\n';
-            case 'SkWorldCheck': return indent + 'if world is "' + (p.dunya || 'world') + '":\n';
+            case 'SkHasPerm': return branch('player has permission "' + (p.perm || 'skript.use') + '"');
+            case 'SkIsOp': return branch('player is op');
+            case 'SkHasItem': return branch('player has ' + (p.item || 'diamond'));
+            case 'SkHealthCheck': return branch('health of player >= ' + (p.deger || 10));
+            case 'SkWorldCheck': return branch('world is "' + (p.dunya || 'world') + '"');
+            case 'SkIf': return branch('true');
             case 'SkSendMsg': return indent + 'send "' + (p.mesaj || 'Merhaba!') + '" to player\n';
             case 'SkBroadcast': return indent + 'broadcast "' + (p.mesaj || 'Duyuru!') + '"\n';
             case 'SkTeleport': return indent + 'teleport player to location(' + (p.x || 0) + ', ' + (p.y || 64) + ', ' + (p.z || 0) + ', world)\n';
@@ -339,7 +418,6 @@
             case 'SkSetGamemode': return indent + 'set gamemode of player to ' + (p.mod || 'creative') + '\n';
             case 'SkCancel': return indent + 'cancel event\n';
             case 'SkSpawn': return indent + 'spawn a ' + (p.entity || 'zombie') + ' at player\n';
-            case 'SkIf': return indent + 'if (condition):\n';
             case 'SkLoop': return indent + 'loop ' + (p.kez || 10) + ' times:\n';
             case 'SkWait': return indent + 'wait ' + (p.sure || '1 second') + '\n';
             case 'SkLoopPlayers': return indent + 'loop all players:\n';
@@ -353,6 +431,8 @@
             case 'SkVaultBalance': return indent + '# set {_bal} to vault balance of ' + (p.hedef || 'player') + '\n';
             case 'SkVaultGive': return indent + '# add ' + (p.miktar || 100) + ' to vault balance of player\n';
             case 'SkVaultTake': return indent + '# remove ' + (p.miktar || 100) + ' from vault balance of player\n';
+            case 'SkDBConnect': return indent + '# connect to ' + (p.type || 'sqlite') + ' database "' + (p.db || 'mydb') + '"\n';
+            case 'SkDBUpdate': return indent + '# execute update "' + (p.query || '') + '"\n';
             default: return indent + '# ' + (node.label || node.blockId || 'node') + '\n';
         }
     }
@@ -365,23 +445,25 @@
         let code = '# CraftIDE Görsel Builder - Skript Kodu\n# Düzenle ve scripts/ klasörüne kopyala\n\n';
         const eventNodes = nodes.filter((node) => isEventNode('skript', node));
 
+        const ctx = { nodes, connections, visited: new Set(), mode: 'skript' };
+
         for (const eventNode of eventNodes) {
+            ctx.visited.clear();
+
             if (eventNode.blockId === 'SkCommand') {
                 code += 'command ' + ((eventNode.params && eventNode.params.komut) || '/mycommand') + ':\n';
                 code += '    trigger:\n';
-                for (const nodeId of getConnectedChain(eventNode.id, connections)) {
-                    const node = nodes.find((entry) => entry.id === nodeId);
-                    if (!node || isEventNode('skript', node)) continue;
-                    code += generateSkriptNodeCode(node, '        ');
+                const firstNodeId = getNextNodeId(eventNode.id, 'out', connections);
+                if (firstNodeId) {
+                    code += traverseTree(firstNodeId, '        ', ctx, generateSkriptNodeCode);
                 }
             } else {
                 const eventType = SKRIPT_EVENT_TYPES[eventNode.blockId];
                 if (!eventType) continue;
                 code += eventType + ':\n';
-                for (const nodeId of getConnectedChain(eventNode.id, connections)) {
-                    const node = nodes.find((entry) => entry.id === nodeId);
-                    if (!node || isEventNode('skript', node)) continue;
-                    code += generateSkriptNodeCode(node, '    ');
+                const firstNodeId = getNextNodeId(eventNode.id, 'out', connections);
+                if (firstNodeId) {
+                    code += traverseTree(firstNodeId, '    ', ctx, generateSkriptNodeCode);
                 }
             }
             code += '\n';

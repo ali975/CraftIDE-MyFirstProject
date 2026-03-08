@@ -1,6 +1,6 @@
 {
     "name": "craftide",
-    "version": "0.2.14",
+    "version": "0.2.15",
     "description": "CraftIDE - Minecraft Development Studio: AI-powered IDE for Minecraft plugin and Skript development",
     "author": "Ali975",
     "license": "AGPL-3.0-only",

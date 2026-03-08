@@ -34,12 +34,12 @@ const ALL_BLOCK_DEFS = {
         ServerLoad: { type: 'event', label: 'Server Start', sub: 'onEnable', params: [] },
 
         // KoÅŸullar
-        HasPermission: { type: 'condition', label: 'Permission Check', params: [{ n: 'permission', t: 'text', d: 'my.permission' }] },
-        IsOp: { type: 'condition', label: 'Op Check', params: [] },
-        HasItem: { type: 'condition', label: 'Has Item', params: [{ n: 'material', t: 'text', d: 'DIAMOND' }] },
-        HealthCheck: { type: 'condition', label: window.Lang ? window.Lang.t('vb.HealthCheck') : 'Health Check', params: [{ n: 'op', t: 'select', opts: ['>=', '<=', '==', '>', '<'], d: '>=' }, { n: 'value', t: 'number', d: '10' }] },
-        CommandEquals: { type: 'condition', label: 'Command Equals?', params: [{ n: 'cmd', t: 'text', d: '/tp' }] },
-        IsInWorld: { type: 'condition', label: 'World Check', params: [{ n: 'world', t: 'text', d: 'world' }] },
+        HasPermission: { type: 'condition', label: 'Permission Check', params: [{ n: 'permission', t: 'text', d: 'my.permission' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        IsOp: { type: 'condition', label: 'Op Check', params: [], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        HasItem: { type: 'condition', label: 'Has Item', params: [{ n: 'material', t: 'text', d: 'DIAMOND' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        HealthCheck: { type: 'condition', label: window.Lang ? window.Lang.t('vb.HealthCheck') : 'Health Check', params: [{ n: 'op', t: 'select', opts: ['>=', '<=', '==', '>', '<'], d: '>=' }, { n: 'value', t: 'number', d: '10' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        CommandEquals: { type: 'condition', label: 'Command Equals?', params: [{ n: 'cmd', t: 'text', d: '/tp' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        IsInWorld: { type: 'condition', label: 'World Check', params: [{ n: 'world', t: 'text', d: 'world' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
 
         // Aksiyonlar
         SendMessage: { type: 'action', label: window.Lang ? window.Lang.t('vb.SendMessage') : 'Send Message', params: [{ n: 'mesaj', t: 'text', d: '&aHoş geldin!' }] },
@@ -56,13 +56,13 @@ const ALL_BLOCK_DEFS = {
         RunCommand: { type: 'action', label: window.Lang ? window.Lang.t('vb.RunCommand') : 'Run Command', params: [{ n: 'komut', t: 'text', d: 'op {player}' }] },
 
         // Kontrol
-        IfElse: { type: 'control', label: 'If / Else', params: [] },
+        IfElse: { type: 'control', label: 'If / Else', params: [], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
         Loop: { type: 'control', label: 'Loop', params: [{ n: 'kez', t: 'number', d: '10' }] },
         Delay: { type: 'control', label: 'Delay', params: [{ n: 'tick', t: 'number', d: '20' }] },
         ForEachPlayer: { type: 'control', label: 'For Each Player', params: [] },
 
         // GUI
-        CreateGUI: { type: 'action', label: 'Create GUI', params: [{ n: 'baslik', t: 'text', d: 'Shop' }, { n: 'satir', t: 'select', opts: ['1','2','3','4','5','6'], d: '3' }] },
+        CreateGUI: { type: 'action', label: 'Create GUI', params: [{ n: 'baslik', t: 'text', d: 'Shop' }, { n: 'satir', t: 'select', opts: ['1', '2', '3', '4', '5', '6'], d: '3' }] },
         SetGUIItem: { type: 'action', label: 'Set GUI Item', params: [{ n: 'slot', t: 'number', d: '0' }, { n: 'material', t: 'text', d: 'DIAMOND' }, { n: 'isim', t: 'text', d: 'Elmas' }] },
         OpenGUI: { type: 'action', label: 'Open GUI', params: [{ n: 'envanter', t: 'text', d: 'inv' }] },
         GUIClickEvent: { type: 'event', label: 'GUI Click', sub: 'InventoryClickEvent', params: [{ n: 'envanter', t: 'text', d: 'Shop' }] },
@@ -84,10 +84,11 @@ const ALL_BLOCK_DEFS = {
         TakeMoney: { type: 'action', label: 'Take Money', params: [{ n: 'miktar', t: 'number', d: '100' }] },
 
         // DeÄŸiÅŸkenler
-        SetVariable: { type: 'action', label: 'Set Variable', sub: 'variable', params: [{ n: 'name', t: 'text', d: 'playerCoins' }, { n: 'value', t: 'text', d: '0' }] },
-        GetVariable: { type: 'action', label: 'Get Variable', sub: 'variable', params: [{ n: 'name', t: 'text', d: 'playerCoins' }] },
-        MathOperation: { type: 'action', label: 'Math Operation', sub: 'variable', params: [{ n: 'var', t: 'text', d: 'playerCoins' }, { n: 'op', t: 'select', opts: ['add', 'sub', 'mul', 'div'], d: 'add' }, { n: 'amount', t: 'number', d: '10' }] },
-        CompareVariable: { type: 'condition', label: 'Compare Variable', sub: 'variable', params: [{ n: 'var', t: 'text', d: 'playerCoins' }, { n: 'op', t: 'select', opts: ['==', '!=', '>', '<', '>=', '<='], d: '>=' }, { n: 'value', t: 'text', d: '0' }] },
+        SetVariable: { type: 'action', label: 'Set Variable', sub: 'variable', params: [{ n: 'name', t: 'variable', d: '' }, { n: 'value', t: 'text', d: '0' }] },
+        GetVariable: { type: 'action', label: 'Get Variable', sub: 'variable', params: [{ n: 'name', t: 'variable', d: '' }] },
+        // Veritabanı
+        DBConnect: { type: 'action', label: 'Connect to Database', params: [{ n: 'type', t: 'select', opts: ['sqlite', 'mysql'], d: 'sqlite' }, { n: 'host', t: 'text', d: 'localhost' }, { n: 'db', t: 'text', d: 'mydb' }, { n: 'user', t: 'text', d: 'root' }, { n: 'pass', t: 'text', d: 'pass' }] },
+        DBUpdate: { type: 'action', label: 'Execute Update Schema', params: [{ n: 'query', t: 'text', d: 'CREATE TABLE IF NOT EXISTS users (id INT)' }] },
     },
 
     // â”€â”€ FABRIC MOD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -102,9 +103,9 @@ const ALL_BLOCK_DEFS = {
         FabricInteract: { type: 'event', label: 'Interact', sub: 'UseBlockCallback.EVENT', params: [] },
 
         // KoÅŸullar
-        FabricIsOp: { type: 'condition', label: 'Op Check', params: [] },
-        FabricHasPermission: { type: 'condition', label: 'Permission Check', params: [{ n: 'perm', t: 'text', d: 'mymod.use' }] },
-        FabricServerSide: { type: 'condition', label: 'Server Side', params: [] },
+        FabricIsOp: { type: 'condition', label: 'Op Check', params: [], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        FabricHasPermission: { type: 'condition', label: 'Permission Check', params: [{ n: 'perm', t: 'text', d: 'mymod.use' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        FabricServerSide: { type: 'condition', label: 'Server Side', params: [], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
 
         // Aksiyonlar
         FabricSendMsg: { type: 'action', label: window.Lang ? window.Lang.t('vb.SendMessage') : 'Send Message', params: [{ n: 'mesaj', t: 'text', d: 'Merhaba!' }] },
@@ -116,9 +117,10 @@ const ALL_BLOCK_DEFS = {
         FabricPlaySound: { type: 'action', label: window.Lang ? window.Lang.t('vb.PlaySound') : 'Play Sound', params: [{ n: 'ses', t: 'text', d: 'minecraft:entity.experience_orb.pickup' }] },
 
         // Kontrol
-        FabricIf: { type: 'control', label: 'Condition', params: [] },
-        FabricLoop: { type: 'control', label: 'Loop', params: [{ n: 'kez', t: 'number', d: '10' }] },
-        FabricSchedule: { type: 'control', label: 'Schedule', params: [{ n: 'tick', t: 'number', d: '20' }] },
+        FabricIf: { type: 'control', label: 'Condition', params: [], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        // Custom Content (Items/Blocks)
+        FabricRegisterItem: { type: 'action', label: 'Register Item', params: [{ n: 'id', t: 'text', d: 'my_item' }, { n: 'name', t: 'text', d: 'Custom Item' }] },
+        FabricRegisterBlock: { type: 'action', label: 'Register Block', params: [{ n: 'id', t: 'text', d: 'my_block' }, { n: 'name', t: 'text', d: 'Custom Block' }] },
     },
 
     // â”€â”€ FORGE MOD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -131,8 +133,8 @@ const ALL_BLOCK_DEFS = {
         ForgeLivingDamage: { type: 'event', label: 'Damage', sub: 'LivingDamageEvent', params: [] },
         ForgeEntityJoin: { type: 'event', label: 'Entity Join World', sub: 'EntityJoinLevelEvent', params: [] },
 
-        ForgeIsOp: { type: 'condition', label: 'Op Check', params: [] },
-        ForgeHasCapability: { type: 'condition', label: 'Has Capability?', params: [{ n: 'cap', t: 'text', d: 'MY_CAP' }] },
+        ForgeIsOp: { type: 'condition', label: 'Op Check', params: [], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        ForgeHasCapability: { type: 'condition', label: 'Has Capability?', params: [{ n: 'cap', t: 'text', d: 'MY_CAP' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
 
         ForgeSendMsg: { type: 'action', label: window.Lang ? window.Lang.t('vb.SendMessage') : 'Send Message', params: [{ n: 'mesaj', t: 'text', d: 'Merhaba!' }] },
         ForgeGiveItem: { type: 'action', label: window.Lang ? window.Lang.t('vb.GiveItem') : 'Give Item', params: [{ n: 'item', t: 'text', d: 'minecraft:diamond' }, { n: 'adet', t: 'number', d: '1' }] },
@@ -140,9 +142,10 @@ const ALL_BLOCK_DEFS = {
         ForgeCancelEvent: { type: 'action', label: 'Cancel Event', params: [] },
         ForgeSetBlock: { type: 'action', label: 'Set Block', params: [{ n: 'block', t: 'text', d: 'minecraft:stone' }, { n: 'x', t: 'number', d: '0' }, { n: 'y', t: 'number', d: '64' }, { n: 'z', t: 'number', d: '0' }] },
 
-        ForgeIf: { type: 'control', label: 'Condition', params: [] },
-        ForgeLoop: { type: 'control', label: 'Loop', params: [{ n: 'kez', t: 'number', d: '10' }] },
-        ForgeSchedule: { type: 'control', label: 'Schedule (Tick)', params: [{ n: 'tick', t: 'number', d: '20' }] },
+        ForgeIf: { type: 'control', label: 'Condition', params: [], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        // Custom Content (Items/Blocks)
+        ForgeRegisterItem: { type: 'action', label: 'Register Item', params: [{ n: 'id', t: 'text', d: 'my_item' }, { n: 'name', t: 'text', d: 'Custom Item' }] },
+        ForgeRegisterBlock: { type: 'action', label: 'Register Block', params: [{ n: 'id', t: 'text', d: 'my_block' }, { n: 'name', t: 'text', d: 'Custom Block' }] },
     },
 
     // â”€â”€ SKRIPT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -157,11 +160,11 @@ const ALL_BLOCK_DEFS = {
         SkDamage: { type: 'event', label: 'on damage', sub: 'on damage of player', params: [] },
         SkRightClick: { type: 'event', label: 'on right click', sub: 'on right click', params: [] },
 
-        SkHasPerm: { type: 'condition', label: 'player has permission', params: [{ n: 'perm', t: 'text', d: 'skript.use' }] },
-        SkIsOp: { type: 'condition', label: 'player is op', params: [] },
-        SkHasItem: { type: 'condition', label: 'player has item', params: [{ n: 'item', t: 'text', d: 'diamond' }] },
-        SkHealthCheck: { type: 'condition', label: 'health of player >=', params: [{ n: 'deger', t: 'number', d: '10' }] },
-        SkWorldCheck: { type: 'condition', label: 'world is', params: [{ n: 'dunya', t: 'text', d: 'world' }] },
+        SkHasPerm: { type: 'condition', label: 'player has permission', params: [{ n: 'perm', t: 'text', d: 'skript.use' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        SkIsOp: { type: 'condition', label: 'player is op', params: [], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        SkHasItem: { type: 'condition', label: 'player has item', params: [{ n: 'item', t: 'text', d: 'diamond' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        SkHealthCheck: { type: 'condition', label: 'health of player >=', params: [{ n: 'deger', t: 'number', d: '10' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
+        SkWorldCheck: { type: 'condition', label: 'world is', params: [{ n: 'dunya', t: 'text', d: 'world' }], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
 
         SkSendMsg: { type: 'action', label: 'send message', params: [{ n: 'mesaj', t: 'text', d: 'Merhaba {player}!' }] },
         SkBroadcast: { type: 'action', label: 'broadcast', params: [{ n: 'mesaj', t: 'text', d: 'Duyuru: ...' }] },
@@ -173,7 +176,7 @@ const ALL_BLOCK_DEFS = {
         SkCancel: { type: 'action', label: 'cancel event', params: [] },
         SkSpawn: { type: 'action', label: 'spawn entity', params: [{ n: 'entity', t: 'text', d: 'zombie' }] },
 
-        SkIf: { type: 'control', label: 'if', params: [] },
+        SkIf: { type: 'control', label: 'if', params: [], ports: [{ id: 'in', type: 'exec', dir: 'in' }, { id: 'true', type: 'exec', dir: 'out', label: 'True' }, { id: 'false', type: 'exec', dir: 'out', label: 'False' }] },
         SkLoop: { type: 'control', label: 'loop', params: [{ n: 'kez', t: 'number', d: '10' }] },
         SkWait: { type: 'control', label: 'wait', params: [{ n: 'sure', t: 'text', d: '1 second' }] },
         SkLoopPlayers: { type: 'control', label: 'loop all players', params: [] },
@@ -187,14 +190,18 @@ const ALL_BLOCK_DEFS = {
         SkScheduleRepeat: { type: 'control', label: 'every X seconds', params: [{ n: 'aralik', t: 'text', d: '1 minute' }] },
 
         // DeÄŸiÅŸken
-        SkVarSet: { type: 'action', label: 'set variable', params: [{ n: 'degisken', t: 'text', d: '{coins.%player%}' }, { n: 'deger', t: 'text', d: '0' }] },
-        SkVarGet: { type: 'action', label: 'get variable', params: [{ n: 'degisken', t: 'text', d: '{coins.%player%}' }] },
-        SkVarAdd: { type: 'action', label: 'add to variable', params: [{ n: 'miktar', t: 'number', d: '10' }, { n: 'degisken', t: 'text', d: '{coins.%player%}' }] },
+        SkVarSet: { type: 'action', label: 'set variable', params: [{ n: 'degisken', t: 'variable', d: '' }, { n: 'deger', t: 'text', d: '0' }] },
+        SkVarGet: { type: 'action', label: 'get variable', params: [{ n: 'degisken', t: 'variable', d: '' }] },
+        SkVarAdd: { type: 'action', label: 'add to variable', params: [{ n: 'miktar', t: 'number', d: '10' }, { n: 'degisken', t: 'variable', d: '' }] },
 
         // Ekonomi
         SkVaultBalance: { type: 'action', label: 'vault balance', params: [{ n: 'hedef', t: 'text', d: 'player' }] },
         SkVaultGive: { type: 'action', label: 'vault give money', params: [{ n: 'miktar', t: 'number', d: '100' }] },
         SkVaultTake: { type: 'action', label: 'vault take money', params: [{ n: 'miktar', t: 'number', d: '100' }] },
+
+        // Veritabanı (Skript)
+        SkDBConnect: { type: 'action', label: 'Connect to SQLite/MySQL', params: [{ n: 'type', t: 'select', opts: ['sqlite', 'mysql'], d: 'sqlite' }, { n: 'db', t: 'text', d: 'mydb' }] },
+        SkDBUpdate: { type: 'action', label: 'Execute Update Scheme', params: [{ n: 'query', t: 'text', d: 'CREATE TABLE IF NOT EXISTS users (id int)' }] },
     },
 };
 
@@ -517,6 +524,7 @@ const VB_TEMPLATES = [
 
 let vbNodes = [];
 let vbConnections = [];
+let vbVariables = [];
 let vbNextId = 1;
 let vbCanvas = null;
 let vbCtx = null;
@@ -796,6 +804,12 @@ function resolveVbParamMeta(param) {
     if (declaredType === 'boolean') {
         return { type: 'boolean', options: ['true', 'false'] };
     }
+    if (declaredType === 'variable') {
+        const optionList = vbVariables.map(v => v.name);
+        if (optionList.length === 0) optionList.push('No variables');
+        return { type: 'enum', options: optionList };
+    }
+
     if (['material', 'item', 'sound', 'world', 'coords', 'text'].includes(declaredType)) {
         return {
             type: declaredType,
@@ -1084,13 +1098,149 @@ function bindTemplatesModalUi() {
         if (event.key !== 'Escape') return;
         const modal = document.getElementById('vb-templates-modal');
         if (modal?.style.display === 'flex') hideTemplatesModal();
+        const varModal = document.getElementById('vb-variables-modal');
+        if (varModal?.style.display === 'flex') hideVbVariablesModal();
     });
+
+    // Variables Modal Binding
+    document.getElementById('btn-vb-variables')?.addEventListener('click', showVbVariablesModal);
+    document.getElementById('vb-variables-close')?.addEventListener('click', hideVbVariablesModal);
+    document.getElementById('vb-variables-modal')?.addEventListener('click', (event) => {
+        if (event.target?.id === 'vb-variables-modal') hideVbVariablesModal();
+    });
+    document.getElementById('btn-vb-var-add')?.addEventListener('click', addVbVariable);
+}
+
+function showVbVariablesModal() {
+    const modal = document.getElementById('vb-variables-modal');
+    if (!modal) return;
+    renderVbVariablesList();
+    modal.style.display = 'flex';
+}
+
+function hideVbVariablesModal() {
+    const modal = document.getElementById('vb-variables-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderVbVariablesList() {
+    const list = document.getElementById('vb-variables-list');
+    if (!list) return;
+
+    list.innerHTML = '';
+
+    if (vbVariables.length === 0) {
+        list.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:12px;font-style:italic;">No variables defined.</div>';
+        return;
+    }
+
+    vbVariables.forEach((vr, index) => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex;align-items:center;background:var(--bg-tertiary);padding:8px 12px;border-radius:4px;border:1px solid var(--border-color);';
+
+        const typeColor = vr.type === 'number' ? '#3498db' : (vr.type === 'boolean' ? '#f1c40f' : '#2ecc71');
+
+        item.innerHTML = `
+            <div style="flex:1;">
+                <span style="font-weight:bold;margin-right:8px;font-family:var(--font-mono);">${escapeVbHtml(vr.name)}</span>
+                <span style="font-size:10px;padding:2px 6px;border-radius:10px;background:${typeColor}22;color:${typeColor};text-transform:uppercase;">${escapeVbHtml(vr.type)}</span>
+            </div>
+            <div style="margin-right:12px;font-size:12px;color:var(--text-secondary);">Default: <strong>${escapeVbHtml(vr.defaultVal)}</strong></div>
+            <button class="vb-cm-action danger" style="padding:4px 8px;" onclick="removeVbVariable(${index})">&times;</button>
+        `;
+        list.appendChild(item);
+    });
+}
+
+function addVbVariable() {
+    const nameInp = document.getElementById('vb-var-name');
+    const typeSel = document.getElementById('vb-var-type');
+    const defInp = document.getElementById('vb-var-default');
+
+    const name = (nameInp.value || '').trim();
+    const type = typeSel.value || 'string';
+    const defaultVal = (defInp.value || '').trim();
+
+    if (!name) {
+        vbNotify('msg.varNameRequired', 'Variable name is required.', 'error');
+        return;
+    }
+
+    if (vbVariables.some(v => v.name.toLowerCase() === name.toLowerCase())) {
+        vbNotify('msg.varExists', 'A variable with this name already exists.', 'error');
+        return;
+    }
+
+    vbVariables.push({ id: 'var_' + Date.now(), name, type, defaultVal });
+
+    nameInp.value = '';
+    defInp.value = '';
+
+    renderVbVariablesList();
+
+    // Refresh all nodes that use variables so their dropdown option list updates
+    vbNodes.forEach(n => {
+        if (n.params && typeof n.params === 'object') {
+            const def = getCurrentBlockDefs()[n.blockId];
+            if (def && def.sub === 'variable') {
+                refreshNodeInputs(n);
+                // Also update the select dropdown DOM directly by rerendering the node body param if needed,
+                // but re-creating the param body is safer:
+                rebuildNodeBody(n);
+            }
+        }
+    });
+}
+
+window.removeVbVariable = function (index) {
+    if (index >= 0 && index < vbVariables.length) {
+        vbVariables.splice(index, 1);
+        renderVbVariablesList();
+
+        vbNodes.forEach(n => {
+            const def = getCurrentBlockDefs()[n.blockId];
+            if (def && def.sub === 'variable') {
+                rebuildNodeBody(n);
+            }
+        });
+    }
+}
+
+function rebuildNodeBody(node) {
+    const el = document.getElementById('vb-node-' + node.id);
+    if (!el) return;
+    const body = el.querySelector('.vb-node-body');
+    if (body) el.removeChild(body);
+
+    const def = getCurrentBlockDefs()[node.blockId];
+    if (def && (def.params || []).length > 0) {
+        const newBody = document.createElement('div');
+        newBody.className = 'vb-node-body';
+        for (const p of def.params) {
+            const lbl = document.createElement('div');
+            lbl.className = 'vb-param-label';
+            lbl.dataset.paramName = p.n;
+            lbl.style.cssText = 'font-size:10px;color:#8b949e;margin-top:4px;';
+            lbl.textContent = getParamLabel(p.n);
+            newBody.appendChild(lbl);
+            newBody.appendChild(createVbParamControl(node, p));
+        }
+
+        // Insert after header
+        const header = el.querySelector('.vb-node-header');
+        if (header) {
+            header.insertAdjacentElement('afterend', newBody);
+        } else {
+            el.appendChild(newBody);
+        }
+    }
 }
 
 function loadTemplate(tpl) {
     // Mevcut canvas temizle
     vbNodes = [];
     vbConnections = [];
+    vbVariables = [];
     const area = document.getElementById('visual-builder-canvas-wrapper');
     if (area) area.querySelectorAll('.vb-node').forEach(n => n.remove());
 
@@ -1125,7 +1275,12 @@ function loadTemplate(tpl) {
         const fromId = idMap[c.from];
         const toId = idMap[c.to];
         if (fromId && toId) {
-            vbConnections.push({ from: fromId, to: toId });
+            vbConnections.push({
+                from: fromId,
+                fromPort: c.fromPort || 'out',
+                to: toId,
+                toPort: c.toPort || 'in'
+            });
         }
     });
 
@@ -1280,22 +1435,46 @@ function renderNode(node) {
         el.appendChild(body);
     }
 
-    // In port (non-event nodes)
-    if (node.type !== 'event') {
-        const inPort = document.createElement('div');
-        inPort.className = 'vb-node-port in';
-        inPort.dataset.nodeId = node.id;
-        inPort.dataset.portType = 'in';
-        inPort.title = vbTr('ui.vb.inputPort', 'Input port');
-        el.appendChild(inPort);
-    }
+    // Ports
+    if (def.ports) {
+        const outPorts = def.ports.filter(p => p.dir === 'out');
+        const inPorts = def.ports.filter(p => p.dir === 'in');
+        def.ports.forEach(p => {
+            const portEl = document.createElement('div');
+            portEl.className = 'vb-node-port ' + p.dir + (p.type === 'data' ? ' data-port' : '');
+            if (p.label) portEl.setAttribute('data-port-label', p.label);
+            portEl.dataset.nodeId = node.id;
+            portEl.dataset.portType = p.dir;
+            portEl.dataset.portId = p.id;
+            portEl.title = p.label || (p.dir === 'in' ? 'Input' : 'Output');
+            const list = p.dir === 'out' ? outPorts : inPorts;
+            if (list.length > 1) {
+                const idx = list.indexOf(p);
+                // e.g. 2 ports -> 33% and 66%. offset a bit based on height
+                portEl.style.top = `calc(${100 / (list.length + 1) * (idx + 1)}% + 14px)`;
+            }
+            el.appendChild(portEl);
+        });
+    } else {
+        // Legacy In port (non-event nodes)
+        if (node.type !== 'event') {
+            const inPort = document.createElement('div');
+            inPort.className = 'vb-node-port in';
+            inPort.dataset.nodeId = node.id;
+            inPort.dataset.portType = 'in';
+            inPort.dataset.portId = 'in';
+            inPort.title = vbTr('ui.vb.inputPort', 'Input port');
+            el.appendChild(inPort);
+        }
 
-    const outPort = document.createElement('div');
-    outPort.className = 'vb-node-port out';
-    outPort.dataset.nodeId = node.id;
-    outPort.dataset.portType = 'out';
-    outPort.title = vbTr('ui.vb.outputPort', 'Output port');
-    el.appendChild(outPort);
+        const outPort = document.createElement('div');
+        outPort.className = 'vb-node-port out';
+        outPort.dataset.nodeId = node.id;
+        outPort.dataset.portType = 'out';
+        outPort.dataset.portId = 'out';
+        outPort.title = vbTr('ui.vb.outputPort', 'Output port');
+        el.appendChild(outPort);
+    }
 
     // Drag
     header.addEventListener('mousedown', (e) => {
@@ -1312,7 +1491,7 @@ function renderNode(node) {
         port.addEventListener('mousedown', (e) => {
             e.stopPropagation();
             if (port.dataset.portType === 'out') {
-                vbConnecting = { fromId: node.id, startX: e.clientX, startY: e.clientY };
+                vbConnecting = { fromId: node.id, portId: port.dataset.portId, startX: e.clientX, startY: e.clientY };
             }
         });
     });
@@ -1403,14 +1582,15 @@ document.addEventListener('mouseup', (e) => {
         const target = document.elementFromPoint(e.clientX, e.clientY);
         if (target && target.classList.contains('vb-node-port') && target.dataset.portType === 'in') {
             const toId = parseInt(target.dataset.nodeId);
+            const toPortId = target.dataset.portId || 'in';
             if (toId !== vbConnecting.fromId) {
                 const fromNode = vbNodes.find(n => n.id === vbConnecting.fromId);
                 const toNode = vbNodes.find(n => n.id === toId);
                 const validFrom = {
                     event: ['condition', 'action', 'control'],
-                    condition: ['action', 'control'],
-                    action: ['action', 'control'],
-                    control: ['action', 'condition'],
+                    condition: ['action', 'control', 'condition'],
+                    action: ['action', 'control', 'condition'],
+                    control: ['action', 'condition', 'control'],
                 };
                 if (fromNode && toNode && !validFrom[fromNode.type]?.includes(toNode.type)) {
                     vbNotify('msg.invalidConnection', 'Invalid connection: {from} -> {to}', 'error', {
@@ -1418,9 +1598,9 @@ document.addEventListener('mouseup', (e) => {
                         to: toNode.type,
                     });
                 } else {
-                    const existIdx = vbConnections.findIndex(c => c.to === toId);
+                    const existIdx = vbConnections.findIndex(c => c.to === toId && (c.toPort || 'in') === toPortId);
                     if (existIdx >= 0) vbConnections.splice(existIdx, 1);
-                    vbConnections.push({ from: vbConnecting.fromId, to: toId });
+                    vbConnections.push({ from: vbConnecting.fromId, fromPort: vbConnecting.portId, to: toId, toPort: toPortId });
                     drawConnections();
                     if (window.aiManager) window.aiManager.triggerBalanceCheck();
                 }
@@ -1452,8 +1632,8 @@ function drawConnections() {
     vbCtx.clearRect(0, 0, vbCanvas.width, vbCanvas.height);
 
     for (const conn of vbConnections) {
-        const from = getPortCenter(conn.from, 'out');
-        const to = getPortCenter(conn.to, 'in');
+        const from = getPortCenter(conn.from, 'out', conn.fromPort);
+        const to = getPortCenter(conn.to, 'in', conn.toPort);
         if (!from || !to) continue;
 
         const dx = Math.abs(to.x - from.x);
@@ -1480,7 +1660,7 @@ function drawConnections() {
 
     // Draw active dragging connection
     if (typeof vbConnecting !== 'undefined' && vbConnecting && vbConnecting.currentX !== undefined && vbConnecting.currentY !== undefined) {
-        const from = getPortCenter(vbConnecting.fromId, 'out');
+        const from = getPortCenter(vbConnecting.fromId, 'out', vbConnecting.portId);
         if (from) {
             const to = { x: vbConnecting.currentX, y: vbConnecting.currentY };
             const dx = Math.abs(to.x - from.x);
@@ -1508,8 +1688,8 @@ function pointOnBezier(t, p0, cp1, cp2, p1) {
 function findConnectionNear(mx, my, threshold = 10) {
     for (let i = 0; i < vbConnections.length; i++) {
         const conn = vbConnections[i];
-        const from = getPortCenter(conn.from, 'out');
-        const to = getPortCenter(conn.to, 'in');
+        const from = getPortCenter(conn.from, 'out', conn.fromPort);
+        const to = getPortCenter(conn.to, 'in', conn.toPort);
         if (!from || !to) continue;
 
         const dx = Math.abs(to.x - from.x) * 0.5;
@@ -1745,6 +1925,10 @@ function hideVbContextMenu() {
 
 function vbGenerateCode(options) {
     const returnOnly = options && options.returnOnly === true;
+    if (!validateGraph()) {
+        if (!options?.force) return ''; // Add a force flag if needed, but return empty string for now
+    }
+
     let code = '';
     switch (vbCurrentMode) {
         case 'plugin': code = generatePluginCode(); break;
@@ -1793,6 +1977,41 @@ function getConnectedChain(startId) {
         currentId = conn ? conn.to : null;
     }
     return chain;
+}
+
+function validateGraph() {
+    let isValid = true;
+    let errors = 0;
+
+    // Reset all node borders
+    document.querySelectorAll('.vb-node').forEach(el => {
+        el.style.border = '';
+        el.style.boxShadow = '';
+    });
+
+    if (vbNodes.length === 0) return true;
+
+    // A simple validation looking for logic nodes that aren't plugged into anything
+    vbNodes.forEach(node => {
+        if (node.type !== 'event') {
+            const hasIncoming = vbConnections.some(c => c.to === node.id);
+            if (!hasIncoming) {
+                isValid = false;
+                errors++;
+                const el = document.getElementById('vb-node-' + node.id);
+                if (el) {
+                    el.style.border = '2px solid #e74c3c';
+                    el.style.boxShadow = '0 0 10px rgba(231, 76, 60, 0.5)';
+                }
+            }
+        }
+    });
+
+    if (!isValid) {
+        vbNotify('msg.validationFailed', 'Validation Failed: ' + errors + ' disconnected nodes found. Please connect or remove them.', 'error');
+    }
+
+    return isValid;
 }
 
 // Plugin (Paper/Bukkit) kodu
@@ -2081,6 +2300,7 @@ function vbClearCanvas() {
     if (confirm(vbTr('ui.vb.confirmClear', 'Clear all blocks from the canvas?'))) {
         vbNodes = [];
         vbConnections = [];
+        vbVariables = [];
         const area = document.getElementById('visual-builder-canvas-wrapper');
         if (area) area.querySelectorAll('.vb-node').forEach(n => n.remove());
         drawConnections();
@@ -2103,6 +2323,7 @@ async function vbSaveBlueprint() {
     const blueprint = {
         version: '1',
         mode: vbCurrentMode,
+        variables: [...vbVariables],
         nodes: vbNodes.map(n => ({ id: n.id, blockId: n.blockId, x: n.x, y: n.y, params: { ...n.params } })),
         connections: vbConnections.map(c => ({ from: c.from, to: c.to })),
     };
@@ -2145,6 +2366,7 @@ async function vbLoadBlueprint() {
         // Canvas temizle
         vbNodes = [];
         vbConnections = [];
+        vbVariables = blueprint.variables || [];
         const area = document.getElementById('visual-builder-canvas-wrapper');
         if (area) area.querySelectorAll('.vb-node').forEach(n => n.remove());
 
@@ -2248,23 +2470,23 @@ if (vbDebugCheckbox) {
 
 // Log satÄ±rÄ± â†’ VB blok eÅŸleme tablosu
 const LOG_EVENT_MAP = [
-    { pattern: /joined the game|PlayerJoinEvent/i,           blockId: 'PlayerJoin' },
-    { pattern: /left the game|PlayerQuitEvent/i,             blockId: 'PlayerQuit' },
-    { pattern: /BlockBreakEvent/i,                           blockId: 'BlockBreak' },
-    { pattern: /BlockPlaceEvent/i,                           blockId: 'BlockPlace' },
-    { pattern: /AsyncPlayerChatEvent|chat message/i,         blockId: 'PlayerChat' },
+    { pattern: /joined the game|PlayerJoinEvent/i, blockId: 'PlayerJoin' },
+    { pattern: /left the game|PlayerQuitEvent/i, blockId: 'PlayerQuit' },
+    { pattern: /BlockBreakEvent/i, blockId: 'BlockBreak' },
+    { pattern: /BlockPlaceEvent/i, blockId: 'BlockPlace' },
+    { pattern: /AsyncPlayerChatEvent|chat message/i, blockId: 'PlayerChat' },
     { pattern: /PlayerDeathEvent|died|was slain|fell from/i, blockId: 'PlayerDeath' },
-    { pattern: /EntityDamageByEntityEvent/i,                 blockId: 'EntityDamage' },
-    { pattern: /PlayerCommandPreprocessEvent/i,              blockId: 'PlayerCommand' },
-    { pattern: /PlayerMoveEvent/i,                           blockId: 'PlayerMove' },
-    { pattern: /InventoryClickEvent/i,                       blockId: 'InventoryClick' },
-    { pattern: /ServerStartedEvent|onEnable/i,               blockId: 'ServerLoad' },
+    { pattern: /EntityDamageByEntityEvent/i, blockId: 'EntityDamage' },
+    { pattern: /PlayerCommandPreprocessEvent/i, blockId: 'PlayerCommand' },
+    { pattern: /PlayerMoveEvent/i, blockId: 'PlayerMove' },
+    { pattern: /InventoryClickEvent/i, blockId: 'InventoryClick' },
+    { pattern: /ServerStartedEvent|onEnable/i, blockId: 'ServerLoad' },
     // Fabric
-    { pattern: /ServerPlayConnectionEvents\.JOIN/i,          blockId: 'FabricPlayerJoin' },
-    { pattern: /ServerPlayConnectionEvents\.DISCONNECT/i,    blockId: 'FabricPlayerQuit' },
+    { pattern: /ServerPlayConnectionEvents\.JOIN/i, blockId: 'FabricPlayerJoin' },
+    { pattern: /ServerPlayConnectionEvents\.DISCONNECT/i, blockId: 'FabricPlayerQuit' },
     // Forge
-    { pattern: /PlayerLoggedInEvent/i,                       blockId: 'ForgePlayerLogin' },
-    { pattern: /PlayerLoggedOutEvent/i,                      blockId: 'ForgePlayerLogout' },
+    { pattern: /PlayerLoggedInEvent/i, blockId: 'ForgePlayerLogin' },
+    { pattern: /PlayerLoggedOutEvent/i, blockId: 'ForgePlayerLogout' },
 ];
 
 function pulseNode(nodeId) {
@@ -2292,6 +2514,7 @@ function vbExportGraph() {
     return {
         version: '2',
         mode: vbCurrentMode,
+        variables: [...vbVariables],
         nodes: vbNodes.map((n) => ({
             id: n.id,
             blockId: n.blockId,
@@ -2360,6 +2583,7 @@ function vbImportGraph(graph, options) {
     if (opts.clear !== false) {
         vbNodes = [];
         vbConnections = [];
+        vbVariables = migrated.variables || [];
         const area = document.getElementById('visual-builder-canvas-wrapper');
         if (area) area.querySelectorAll('.vb-node').forEach((n) => n.remove());
     }
