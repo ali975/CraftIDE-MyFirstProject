@@ -49,8 +49,8 @@ npm run dist
 
 Main Windows outputs:
 
-- `release/CraftIDE-Setup-0.2.13.exe`
-- `release/CraftIDE-0.2.13.exe`
+- `release/CraftIDE-Setup-0.2.14.exe`
+- `release/CraftIDE-0.2.14.exe`
 
 Optional direct GitHub publishing:
 
