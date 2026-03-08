@@ -232,6 +232,7 @@
         code += '        getLogger().info("Plugin devre dışı!");\n    }\n\n';
 
         const ctx = { nodes, connections, visited: new Set(), mode: 'plugin' };
+        const eventNodes = nodes.filter((node) => isEventNode('plugin', node));
 
         for (const eventNode of eventNodes) {
             const eventType = PLUGIN_EVENT_TYPES[eventNode.blockId];
@@ -302,6 +303,7 @@
         code += '    @Override\n    public void onInitialize() {\n';
 
         const ctx = { nodes, connections, visited: new Set(), mode: 'fabric' };
+        const eventNodes = nodes.filter((node) => isEventNode('fabric', node));
         for (const eventNode of eventNodes) {
             const eventType = FABRIC_EVENT_TYPES[eventNode.blockId];
             if (!eventType) continue;
@@ -371,6 +373,7 @@
         code += '    public MyMod() {\n        net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(this);\n    }\n\n';
 
         const ctx = { nodes, connections, visited: new Set(), mode: 'forge' };
+        const eventNodes = nodes.filter((node) => isEventNode('forge', node));
         for (const eventNode of eventNodes) {
             const eventType = FORGE_EVENT_TYPES[eventNode.blockId];
             if (!eventType) continue;
