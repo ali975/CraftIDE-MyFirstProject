@@ -22,7 +22,6 @@
     { "name": "craftide-ai" },
     { "name": "craftide-minecraft" },
     { "name": "craftide-visual" },
-    { "name": "craftide-3d" },
     { "name": "craftide-testserver" }
   ]
 }

@@ -6,6 +6,7 @@
     const { ipcRenderer } = require('electron');
     const nodePath = require('path');
     const CreatorBrief = require('../shared/creator-brief.js');
+    const Guidance = require('../shared/minecraft-guidance.js');
     const Utils = window.CraftIDEUtils || {};
 
     const MODE_ALIAS = { paper: 'plugin', spigot: 'plugin', bukkit: 'plugin', plugin: 'plugin', fabric: 'fabric', forge: 'forge', skript: 'skript' };
@@ -18,6 +19,12 @@
         oneStepRunning: false,
         cancelBuild: false,
         attempt: 0,
+        qualityStatus: {
+            validation: null,
+            build: null,
+            scenario: null,
+        },
+        lastReleaseResult: null,
     };
 
     const PACKS = {
@@ -123,6 +130,31 @@
         return window.CraftIDEVB?.exportGraph?.() || { version: '2', mode: getMode(), nodes: [], connections: [] };
     }
 
+    function trackStep(step, payload = {}) {
+        window.CraftIDEAppState?.ensureCreatorJourney?.({
+            prompt: payload.prompt || '',
+            mode: payload.mode || getMode(),
+            source: payload.source || 'no-code-suite',
+        });
+        if (window.CraftIDEMetrics?.markStep) {
+            const journeyId = window.CraftIDEAppState?.getCurrentCreatorJourneyId?.();
+            if (journeyId) window.CraftIDEMetrics.markStep(journeyId, step, payload);
+        }
+    }
+
+    function setQualityStatus(patch = {}) {
+        STATE.qualityStatus = {
+            validation: patch.validation === undefined ? STATE.qualityStatus.validation : patch.validation,
+            build: patch.build === undefined ? STATE.qualityStatus.build : patch.build,
+            scenario: patch.scenario === undefined ? STATE.qualityStatus.scenario : patch.scenario,
+        };
+        renderDeliveryGate();
+        const readiness = Guidance.buildProjectReadinessSnapshot(STATE.qualityStatus, STATE.lastReleaseResult || null);
+        if (window.CraftIDEStore?.patch) {
+            window.CraftIDEStore.patch({ creator: { readiness } });
+        }
+    }
+
     async function ensureVisualBuilderOpen(mode) {
         const targetMode = normalizeMode(mode || getMode());
         const currentFile = String(window.CraftIDEAppState?.getCurrentFilePath?.() || '');
@@ -214,6 +246,18 @@
         for (const w of result.warnings.slice(0, 6)) lines.push(`<div class="nc-row warn">W: ${esc(formatMessage(w, 'ui.nc.validation.warning', 'Validation warning'))}</div>`);
         if (!result.errors.length && !result.warnings.length) lines.push(`<div class="nc-row ok">${esc(t('ui.nc.validationReady', 'Validation panel initialized.'))}</div>`);
         body.innerHTML = lines.join('');
+        setQualityStatus({
+            validation: {
+                errors: result.errors.length,
+                warnings: result.warnings.length,
+                success: result.errors.length === 0,
+            },
+        });
+        trackStep('graph_validated', {
+            errors: result.errors.length,
+            warnings: result.warnings.length,
+            mode: graph.mode,
+        });
         return result;
     }
 
@@ -233,7 +277,29 @@
         if (!graph) graph = localGraphFromPrompt(text, mode);
 
         STATE.intentGraph = graph;
-        if (out) out.innerHTML = `<div class="nc-card"><strong>${esc(t('ui.nc.generatedGraph', 'Generated graph'))}</strong><div class="nc-sub">${esc(t('ui.nc.generatedGraphSummary', '{nodes} node(s), {connections} connection(s)', { nodes: graph.nodes.length, connections: graph.connections.length }))}</div></div>`;
+        if (out) {
+            const intake = CreatorBrief.buildGuidedIntake(text, mode, { translate: t });
+            const checklist = CreatorBrief.buildDeliveryChecklist(text, mode);
+            out.innerHTML = `
+                <div class="nc-card">
+                    <strong>${esc(t('ui.nc.generatedGraph', 'Generated graph'))}</strong>
+                    <div class="nc-sub">${esc(t('ui.nc.generatedGraphSummary', '{nodes} node(s), {connections} connection(s)', { nodes: graph.nodes.length, connections: graph.connections.length }))}</div>
+                </div>
+                <div class="nc-card">
+                    <strong>${esc(t('ui.nc.intentRoute', 'Recommended route'))}</strong>
+                    <div class="nc-sub">${esc(intake.route.recommended)}</div>
+                </div>
+                <div class="nc-card">
+                    <strong>${esc(t('ui.nc.intentQuestions', 'Questions to confirm'))}</strong>
+                    <div class="nc-sub">${esc((intake.questions || []).join(' ') || t('ui.nc.intentReady', 'Enough context for a strong first draft.'))}</div>
+                </div>
+                <div class="nc-card">
+                    <strong>${esc(t('ui.nc.intentChecklist', 'Delivery checklist'))}</strong>
+                    <div class="nc-sub">${esc(checklist.map((item) => item.label).join(' | '))}</div>
+                </div>
+            `;
+        }
+        trackStep('intent_analyzed', { prompt: text, mode, nodes: graph.nodes.length });
     }
 
     async function applyIntent() {
@@ -243,6 +309,7 @@
         await validateGraph(true);
         renderSuggestions(true);
         renderCreatorPanels(true);
+        trackStep('intent_applied', { nodes: (STATE.intentGraph.nodes || []).length, mode: STATE.intentGraph.mode });
     }
 
     function suggestionsForGraph(graph) {
@@ -315,6 +382,49 @@
             suggestions,
             simulation,
         });
+    }
+
+    function renderDeliveryGate() {
+        const body = document.getElementById('nc-delivery-body');
+        if (!body) return;
+        const gate = Guidance.buildReleaseQualityGate(STATE.qualityStatus);
+        const rows = gate.checks.map((check) => {
+            const cls = check.passed ? 'ok' : (check.required ? 'err' : 'warn');
+            return `<div class="nc-row ${cls}">${esc(check.label)}: ${esc(check.detail)}</div>`;
+        });
+        rows.unshift(`<div class="nc-row ${gate.canRelease ? 'ok' : 'warn'}"><strong>${esc(t('ui.nc.delivery', 'Delivery Gate'))}:</strong> ${esc(gate.summary)}</div>`);
+        body.innerHTML = rows.join('');
+        renderReadinessPanel();
+        renderTelemetryPanel();
+    }
+
+    function renderReadinessPanel() {
+        const body = document.getElementById('nc-readiness-body');
+        if (!body) return;
+        const snapshot = Guidance.buildProjectReadinessSnapshot(STATE.qualityStatus, STATE.lastReleaseResult || null);
+        const bar = `[${Array(snapshot.total).fill(0).map((_, i) => i < snapshot.score ? '▓' : '░').join('')}] ${snapshot.pct}%`;
+        const rows = [`<div class="nc-row ${snapshot.canRelease ? 'ok' : 'warn'}">${esc(bar)} ${esc(snapshot.summary)}</div>`];
+        for (const chk of snapshot.checks) {
+            const cls = chk.passed ? 'ok' : (chk.required ? 'err' : 'warn');
+            rows.push(`<div class="nc-row ${cls}">${esc(chk.label)}: ${esc(chk.detail)}</div>`);
+        }
+        body.innerHTML = rows.join('');
+    }
+
+    function renderTelemetryPanel() {
+        const body = document.getElementById('nc-telemetry-body');
+        if (!body || !window.CraftIDEMetrics?.aggregateTelemetry) return;
+        const tel = window.CraftIDEMetrics.aggregateTelemetry();
+        const fmt = (v, suffix) => v !== null && v !== undefined ? `${v}${suffix}` : 'n/a';
+        const rows = [
+            `<div class="nc-row">Journeys recorded: ${esc(String(tel.journeyCount))}</div>`,
+            `<div class="nc-row">First build time: ${esc(tel.firstWorkingBuildMs !== null ? `${Math.round(tel.firstWorkingBuildMs / 1000)}s` : 'n/a')}</div>`,
+            `<div class="nc-row">Build success rate: ${esc(fmt(tel.buildSuccessRate, '%'))}</div>`,
+            `<div class="nc-row">Scenario pass rate: ${esc(fmt(tel.scenarioPassRate, '%'))}</div>`,
+            `<div class="nc-row">AI repair rate: ${esc(fmt(tel.manualFixRate, '%'))}</div>`,
+            `<div class="nc-row">Route accuracy: ${esc(fmt(tel.recommendedRouteAccuracy, '%'))}</div>`,
+        ];
+        body.innerHTML = rows.join('');
     }
 
     function renderCreatorPanels(force = false) {
@@ -406,12 +516,29 @@
                 STATE.attempt += 1;
                 await ipcRenderer.invoke('fs:writeFile', sourcePath, source);
                 const result = await ipcRenderer.invoke('build:guaranteed', { projectPath, platform: mode, attempt: STATE.attempt });
-                if (result?.success) { logBuild(t('ui.nc.build.attemptSuccess', 'Attempt {attempt}: success', { attempt: STATE.attempt }), 'ok'); notifyT('ui.nc.notify.buildPassedAfterAttempts', 'Build passed after {attempt} attempts.', 'success', { attempt: STATE.attempt }); break; }
+                if (result?.success) {
+                    logBuild(t('ui.nc.build.attemptSuccess', 'Attempt {attempt}: success', { attempt: STATE.attempt }), 'ok');
+                    notifyT('ui.nc.notify.buildPassedAfterAttempts', 'Build passed after {attempt} attempts.', 'success', { attempt: STATE.attempt });
+                    setQualityStatus({ build: { success: true, attempts: STATE.attempt, compileErrors: 0 } });
+                    trackStep('guaranteed_build_passed', { attempts: STATE.attempt, mode, projectPath });
+                    break;
+                }
                 const err = [result?.error || '', ...(result?.compileErrors || [])].join('\n').trim() || 'Unknown error';
                 logBuild(t('ui.nc.build.attemptFailedFixing', 'Attempt {attempt}: failed, fixing...', { attempt: STATE.attempt }), 'warn');
+                setQualityStatus({ build: { success: false, attempts: STATE.attempt, compileErrors: (result?.compileErrors || []).length } });
+                trackStep('guaranteed_build_failed', { attempts: STATE.attempt, compileErrors: (result?.compileErrors || []).length, mode, projectPath });
                 let fixed = null;
                 if (window.llmProvider?.generate) {
-                    const answer = await window.llmProvider.generate(`Mode: ${mode}\nCompiler errors:\n${err}\n\nCurrent source:\n${source}\n\nReturn only one full fixed source in fenced code block.`, 'Fix Minecraft source code and return only code.');
+                    const promptPreamble = Guidance.buildPromptPreamble({
+                        context: {
+                            currentProjectPath: projectPath,
+                            mode,
+                            activeFile: sourcePath,
+                            files: [sourcePath],
+                            graph: currentGraph(),
+                        },
+                    });
+                    const answer = await window.llmProvider.generate(`Project context:\n${promptPreamble}\n\nMode: ${mode}\nCompiler errors:\n${err}\n\nCurrent source:\n${source}\n\nReturn only one full fixed source in fenced code block.`, 'Fix Minecraft source code and return only code.');
                     fixed = extractCodeBlock(answer, mode);
                 }
                 if (fixed && fixed !== source) { source = fixed; continue; }
@@ -419,6 +546,7 @@
             }
         } finally {
             if (STATE.cancelBuild) logBuild(t('ui.nc.build.canceled', 'Guaranteed build canceled by user.'), 'warn');
+            if (STATE.cancelBuild) setQualityStatus({ build: { success: false, attempts: STATE.attempt, compileErrors: -1 } });
             STATE.buildRunning = false; STATE.cancelBuild = false; renderBuildButton();
         }
     }
@@ -449,6 +577,13 @@
         }).filter((x) => x.name && x.command && x.expect);
     }
 
+    function seedScenarioInput(prompt = '', mode = getMode()) {
+        const input = document.getElementById('nc-scenario-input');
+        if (!input) return;
+        const ideas = Guidance.buildScenarioIdeas(prompt, mode);
+        input.value = ideas.map((item) => `${item.name}|${item.command}|${item.expect}|${item.timeoutMs}`).join('\n');
+    }
+
     function logsSince(ts) { return (window.__craftideServerLogs || []).filter((x) => x.ts >= ts).map((x) => String(x.line || '')); }
     function matches(expect, lines) { return lines.some((l) => l.toLowerCase().includes(String(expect).toLowerCase())); }
 
@@ -457,29 +592,48 @@
         const scenarios = parseScenarios();
         if (!scenarios.length) { out.innerHTML = `<div class="nc-row warn">${esc(t('ui.nc.scenario.none', 'No valid scenarios.'))}</div>`; return; }
         const status = await ipcRenderer.invoke('server:status').catch(() => null);
-        if (!status || status.status !== 'running') { out.innerHTML = `<div class="nc-row err">${esc(t('ui.nc.scenario.serverNotRunning', 'Server is not running.'))}</div>`; return; }
+        if (!status || status.status !== 'running') {
+            out.innerHTML = `<div class="nc-row err">${esc(t('ui.nc.scenario.serverNotRunning', 'Server is not running.'))}</div>`;
+            setQualityStatus({ scenario: { success: false, passed: 0, total: scenarios.length } });
+            return;
+        }
         await ipcRenderer.invoke('scenario:run', { scenarios }).catch(() => null);
 
         let passed = 0;
         const rows = [];
+        const failureReasons = [];
         for (const s of scenarios) {
             const t0 = Date.now();
             const sent = await ipcRenderer.invoke('server:command', s.command).catch(() => false);
-            if (!sent) { rows.push(`<div class="nc-row err">${esc(s.name)}: ${esc(t('ui.nc.scenario.commandFailed', 'command failed'))}</div>`); continue; }
+            if (!sent) {
+                rows.push(`<div class="nc-row err">${esc(s.name)}: ${esc(t('ui.nc.scenario.commandFailed', 'command failed'))}</div>`);
+                failureReasons.push({ name: s.name, reason: 'command failed to send' });
+                continue;
+            }
             let ok = false;
             const until = Date.now() + s.timeoutMs;
             while (Date.now() < until) { if (matches(s.expect, logsSince(t0))) { ok = true; break; } await sleep(250); }
             if (ok) { passed += 1; rows.push(`<div class="nc-row ok">${esc(s.name)}: ${esc(t('ui.nc.scenario.passed', 'passed'))}</div>`); }
-            else rows.push(`<div class="nc-row err">${esc(s.name)}: ${esc(t('ui.nc.scenario.failed', 'failed'))}</div>`);
+            else {
+                rows.push(`<div class="nc-row err">${esc(s.name)}: ${esc(t('ui.nc.scenario.failed', 'failed'))}</div>`);
+                failureReasons.push({ name: s.name, reason: `timeout waiting for "${s.expect}" in server output` });
+            }
         }
         rows.unshift(`<div class="nc-row"><strong>${esc(t('ui.nc.scenario.result', 'Scenario result'))}:</strong> ${passed}/${scenarios.length} ${esc(t('ui.nc.scenario.passed', 'passed'))}</div>`);
         out.innerHTML = rows.join('');
+        setQualityStatus({ scenario: { success: passed === scenarios.length && scenarios.length > 0, passed, total: scenarios.length, failureReasons } });
+        trackStep('scenario_run', { passed, total: scenarios.length, failureReasons });
     }
 
     async function runRelease() {
         const out = document.getElementById('nc-release-output');
         const projectPath = window.CraftIDEAppState?.getCurrentProjectPath?.();
         if (!projectPath) { notifyT('msg.openProjectFirst', 'Open a project first!', 'error'); return; }
+        const gate = Guidance.buildReleaseQualityGate(STATE.qualityStatus);
+        if (!gate.canRelease) {
+            out.innerHTML = `<div class="nc-row err">${esc(gate.summary)}</div>`;
+            return;
+        }
         out.innerHTML = `<div class="nc-row">${esc(t('ui.nc.release.packaging', 'Packaging release...'))}</div>`;
         const result = await ipcRenderer.invoke('release:oneClick', {
             projectPath,
@@ -487,11 +641,21 @@
             includeDocs: !!document.getElementById('nc-release-docs')?.checked,
         }).catch((e) => ({ success: false, error: e?.message || 'IPC error' }));
         if (!result?.success) { out.innerHTML = `<div class="nc-row err">${esc(t('ui.nc.release.failed', 'Release failed: {error}', { error: result?.error || t('ui.nc.errorUnknown', 'Unknown') }))}</div>`; return; }
-        const lines = [`<div class="nc-row ok">${esc(t('ui.nc.release.created', 'Release package created.'))}</div>`];
-        for (const f of (result.outputFiles || [])) lines.push(`<div class="nc-row">${esc(f)}</div>`);
-        for (const c of (result.checksum || [])) lines.push(`<div class="nc-row">${esc(c.file)} :: ${esc(c.sha256)}</div>`);
-        if (result.warning) lines.push(`<div class="nc-row warn">${esc(result.warning)}</div>`);
+        STATE.lastReleaseResult = result;
+        const delivery = Guidance.buildReleaseDeliverySummary(result, STATE.qualityStatus);
+        const lines = [`<div class="nc-row ok">${esc(delivery.summary)}</div>`];
+        for (const f of delivery.artifacts) lines.push(`<div class="nc-row">📦 ${esc(f)}</div>`);
+        for (const c of delivery.checksums) lines.push(`<div class="nc-row">🔑 ${esc(c)}</div>`);
+        lines.push(`<div class="nc-head">${esc(t('ui.nc.release.manualChecks', 'Manual checks before publishing:'))}</div>`);
+        for (const chk of delivery.manualChecks) lines.push(`<div class="nc-row warn">☑ ${esc(chk)}</div>`);
+        lines.push(`<div class="nc-row ok">→ ${esc(delivery.nextStep)}</div>`);
         out.innerHTML = lines.join('');
+        setQualityStatus({});
+        trackStep('release_created', { outputs: delivery.artifacts.length, targetType: document.getElementById('nc-release-target')?.value || 'jar' });
+        const journeyId = window.CraftIDEAppState?.getCurrentCreatorJourneyId?.();
+        if (journeyId && window.CraftIDEMetrics?.finishJourney) {
+            window.CraftIDEMetrics.finishJourney(journeyId, { releasedAt: Date.now(), outputs: delivery.artifacts.length });
+        }
     }
 
     function oneStepLog(text, cls) {
@@ -517,6 +681,7 @@
         STATE.oneStepRunning = true;
         const runBtn = document.getElementById('nc-one-step-run');
         if (runBtn) runBtn.textContent = t('ui.nc.run.running', 'Running...');
+        trackStep('one_step_started', { prompt, mode, buildRequested: doBuild, generateRequested: doGenerate });
 
         try {
             oneStepLog(t('ui.nc.run.architectParsing', 'Architect: parsing request for {mode}...', { mode }), 'info');
@@ -557,9 +722,11 @@
 
             oneStepLog(t('ui.nc.run.completed', 'Flow completed.'), 'ok');
             notifyT('ui.nc.notify.flowCompleted', 'One-step flow completed.', 'success');
+            trackStep('one_step_completed', { prompt, mode, buildRequested: doBuild, generateRequested: doGenerate });
         } catch (e) {
             oneStepLog(t('ui.nc.run.failed', 'Flow failed: {error}', { error: e?.message || t('ui.nc.errorUnknown', 'Unknown error') }), 'err');
             notifyT('ui.nc.notify.flowFailed', 'One-step flow failed: {error}', 'error', { error: e?.message || t('ui.nc.errorUnknown', 'Unknown error') });
+            trackStep('one_step_failed', { prompt, mode, error: e?.message || 'Unknown error' });
         } finally {
             STATE.oneStepRunning = false;
             if (runBtn) runBtn.textContent = t('ui.nc.runFlow', 'Run One-Step Flow');
@@ -573,6 +740,7 @@
         if (promptEl && typeof seedPrompt === 'string') promptEl.value = seedPrompt;
         openModal('nc-one-step-modal');
         promptEl?.focus();
+        seedScenarioInput(seedPrompt || '', normalizeMode(options.mode || getMode()));
     }
 
     function openModal(id) { const el = document.getElementById(id); if (el) el.style.display = 'flex'; }
@@ -695,6 +863,18 @@
                 <div id="nc-validator-body" class="nc-body"><div class="nc-row">Validation panel initialized.</div></div>
                 <div id="nc-suggest-body" class="nc-body"><div class="nc-row">Suggestion engine initialized.</div></div>
             </div>
+            <div class="nc-stack">
+                <div class="nc-head">${esc(t('ui.nc.delivery', 'Delivery Gate'))}</div>
+                <div id="nc-delivery-body" class="nc-body"><div class="nc-row">${esc(t('ui.nc.deliveryEmpty', 'Validation, build, scenario, and release readiness appear here.'))}</div></div>
+            </div>
+            <div class="nc-stack">
+                <div class="nc-head">${esc(t('ui.nc.readiness', 'Project Readiness'))}</div>
+                <div id="nc-readiness-body" class="nc-body"><div class="nc-row">${esc(t('ui.nc.readinessEmpty', 'Run validation, build, and scenario to see your readiness score.'))}</div></div>
+            </div>
+            <div class="nc-stack">
+                <div class="nc-head">${esc(t('ui.nc.telemetry', 'Creator Telemetry'))}</div>
+                <div id="nc-telemetry-body" class="nc-body"><div class="nc-row">${esc(t('ui.nc.telemetryEmpty', 'Telemetry aggregates across journeys once you complete a build.'))}</div></div>
+            </div>
             <div id="nc-build-log" class="nc-build" style="display:none;"></div>
         `;
         const vbTopRegion = document.getElementById('vb-top-region');
@@ -734,7 +914,8 @@
         document.getElementById('btn-nc-validate')?.addEventListener('click', () => validateGraph(true));
         document.getElementById('btn-nc-guaranteed')?.addEventListener('click', () => runGuaranteedBuild());
         document.getElementById('btn-nc-scenarios')?.addEventListener('click', () => openModal('nc-scenario-modal'));
-        document.getElementById('btn-nc-release')?.addEventListener('click', () => openModal('nc-release-modal'));
+        document.getElementById('btn-nc-scenarios')?.addEventListener('click', () => seedScenarioInput(window.CraftIDEWelcomeFlow?.getRequest?.().prompt || '', getMode()));
+        document.getElementById('btn-nc-release')?.addEventListener('click', () => { renderDeliveryGate(); openModal('nc-release-modal'); });
 
         document.getElementById('nc-one-step-run')?.addEventListener('click', () => runOneStepCreate());
         document.getElementById('nc-intent-analyze')?.addEventListener('click', () => analyzeIntent());
@@ -766,11 +947,15 @@
         validateGraph(true);
         renderSuggestions(true);
         renderCreatorPanels(true);
+        renderDeliveryGate();
+        renderReadinessPanel();
+        renderTelemetryPanel();
         document.addEventListener('lang:changed', () => {
             localizeNoCodeUI();
             validateGraph(true);
             renderSuggestions(true);
             renderCreatorPanels(true);
+            renderDeliveryGate();
         });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
@@ -801,6 +986,8 @@
         getSuggestions: (graph) => suggestionsForGraph(graph || currentGraph()),
         describePrompt,
         summarizeCurrentGraph: (graph) => buildCreatorBrief(graph || currentGraph()),
+        getQualityGate: () => Guidance.buildReleaseQualityGate(STATE.qualityStatus),
+        getReadiness: () => Guidance.buildProjectReadinessSnapshot(STATE.qualityStatus, STATE.lastReleaseResult || null),
         openOneStepModal,
         oneClickFixCurrent: async () => runGuaranteedBuild(),
     };

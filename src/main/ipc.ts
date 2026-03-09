@@ -6,6 +6,8 @@ import * as crypto from 'crypto';
 import * as https from 'https';
 import { exec } from 'child_process';
 import { ProjectScaffolder } from './scaffolder';
+import * as GraphServices from './graph-services';
+import * as BuildReleaseServices from './build-release-services';
 const { createUtf8Logger, decodeUtf8Buffer, normalizeUtf8Payload } = require('../../src/shared/utf8.js');
 import {
     checkForAppUpdates,
@@ -864,11 +866,11 @@ export function registerIpcHandlers(): void {
         }
     });
 
-    ipcMain.handle('build:run', async (_, projectPath: string) => runBuild(projectPath));
+    ipcMain.handle('build:run', async (_, projectPath: string) => BuildReleaseServices.runBuild(projectPath));
 
     ipcMain.handle('build:guaranteed', async (_, request: { projectPath: string; platform?: string; attempt?: number }) => {
         const attempt = Number(request?.attempt || 1);
-        const build = await runBuild(request.projectPath);
+        const build = await BuildReleaseServices.runBuild(request.projectPath);
         const mergedLog = [build.output || '', build.error || ''].join('\n');
         return {
             attempt,
@@ -876,7 +878,7 @@ export function registerIpcHandlers(): void {
             status: build.success ? 'success' : 'failed',
             output: build.output,
             error: build.error,
-            compileErrors: extractCompileErrors(mergedLog),
+            compileErrors: BuildReleaseServices.extractCompileErrors(mergedLog),
             done: build.success,
         };
     });
@@ -900,7 +902,7 @@ export function registerIpcHandlers(): void {
 
     ipcMain.handle('vb:nl2graph', async (_, request: { text: string; platform?: string; strictMode?: boolean }) => {
         const mode = normalizeMode(request?.platform || 'plugin');
-        const graph = localNlGraph(String(request?.text || ''), mode);
+        const graph = GraphServices.localNlGraph(String(request?.text || ''), mode);
         return {
             mode,
             nodes: graph.nodes,
@@ -912,7 +914,7 @@ export function registerIpcHandlers(): void {
 
     ipcMain.handle('validate:graph', async (_, request: { graph?: { mode?: string; nodes?: NlNode[]; connections?: NlConnection[] }; platform?: string; mcVersion?: string }) => {
         const graph = request?.graph || { mode: normalizeMode(request?.platform || 'plugin'), nodes: [], connections: [] };
-        const validation = validateGraphShape(graph);
+        const validation = GraphServices.validateGraphShape(graph);
         return {
             mode: normalizeMode(graph.mode || request?.platform || 'plugin'),
             mcVersion: request?.mcVersion || '1.21.4',
@@ -942,77 +944,7 @@ export function registerIpcHandlers(): void {
 
     ipcMain.handle('release:oneClick', async (_, request: { projectPath: string; targetType?: 'jar' | 'sk' | 'zip'; includeDocs?: boolean }) => {
         try {
-            const projectPath = request.projectPath;
-            const targetType = (request.targetType || 'jar').toLowerCase();
-            const includeDocs = !!request.includeDocs;
-            const outputFiles: string[] = [];
-            const checksums: Array<{ file: string; sha256: string }> = [];
-            let warning = '';
-
-            if (!projectPath || !fs.existsSync(projectPath)) {
-                return { success: false, error: 'Project path does not exist.' };
-            }
-
-            const hasBuild = fs.existsSync(path.join(projectPath, 'pom.xml')) || fs.existsSync(path.join(projectPath, 'build.gradle'));
-            if ((targetType === 'jar' || targetType === 'zip') && hasBuild) {
-                const build = await runBuild(projectPath);
-                if (!build.success) {
-                    return { success: false, error: build.error || 'Build failed before release packaging.' };
-                }
-            }
-
-            const releaseDir = path.join(projectPath, 'release');
-            fs.mkdirSync(releaseDir, { recursive: true });
-            const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const projectName = path.basename(projectPath);
-            const baseName = `${projectName}-${stamp}`;
-
-            let artifactPath: string | null = null;
-            if (targetType === 'sk') artifactPath = findSkriptArtifact(projectPath);
-            else artifactPath = findJarArtifact(projectPath);
-            if (!artifactPath && targetType === 'zip') artifactPath = findJarArtifact(projectPath) || findSkriptArtifact(projectPath);
-            if (!artifactPath) return { success: false, error: 'No release artifact found (.jar or .sk).' };
-
-            const artifactExt = path.extname(artifactPath) || '.bin';
-            const copiedArtifact = path.join(releaseDir, `${baseName}${artifactExt}`);
-            fs.copyFileSync(artifactPath, copiedArtifact);
-            outputFiles.push(copiedArtifact);
-
-            if (includeDocs) {
-                const notesPath = path.join(releaseDir, `${baseName}-notes.txt`);
-                const notes = [
-                    `Project: ${projectName}`,
-                    `Generated: ${new Date().toISOString()}`,
-                    `Artifact: ${path.basename(copiedArtifact)}`,
-                    `Target: ${targetType}`,
-                    '',
-                    'Auto-generated by CraftIDE release:oneClick',
-                ].join('\n');
-                fs.writeFileSync(notesPath, notes, 'utf-8');
-                outputFiles.push(notesPath);
-            }
-
-            if (targetType === 'zip') {
-                const zipPath = path.join(releaseDir, `${baseName}.zip`);
-                const zipResult = await zipFiles(outputFiles, zipPath);
-                if (zipResult.success) {
-                    outputFiles.length = 0;
-                    outputFiles.push(zipPath);
-                } else if (zipResult.warning) {
-                    warning = zipResult.warning;
-                }
-            }
-
-            for (const f of outputFiles) {
-                checksums.push({ file: f, sha256: hashFileSha256(f) });
-            }
-
-            return {
-                success: true,
-                outputFiles,
-                checksum: checksums,
-                warning,
-            };
+            return await BuildReleaseServices.createReleasePackage(request);
         } catch (err) {
             return { success: false, error: (err as Error).message };
         }

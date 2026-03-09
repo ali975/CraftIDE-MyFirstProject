@@ -26,6 +26,17 @@
             provider: 'ollama',
             offlinePreferred: true,
         },
+        creator: {
+            readiness: {
+                score: 0,
+                total: 4,
+                pct: 0,
+                canRelease: false,
+                releaseCreated: false,
+                checks: [],
+                summary: 'No quality checks run yet.',
+            },
+        },
     };
 
     function clone(value) {

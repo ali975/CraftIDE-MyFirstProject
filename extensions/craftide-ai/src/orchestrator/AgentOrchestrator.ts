@@ -93,7 +93,8 @@ export class AgentOrchestrator {
             this._currentDesign = await this.architect.design(
                 message,
                 context.minecraftVersion,
-                context.platform
+                context.platform,
+                context
             );
 
             // Tasarımı konuşma geçmişine ekle

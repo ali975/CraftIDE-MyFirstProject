@@ -74,13 +74,26 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
 
     private async _handleUserMessage(message: string): Promise<void> {
         const config = vscode.workspace.getConfiguration('craftide');
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+        const files = await vscode.workspace.findFiles('**/*.{java,yml,yaml,gradle,properties,sk,json,toml}', '**/{node_modules,.git,release,dist,build,target}/**', 40);
+        const existingFiles = files.map((file) => vscode.workspace.asRelativePath(file));
+        const dependencies = existingFiles.filter((file) =>
+            /plugin\.yml|paper-plugin\.yml|pom\.xml|build\.gradle|build\.gradle\.kts/i.test(file)
+        );
         await this._orchestrator.processUserMessage(message, {
             name: 'Plugin',
             platform: config.get('defaultPlatform', 'paper'),
             minecraftVersion: config.get('defaultMinecraftVersion', '1.20.4'),
-            rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '',
-            existingFiles: [],
-            dependencies: [],
+            rootPath: workspaceRoot,
+            existingFiles,
+            dependencies,
+            projectSummary: `Workspace root: ${workspaceRoot || 'none'} | Indexed files: ${existingFiles.slice(0, 12).join(', ') || 'none'}`,
+            knowledgePacks: ['vault', 'placeholderapi', 'worldguard', 'citizens', 'protocollib', 'folia'],
+            apiHighlights: [
+                'Prefer non-deprecated APIs for the selected Minecraft version.',
+                'Command flows should define permissions and usage.',
+                'Region, NPC, economy, and GUI requests may need ecosystem plugins.',
+            ],
         });
     }
 

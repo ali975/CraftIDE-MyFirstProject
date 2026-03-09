@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { describePrompt, buildCreatorBrief, inferWizardSeed, buildGraphFromWizardSeed, inferCreatorPath, extractSlashCommand, inferEconomySeed, inferLootSeed, inferQuestSeed, inferRegionSeed, parseEconomyOffers } = require('../src/shared/creator-brief.js');
+const { describePrompt, buildCreatorBrief, inferWizardSeed, buildGraphFromWizardSeed, inferCreatorPath, extractSlashCommand, inferEconomySeed, inferLootSeed, inferQuestSeed, inferRegionSeed, parseEconomyOffers, buildGuidedIntake, buildDeliveryChecklist } = require('../src/shared/creator-brief.js');
 
 test('describePrompt infers join trigger and reward actions', () => {
     const detail = describePrompt('When players join, give them a starter kit and show a welcome title.', 'plugin');
@@ -184,4 +184,21 @@ test('inferRegionSeed extracts protection defaults from prompt', () => {
     assert.equal(seed.mode, 'pvp');
     assert.equal(seed.regionName, 'Spawn Region');
     assert.equal(seed.message, '&cPvP is disabled in this region.');
+});
+
+test('buildGuidedIntake surfaces missing permission context for commands', () => {
+    const intake = buildGuidedIntake('Create a /spawn command that teleports players to spawn.', 'plugin');
+
+    assert.equal(intake.known.trigger, 'command');
+    assert.equal(intake.known.outcome, 'teleport');
+    assert.ok(intake.questions.some((q) => q.includes('access rule')));
+    assert.equal(intake.route.recommended, 'command');
+});
+
+test('buildDeliveryChecklist includes balance review for economy flows', () => {
+    const checklist = buildDeliveryChecklist('Open a /shop GUI where players buy emeralds for coins.', 'plugin');
+
+    assert.ok(checklist.some((item) => item.id === 'balance'));
+    assert.ok(checklist.some((item) => item.id === 'permission'));
+    assert.ok(checklist.some((item) => item.id === 'release'));
 });

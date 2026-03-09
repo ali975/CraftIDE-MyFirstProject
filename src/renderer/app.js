@@ -6,6 +6,7 @@
 const { ipcRenderer } = require('electron');
 const nodePath = require('path');
 const { describePrompt: describeCreatorPrompt, inferCreatorPath } = require('../shared/creator-brief.js');
+const Guidance = require('../shared/minecraft-guidance.js');
 const sharedUtils = window.CraftIDEUtils || {};
 
 // ═══════════════════════════════════════════════════════════
@@ -19,12 +20,15 @@ let activePanel = 'explorer';
 let activeTerminalId = null; // Gerçek terminal process ID
 let explorerSelectedPath = null;
 let explorerSelectedIsDir = false;
+let currentCreatorJourneyId = null;
 // Shared runtime API for additional renderer modules (e.g. No-Code Suite)
 window.CraftIDEAppState = {
     getCurrentProjectPath: () => currentProjectPath,
     getCurrentFilePath: () => currentFilePath,
     getActivePanel: () => activePanel,
     getOpenFiles: () => openFiles,
+    getCurrentCreatorJourneyId: () => currentCreatorJourneyId,
+    ensureCreatorJourney: (meta) => ensureCreatorJourney(meta),
     refreshFileTree: async () => { if (currentProjectPath) await renderFileTree(currentProjectPath); return !!currentProjectPath; },
     openFolder: (...args) => openFolder(...args),
     openFile: (...args) => openFile(...args),
@@ -34,6 +38,24 @@ window.CraftIDEAppState = {
     appendOutputLine: (...args) => appendOutputLine(...args),
     appendServerLine: (...args) => appendSmConsoleLine(...args),
 };
+
+function ensureCreatorJourney(meta = {}) {
+    if (!window.CraftIDEMetrics?.startJourney) return null;
+    if (!currentCreatorJourneyId) {
+        currentCreatorJourneyId = window.CraftIDEMetrics.startJourney({
+            mode: meta.mode || null,
+            prompt: meta.prompt || '',
+            source: meta.source || 'welcome',
+        });
+    }
+    return currentCreatorJourneyId;
+}
+
+function markCreatorJourneyStep(step, payload = {}) {
+    if (!window.CraftIDEMetrics?.markStep) return;
+    const journeyId = ensureCreatorJourney(payload);
+    if (journeyId) window.CraftIDEMetrics.markStep(journeyId, step, payload);
+}
 
 function interpolateText(template, params) {
     if (typeof sharedUtils.interpolateText === 'function') {
@@ -1367,6 +1389,9 @@ function showWelcome() {
 }
 
 function getWelcomeIdeaRequest() {
+    if (window.CraftIDEWelcomeFlow?.getRequest) {
+        return window.CraftIDEWelcomeFlow.getRequest();
+    }
     const input = document.getElementById('welcome-idea-input');
     const mode = document.getElementById('welcome-idea-mode');
     return {
@@ -1380,27 +1405,25 @@ function applyWelcomeIdeaSeed(seedPrompt, mode) {
     const modeSelect = document.getElementById('welcome-idea-mode');
     if (input && typeof seedPrompt === 'string') input.value = seedPrompt;
     if (modeSelect && mode) modeSelect.value = mode;
+    ensureCreatorJourney({ prompt: seedPrompt, mode, source: 'welcome-seed' });
+    markCreatorJourneyStep('idea_seeded', { prompt: seedPrompt, mode });
     renderWelcomeIdeaPreview();
 }
 
 function renderWelcomeIdeaPreview() {
+    if (window.CraftIDEWelcomeFlow?.renderPreview) {
+        window.CraftIDEWelcomeFlow.renderPreview();
+        return;
+    }
     const summaryEl = document.getElementById('welcome-idea-summary');
     const actionsEl = document.getElementById('welcome-idea-actions');
     const nextEl = document.getElementById('welcome-idea-next');
     const badgeEl = document.getElementById('welcome-idea-preview-badge');
     if (!summaryEl || !actionsEl || !nextEl || !badgeEl) return;
-
     const request = getWelcomeIdeaRequest();
     const detail = window.NoCodeSuite?.describePrompt?.(request.prompt, request.mode)
         || describeCreatorPrompt(request.prompt, request.mode, { translate: tr });
-    if (!detail) {
-        summaryEl.textContent = tr('ui.welcome.idea.previewEmptySummary', 'Describe an idea and CraftIDE will summarize the likely project flow here.');
-        actionsEl.textContent = tr('ui.welcome.idea.previewEmptyActions', 'CraftIDE turns your request into a visual graph, suggests missing blocks, and opens the right builder flow.');
-        nextEl.textContent = tr('ui.welcome.idea.previewEmptyNext', 'Start the AI flow to open the one-step builder with your idea prefilled.');
-        badgeEl.textContent = tr('ui.welcome.idea.previewBadge', 'Draft');
-        return;
-    }
-
+    if (!detail) return;
     summaryEl.textContent = [detail.summary, detail.eventText].filter(Boolean).join(' ');
     actionsEl.textContent = Array.isArray(detail.actions) ? detail.actions.join(' ') : String(detail.actions || '');
     nextEl.textContent = detail.nextStep || tr('ui.welcome.idea.previewEmptyNext', 'Start the AI flow to open the one-step builder with your idea prefilled.');
@@ -1408,57 +1431,17 @@ function renderWelcomeIdeaPreview() {
 }
 
 function renderWelcomeCreatorPaths() {
-    const subEl = document.getElementById('welcome-creator-paths-sub');
-    const buttons = Array.from(document.querySelectorAll('.welcome-creator-path'));
-    if (!subEl || !buttons.length) return;
-
-    const request = getWelcomeIdeaRequest();
-    const route = inferCreatorPath(request.prompt);
-    const catalog = {
-        command: {
-            title: tr('ui.welcome.paths.command.title', 'Command Designer'),
-            desc: tr('ui.welcome.paths.command.desc', 'Shape a command flow with subcommands and arguments.'),
-            sub: tr('ui.welcome.paths.command.sub', 'Best for command-first ideas, automation and admin tools.'),
-        },
-        shop: {
-            title: tr('ui.welcome.paths.shop.title', 'GUI Shop'),
-            desc: tr('ui.welcome.paths.shop.desc', 'Start a chest menu for shop or server navigation flows.'),
-            sub: tr('ui.welcome.paths.shop.sub', 'Best for menus, shops and button-based player flows.'),
-        },
-        quest: {
-            title: tr('ui.welcome.paths.quest.title', 'Quest Designer'),
-            desc: tr('ui.welcome.paths.quest.desc', 'Create guided missions with objectives, rewards and claim flows.'),
-            sub: tr('ui.welcome.paths.quest.sub', 'Best for daily quests, collection goals and reward-driven progression.'),
-        },
-        region: {
-            title: tr('ui.welcome.paths.region.title', 'Region Designer'),
-            desc: tr('ui.welcome.paths.region.desc', 'Protect spawn, claims and PvP zones with guided flags.'),
-            sub: tr('ui.welcome.paths.region.sub', 'Best for spawn protection, safe zones and anti-grief rules.'),
-        },
-        loot: {
-            title: tr('ui.welcome.paths.loot.title', 'Loot Designer'),
-            desc: tr('ui.welcome.paths.loot.desc', 'Create loot drops, starter rewards and crate-style giveaways.'),
-            sub: tr('ui.welcome.paths.loot.sub', 'Best for boss loot, join rewards and claimable reward flows.'),
-        },
-        npc: {
-            title: tr('ui.welcome.paths.npc.title', 'NPC Dialogue'),
-            desc: tr('ui.welcome.paths.npc.desc', 'Generate dialogue files and option branches for guide NPCs.'),
-            sub: tr('ui.welcome.paths.npc.sub', 'Best for dialogue, quest givers and guided interactions.'),
-        },
-    };
-
-    subEl.textContent = catalog[route.recommended]?.sub || tr('ui.welcome.paths.subtitle', 'CraftIDE can route this idea into the most useful designer.');
-    buttons.forEach((button) => {
-        const pathId = button.getAttribute('data-path');
-        const meta = catalog[pathId] || catalog.command;
-        button.classList.toggle('is-recommended', pathId === route.recommended);
-        button.querySelector('.welcome-creator-path-title').textContent = meta.title;
-        button.querySelector('.welcome-creator-path-desc').textContent = meta.desc;
-    });
+    if (window.CraftIDEWelcomeFlow?.renderCreatorPaths) {
+        window.CraftIDEWelcomeFlow.renderCreatorPaths();
+        return;
+    }
 }
 
 function openWelcomeCreatorPath(pathId) {
     const request = getWelcomeIdeaRequest();
+    const route = inferCreatorPath(request.prompt);
+    ensureCreatorJourney({ prompt: request.prompt, mode: request.mode, source: 'creator-path' });
+    markCreatorJourneyStep('creator_path_opened', { pathId, prompt: request.prompt, mode: request.mode, recommendedRoute: route.recommended });
     if (pathId === 'loot' && window.CraftIDEPhaseSuite?.openDesigner) {
         window.CraftIDEPhaseSuite.openDesigner('loot', { prompt: request.prompt });
         return;
@@ -1504,6 +1487,9 @@ function launchWelcomeIdeaFlow(options = {}) {
     const request = getWelcomeIdeaRequest();
     const prompt = typeof options.prompt === 'string' ? options.prompt.trim() : request.prompt;
     const mode = options.mode || request.mode || 'plugin';
+    const route = inferCreatorPath(prompt);
+    ensureCreatorJourney({ prompt, mode, source: options.source || 'welcome-ai-flow' });
+    markCreatorJourneyStep('welcome_ai_flow', { prompt, mode, recommendedRoute: route.recommended });
 
     if (window.NoCodeSuite?.openOneStepModal) {
         document.querySelector('.activity-btn[data-action="visual-builder"]')?.click();
@@ -1526,6 +1512,8 @@ function launchWelcomeIdeaFlow(options = {}) {
 
 function openWelcomeVisualBuilder() {
     const request = getWelcomeIdeaRequest();
+    ensureCreatorJourney({ prompt: request.prompt, mode: request.mode, source: 'welcome-builder' });
+    markCreatorJourneyStep('welcome_visual_builder', { prompt: request.prompt, mode: request.mode });
     document.querySelector('.activity-btn[data-action="visual-builder"]')?.click();
     if (window.CraftIDEVB?.openWizard) {
         setTimeout(() => window.CraftIDEVB.openWizard({ mode: request.mode, prompt: request.prompt }), 120);
@@ -1901,6 +1889,8 @@ document.getElementById('ai-input').addEventListener('keydown', (e) => {
 
 function sendAIMessage(message) {
     const messages = document.getElementById('ai-messages');
+    ensureCreatorJourney({ prompt: message, mode: currentFilePath?.startsWith('visual-builder://') ? (window.CraftIDEVB?.getMode?.() || 'plugin') : 'plugin', source: 'ai-chat' });
+    markCreatorJourneyStep('ai_chat_opened', { prompt: message });
 
     const userMsg = document.createElement('div');
     userMsg.className = 'ai-message ai-user';
@@ -1926,10 +1916,19 @@ function sendAIMessage(message) {
         let fullResponse = '';
         aiContent.innerHTML = '<p></p>';
         const responseParagraph = aiContent.querySelector('p');
+        const promptPreamble = Guidance.buildPromptPreamble({
+            context: {
+                activeFile: currentFilePath,
+                currentProjectPath,
+                files: Array.from(openFiles.keys()).slice(0, 20),
+                mode: window.CraftIDEVB?.getMode?.() || 'plugin',
+                dependencies: [],
+            },
+        });
 
         window.llmProvider.generateStream(
             message,
-            window.MC_SYSTEM_PROMPT || 'Sen yardımcı bir AI asistanısın.',
+            `${window.MC_SYSTEM_PROMPT || 'Sen yardımcı bir AI asistanısın.'}\n\nProject context:\n${promptPreamble}`,
             (chunk) => {
                 fullResponse += chunk;
                 // Markdown-like formatting (basit)
@@ -1940,6 +1939,7 @@ function sendAIMessage(message) {
             // Streaming tamamlandı
             responseParagraph.innerHTML = formatAIResponse(fullResponse);
             messages.scrollTop = messages.scrollHeight;
+            markCreatorJourneyStep('ai_chat_completed', { chars: fullResponse.length });
         }).catch((err) => {
             aiContent.innerHTML =
                 '<p>' + escapeHtml(tr('ai.errorLabel', 'AI error:')) + ' ' + escapeHtml(err.message) + '</p>' +

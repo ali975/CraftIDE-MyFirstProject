@@ -28,6 +28,8 @@ function createWindow(): void {
         frame: false, // Custom titlebar
         titleBarStyle: 'hidden',
         webPreferences: {
+            // Stage-1 bridge for a future contextIsolation migration.
+            preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: true,
             contextIsolation: false,
             webSecurity: false,

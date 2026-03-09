@@ -1,5 +1,5 @@
 import { LLMProvider } from '../llm/LLMProvider';
-import { DesignCard } from '../types';
+import { DesignCard, ProjectContext } from '../types';
 
 /**
  * Agent-A: Mimar (Architect Agent)
@@ -18,9 +18,10 @@ export class ArchitectAgent {
     async design(
         userMessage: string,
         mcVersion: string,
-        platform: string
+        platform: string,
+        context?: ProjectContext
     ): Promise<DesignCard> {
-        const systemPrompt = this._buildSystemPrompt(mcVersion, platform);
+        const systemPrompt = this._buildSystemPrompt(mcVersion, platform, context);
 
         const response = await this.llm.generate(userMessage, systemPrompt, {
             temperature: 0.4, // Deterministik tasarım için düşük
@@ -36,16 +37,28 @@ export class ArchitectAgent {
     async *designStream(
         userMessage: string,
         mcVersion: string,
-        platform: string
+        platform: string,
+        context?: ProjectContext
     ): AsyncIterable<string> {
-        const systemPrompt = this._buildSystemPrompt(mcVersion, platform);
+        const systemPrompt = this._buildSystemPrompt(mcVersion, platform, context);
         yield* this.llm.generateStream(userMessage, systemPrompt, {
             temperature: 0.4,
             maxTokens: 4096,
         });
     }
 
-    private _buildSystemPrompt(mcVersion: string, platform: string): string {
+    private _buildSystemPrompt(mcVersion: string, platform: string, context?: ProjectContext): string {
+        const contextBlock = context ? `
+## PROJE BAĞLAMI
+- Workspace: ${context.rootPath || 'unknown'}
+- Aktif dosya: ${context.activeFile || 'unknown'}
+- Bilinen dosyalar: ${(context.existingFiles || []).slice(0, 20).join(', ') || 'none'}
+- Bağımlılıklar: ${(context.dependencies || []).join(', ') || 'none'}
+- Proje özeti: ${context.projectSummary || 'none'}
+- Bilgi paketleri: ${(context.knowledgePacks || []).join(', ') || 'none'}
+- API ipuçları:
+${(context.apiHighlights || []).map((line) => `  - ${line}`).join('\n') || '  - none'}
+` : '';
         return `Sen CraftIDE'nin Mimar Ajanısın (Agent-A).
 
 ## GÖREV
@@ -59,6 +72,9 @@ Kullanıcının Türkçe veya İngilizce doğal dil girdisini analiz et ve bir M
 5. Mimari kararlarının nedenini açıkla (reasoning)
 6. Deprecated API'ler kullanma (MC ${mcVersion} için güncel API'leri hedefle)
 7. Eksik bilgi varsa mantıklı varsayımlarda bulun
+8. Mevcut proje bağlamını kullanarak tasarımı mevcut workspace ile uyumlu düşün
+
+${contextBlock}
 
 ## ÇIKTI FORMATI
 Yanıtını SADECE aşağıdaki JSON formatında ver, başka hiçbir metin ekleme:

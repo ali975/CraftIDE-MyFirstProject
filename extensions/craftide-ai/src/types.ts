@@ -148,6 +148,10 @@ export interface ProjectContext {
     rootPath: string;
     existingFiles: string[];
     dependencies: string[];
+    activeFile?: string;
+    projectSummary?: string;
+    knowledgePacks?: string[];
+    apiHighlights?: string[];
 }
 
 // ─── LLM Sağlayıcı ─────────────────────────────────────

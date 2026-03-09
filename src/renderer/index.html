@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -293,6 +293,18 @@
                                             <div class="welcome-idea-preview-card-title" data-i18n="ui.welcome.idea.nextTitle">Next step</div>
                                             <div class="welcome-idea-preview-card-body" id="welcome-idea-next">Start with AI Flow to open the one-step builder with your idea prefilled.</div>
                                         </div>
+                                        <div class="welcome-idea-preview-card">
+                                            <div class="welcome-idea-preview-card-title">Recommended route</div>
+                                            <div class="welcome-idea-preview-card-body" id="welcome-idea-route">CraftIDE can route this idea into the most useful creator flow.</div>
+                                        </div>
+                                        <div class="welcome-idea-preview-card">
+                                            <div class="welcome-idea-preview-card-title">Questions to confirm</div>
+                                            <div class="welcome-idea-preview-card-body" id="welcome-idea-requirements">Answering a few key questions here will make the first draft more accurate.</div>
+                                        </div>
+                                        <div class="welcome-idea-preview-card">
+                                            <div class="welcome-idea-preview-card-title">Delivery pipeline</div>
+                                            <div class="welcome-idea-preview-card-body" id="welcome-delivery-status">Validate, scenario test, and release will appear here once the idea is clear.</div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="welcome-creator-paths">
@@ -341,7 +353,7 @@
                             <!-- Left Column: Start + Recent -->
                             <div class="welcome-col-left">
                                 <div class="welcome-section">
-                                    <h2 data-i18n="ui.welcome.start">Start</h2>
+                                    <h2 data-i18n="ui.welcome.start">Secondary Tools</h2>
                                     <div class="welcome-links">
                                         <a class="welcome-link" href="#" id="wl-new-file">
                                             <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
@@ -376,7 +388,7 @@
                                                 <path
                                                     d="M8 1a4 4 0 014 4v.5h.5a2.5 2.5 0 012.5 2.5v3a2.5 2.5 0 01-2.5 2.5H12v.5a3 3 0 01-6 0v-.5H3.5A2.5 2.5 0 011 11V8a2.5 2.5 0 012.5-2.5H4V5a4 4 0 014-4zM6 10a1 1 0 100-2 1 1 0 000 2zm4 0a1 1 0 100-2 1 1 0 000 2z" />
                                             </svg>
-                                            Create with AI...
+                                            Open AI Chat...
                                         </a>
                                     </div>
                                 </div>
@@ -1343,6 +1355,7 @@
     <script src="llm-provider.js"></script>
     <script src="skript-language.js"></script>
     <script src="minecraft-api.js"></script>
+    <script src="../shared/minecraft-guidance.js"></script>
 
     <!-- Pixel Art Image Editor (canvas tabanlı, offline) -->
     <script src="image-editor.js"></script>
@@ -1351,6 +1364,8 @@
     <script src="visual-builder-codegen.js"></script>
     <script src="visual-builder.js"></script>
     <script src="ai-manager.js"></script>
+    <script src="creator-metrics.js"></script>
+    <script src="welcome-flow.js"></script>
 
     <!-- CraftIDE Yeni Araçlar -->
     <script src="gui-builder.js"></script>

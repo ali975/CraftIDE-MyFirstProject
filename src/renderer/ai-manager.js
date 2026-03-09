@@ -14,6 +14,24 @@ function aiTr(key, fallback, params) {
     return Object.entries(params).reduce((acc, [paramKey, value]) => acc.replaceAll(`{${paramKey}}`, String(value)), fallback);
 }
 
+function buildSharedPromptContext(context, prompt) {
+    const Guidance = window.CraftIDEGuidance;
+    if (!Guidance?.buildPromptPreamble) return '';
+    return Guidance.buildPromptPreamble({
+        context: {
+            prompt,
+            activeFile: context.activeFile,
+            currentProjectPath: window.CraftIDEAppState?.getCurrentProjectPath?.(),
+            files: Array.from(window.CraftIDEAppState?.getOpenFiles?.()?.keys?.() || []).slice(0, 20),
+            mode: context.visualBuilderMode || 'plugin',
+            graph: context.isVisualBuilderOpen ? {
+                nodes: context.vbSummary || [],
+                connections: context.vbConnections || [],
+            } : null,
+        },
+    });
+}
+
 class CraftAIManager {
     constructor() {
         this.llm = window.llmProvider;
@@ -143,10 +161,12 @@ class CraftAIManager {
     }
 
     async processGeneralChat(userText, context, responseContentDiv) {
+        const promptContext = buildSharedPromptContext(context, userText);
         const systemPrompt = `Sen CraftIDE'nin merkez yapay zeka asistanısın.
 Şu an kullanıcının açık olan dosyası: ${context.activeFile || 'Yok'}
 Açık olan panel: ${context.activePanel}
 ${context.codeSnippet ? '\nMevcut Kod:\n' + context.codeSnippet : ''}
+${promptContext ? '\nProje Bağlamı:\n' + promptContext : ''}
 
 Kullanıcıya Minecraft eklenti, mod veya Skript geliştirmesinde yardımcı ol.`;
 
@@ -192,6 +212,7 @@ Kullanıcıya Minecraft eklenti, mod veya Skript geliştirmesinde yardımcı ol.
         responseContentDiv.innerHTML = `<p>${this._escapeHtml(aiTr('ai.preparingBlocks', 'Preparing blocks for you...'))} <span class="ai-loading"></span></p>`;
 
         const mode = context.visualBuilderMode || 'plugin';
+        const promptContext = buildSharedPromptContext(context, userText);
 
         // Hangi blokların uygun olduğunu bularak şemayı sadece o moda göre LLM'e vereceğiz
         const availableBlocks = Object.keys(ALL_BLOCK_DEFS).reduce((acc, key) => {
@@ -215,6 +236,7 @@ Kullanıcıya Minecraft eklenti, mod veya Skript geliştirmesinde yardımcı ol.
 
         const systemPrompt = `Sen CraftIDE Visual Builder Asistanısın. Görevin kullanıcının isteğini node (blok) tabanlı bir plugin blueprint'ine çevirmektir.
 Şu anki mod: ${mode}
+${promptContext ? `\nProje Bağlamı:\n${promptContext}\n` : ''}
 
 KULLANILABİLECEK BLOKLAR (ID ve Parametreleri):
 ${blockDefsStr}

@@ -19,6 +19,88 @@ function createTranslator(options) {
     return typeof options?.translate === 'function' ? options.translate : defaultTranslate;
 }
 
+function inferAudience(prompt) {
+    const lower = String(prompt || '').toLowerCase();
+    if (lower.includes('admin') || lower.includes('staff') || lower.includes('moderation')) return 'staff';
+    if (lower.includes('new player') || lower.includes('starter') || lower.includes('beginner')) return 'new_players';
+    if (lower.includes('everyone') || lower.includes('all players')) return 'all_players';
+    return 'players';
+}
+
+function inferOutcome(prompt) {
+    const lower = String(prompt || '').toLowerCase();
+    if (lower.includes('gui') || lower.includes('menu') || lower.includes('inventory')) return 'gui';
+    if (lower.includes('reward') || lower.includes('kit') || lower.includes('diamond') || lower.includes('odul')) return 'reward';
+    if (lower.includes('teleport') || lower.includes('spawn') || lower.includes('warp')) return 'teleport';
+    if (lower.includes('protect') || lower.includes('region') || lower.includes('pvp')) return 'protection';
+    if (lower.includes('quest') || lower.includes('objective') || lower.includes('mission')) return 'quest';
+    return 'feedback';
+}
+
+function inferPrimaryTrigger(prompt) {
+    const lower = String(prompt || '').toLowerCase();
+    if (lower.includes('/') || lower.includes('command') || lower.includes('komut')) return 'command';
+    if (lower.includes('join') || lower.includes('welcome') || lower.includes('katil')) return 'join';
+    if (lower.includes('death') || lower.includes('ol')) return 'death';
+    if (lower.includes('break') || lower.includes('kir')) return 'break';
+    return 'event';
+}
+
+function buildGuidedIntake(prompt, mode, options = {}) {
+    const t = createTranslator(options);
+    const text = String(prompt || '').trim();
+    const route = inferCreatorPath(text);
+    const trigger = inferPrimaryTrigger(text);
+    const audience = inferAudience(text);
+    const outcome = inferOutcome(text);
+    const known = {
+        trigger,
+        audience,
+        outcome,
+        route: route.recommended,
+        mode: normalizeMode(mode),
+    };
+    const questions = [];
+    if (trigger === 'event') questions.push(t('ui.nc.intake.needTrigger', 'Choose how this starts: command, join, break, death, or another event.'));
+    if (audience === 'players') questions.push(t('ui.nc.intake.needAudience', 'Decide who can use this: all players, staff, or new players.'));
+    if (outcome === 'feedback') questions.push(t('ui.nc.intake.needOutcome', 'Clarify the result: message, teleport, reward, GUI, quest, or protection.'));
+    if (!/permission|yetki|op/.test(text.toLowerCase()) && (trigger === 'command' || audience === 'staff')) {
+        questions.push(t('ui.nc.intake.needPermission', 'Add an access rule if only certain players should use it.'));
+    }
+    if (!text) {
+        questions.push(t('ui.nc.intake.describeIdea', 'Describe the Minecraft feature before starting the flow.'));
+    }
+
+    return {
+        known,
+        questions,
+        route,
+        ready: text.length > 0 && questions.length < 3,
+        nextStep: route.recommended === 'command'
+            ? t('ui.nc.intake.next.command', 'Best next step: open the command-oriented builder flow.')
+            : t('ui.nc.intake.next.general', 'Best next step: open the recommended creator and review the first draft.'),
+    };
+}
+
+function buildDeliveryChecklist(prompt, mode) {
+    const normalizedMode = normalizeMode(mode);
+    const lower = String(prompt || '').toLowerCase();
+    const items = [
+        { id: 'graph', label: 'Visual flow drafted', recommended: true },
+        { id: 'validation', label: 'Validation passes without blocking errors', recommended: true },
+        { id: 'build', label: normalizedMode === 'skript' ? 'Skript file generated cleanly' : 'Build succeeds', recommended: true },
+        { id: 'scenario', label: 'At least one scenario confirms expected player behavior', recommended: true },
+        { id: 'release', label: 'Release artifact packaged with notes/checksum', recommended: true },
+    ];
+    if (lower.includes('command') || lower.includes('/')) {
+        items.splice(1, 0, { id: 'permission', label: 'Command permission/access rule checked', recommended: true });
+    }
+    if (lower.includes('reward') || lower.includes('shop') || lower.includes('economy')) {
+        items.splice(items.length - 1, 0, { id: 'balance', label: 'Economy and reward balance reviewed', recommended: true });
+    }
+    return items;
+}
+
 function describePrompt(prompt, mode, options = {}) {
     const t = createTranslator(options);
     const text = String(prompt || '').trim();
@@ -410,6 +492,8 @@ function buildCreatorBrief(graph, options = {}) {
 }
 
 module.exports = {
+    buildDeliveryChecklist,
+    buildGuidedIntake,
     describePrompt,
     buildCreatorBrief,
     buildGraphFromWizardSeed,
